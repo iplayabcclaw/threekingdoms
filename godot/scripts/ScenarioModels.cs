@@ -96,6 +96,7 @@ public sealed class FacilityInstanceData
 {
     public string Id { get; set; } = string.Empty;
     public string DefinitionId { get; set; } = string.Empty;
+    public int SlotIndex { get; set; } = -1;
     public int Level { get; set; } = 1;
     public int Condition { get; set; } = 100;
 }
@@ -108,6 +109,7 @@ public sealed class ConstructionData
     public int TotalMonths { get; set; }
     public string Kind { get; set; } = "build";
     public string? TargetInstanceId { get; set; }
+    public int TargetSlotIndex { get; set; } = -1;
 }
 
 public sealed class ScenarioOfficerData

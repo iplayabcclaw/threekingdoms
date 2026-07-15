@@ -173,6 +173,15 @@ public static class RuntimeSelfTest
         Require(domestic.State.Resources.Gold < factionGold, "普通城务扣除势力共用府库");
         Require(secondCity.ActionSlots == secondSlots, "一城行动不消耗另一城城务额度");
         Require(!domestic.TransferTreasury(firstCity.Id, true, 100, 200), "共用府库不再需要城市调拨");
+        var construction = new GameRuntime(scenario);
+        var constructionCity = construction.State.Cities.First(item => item.OwnerFactionId == construction.State.PlayerFactionId);
+        var builder = construction.PlayerOfficers().First(item => item.InitialState.CityId == constructionCity.Id && item.InitialState.Status == "serving");
+        construction.State.Resources.Gold = Math.Max(construction.State.Resources.Gold, 100_000);
+        construction.State.Resources.Food = Math.Max(construction.State.Resources.Food, 100_000);
+        Require(construction.BuildFacility(constructionCity.Id, builder.Profile.Id, "market", 2)
+            && constructionCity.ConstructionQueue is { DefinitionId: "market", TargetSlotIndex: 2 }
+            && !GameRuntime.FacilitiesBySlot(constructionCity).ContainsKey(2),
+            "设施开工后绑定所选空地并以建造中状态占位");
         Require(domestic.ConfigureCityGovernance(secondCity.Id, "delegated", "agriculture", "granary", true), "逐城设置太守委任方针");
         Require(domestic.EndTurn(), "智能内政月度结算");
         Require(domestic.State.Cities.All(item => item.ActionCapacity is >= 1 and <= 4 && item.ActionSlots == item.ActionCapacity), "逐城城务额度独立重置");
@@ -369,8 +378,8 @@ public static class RuntimeSelfTest
         Require(automaticEncounter.MarchArmy(automaticArmies.PlayerArmy.Id)
             && automaticEncounter.State.PendingBattle is { BattleType: "field" } automaticField
             && automaticField.DefenderArmyId == automaticArmies.EnemyArmy.Id
-            && automaticField.Terrain == automaticArmies.Road.Terrain,
-            "敌对军团在同一道路行军区间相交时自动触发对应地形野战");
+            && automaticField.Terrain == "plain",
+            "敌对军团在同一道路行军区间相交时自动触发平地野战");
 
         var redirectedEncounter = new GameRuntime(scenario);
         var redirectedArmies = AddHeadOnRoadArmies(redirectedEncounter, "redirected");
@@ -400,14 +409,22 @@ public static class RuntimeSelfTest
         Require(campaign.EndTurn() && army.RemainingDays == remainingDays, "月末不重复推进己方军团");
         Require(campaign.MarchArmy(army.Id) && campaign.State.PendingBattle is not null, "新回合继续行军并抵达战场");
         var pending = campaign.State.PendingBattle!;
-        var forestZone = pending.TerrainZones.FirstOrDefault(item => item.Type == "forest");
-        Require(forestZone is not null && pending.TerrainZones.Any(item => item.Type == "hill")
-            && BattleCalculator.LocalMoveMultiplier(pending, "cavalry", forestZone.X, forestZone.Y)
-                < BattleCalculator.LocalMoveMultiplier(pending, "infantry", forestZone.X, forestZone.Y), "大战场生成局部树林与坡地，骑兵在树林中减速更明显");
+        Require(pending.Terrain == "plain"
+            && BattleCalculator.LocalMoveMultiplier(pending, "cavalry", 500, 500) == 1,
+            "大战场统一按平地演算且不生成局部地形区");
         Require(pending.Groups.Count(item => item.Side == "attacker") == BattleCalculator.ExpectedGroupCount(pending.AttackerBefore), "兵力按人数展开战斗队");
         Require(BattleCalculator.ExpectedGroupCount(400) == 1 && BattleCalculator.ExpectedGroupCount(3700) == 7, "小股守军与大军显示数量明显区分");
         Require(pending.Groups.Where(item => item.Side == "attacker" && item.TroopType == "archers").All(item => item.Depth == 2 && item.MaximumRange == 300), "弓兵后排与射程规则");
         var targetCity = campaign.City(targetId)!;
+        var formationPreview = BattleCalculator.Create(campaign.State, army, targetCity);
+        var previewOrders = new Dictionary<string, string> { ["infantry"] = "shield-line", ["archers"] = "rear-double" };
+        BattleCalculator.Configure(formationPreview, "goose", previewOrders);
+        var goosePreview = string.Join('|', formationPreview.Groups.Where(item => item.Side == formationPreview.PlayerSide).OrderBy(item => item.Id).Select(item => $"{item.Id}:{item.Lane}:{item.Depth}:{item.X:F0}:{item.Y:F0}"));
+        BattleCalculator.Configure(formationPreview, "wedge", previewOrders);
+        var wedgePreview = string.Join('|', formationPreview.Groups.Where(item => item.Side == formationPreview.PlayerSide).OrderBy(item => item.Id).Select(item => $"{item.Id}:{item.Lane}:{item.Depth}:{item.X:F0}:{item.Y:F0}"));
+        BattleCalculator.Configure(formationPreview, "goose", previewOrders);
+        var restoredGoosePreview = string.Join('|', formationPreview.Groups.Where(item => item.Side == formationPreview.PlayerSide).OrderBy(item => item.Id).Select(item => $"{item.Id}:{item.Lane}:{item.Depth}:{item.X:F0}:{item.Y:F0}"));
+        Require(goosePreview != wedgePreview && goosePreview == restoredGoosePreview, "切换全军阵型会即时重排军团且切回后坐标可重复");
         var localDefenders = campaign.State.Officers.Where(item => item.InitialState.FactionId == targetCity.OwnerFactionId && item.InitialState.CityId == targetCity.Id && item.InitialState.Alive && item.InitialState.Status == "serving").ToList();
         var defenderStatuses = localDefenders.Select(item => item.InitialState.Status).ToList();
         for (var index = 0; index < localDefenders.Count; index++) localDefenders[index].InitialState.Status = "deployed";
@@ -451,7 +468,11 @@ public static class RuntimeSelfTest
         var aggressiveBattle = CreateBattleVariant(campaign.State, army, targetCity, "aggressive", "steady-advance", "goose", new Dictionary<string, string> { ["infantry"] = "shield-line", ["archers"] = "rear-double" });
         Require(aggressiveBattle.Stance == "aggressive" && aggressiveBattle.PhaseResults[0].Explanation.Contains("激进姿态") && BattleCalculator.StanceEffectSummary("aggressive") != BattleCalculator.StanceEffectSummary("standard"), "军团姿态进入实时攻防公式");
         var wedgeBattle = CreateBattleVariant(campaign.State, army, targetCity, "standard", "steady-advance", "wedge", new Dictionary<string, string> { ["infantry"] = "assault-column", ["archers"] = "rear-double" });
-        Require(wedgeBattle.PhaseResults[0].PowerRatio != steadyBattle.PhaseResults[0].PowerRatio, "全军阵型与兵种军令改变实时战果");
+        Require(wedgeBattle.AttackerFormation.FormationId == "wedge"
+            && wedgeBattle.Groups.Where(item => item.Side == "attacker" && item.TroopType == "infantry").All(item => item.FormationId == "assault-column")
+            && steadyBattle.Groups.Where(item => item.Side == "attacker" && item.TroopType == "infantry").All(item => item.FormationId == "shield-line")
+            && wedgeBattle.Timeline.Any(item => item.Stage == "列阵" && item.Text.Contains("锋矢阵")),
+            "全军阵型与兵种军令写入实时演算");
         var volleyBattle = CreateBattleVariant(campaign.State, army, targetCity, "standard", "arrow-volley", "goose", new Dictionary<string, string> { ["infantry"] = "shield-line", ["archers"] = "rear-double" });
         Require(volleyBattle.PrimaryTactic == "arrow-volley" && BattleCalculator.TacticEffectSummary("arrow-volley") != BattleCalculator.TacticEffectSummary("steady-advance"), "主战术进入实时演算");
         Require(BattleCalculator.TacticRequirement("cavalry-charge", army.Composition).Contains("骑兵需达到总兵力的12%"), "主战术条件不足时返回明确的兵种要求");
@@ -516,10 +537,9 @@ public static class RuntimeSelfTest
         Require(interception.CreateExpedition(interceptSource.Id, interceptSource.Id, interceptCommander.Profile.Id, 3000, 3000, "standard", "encirclement", [], new Dictionary<string, int> { ["infantry"] = 2000, ["archers"] = 1000 }, [], enemyArmy.Id), "可选中敌方军团并发起专门拦截");
         var fieldPending = interception.State.PendingBattle ?? throw new InvalidOperationException("[GodotSelfTest] FAIL · 未创建军团野战");
         Require(fieldPending.BattleType == "field" && fieldPending.DefenderArmyId == enemyArmy.Id && fieldPending.DefenderBefore == 3700, "拦截目标绑定敌军团并按真实兵力展开野战");
-        var shallowZone = fieldPending.TerrainZones.First(item => item.Type == "shallow");
-        Require(BattleCalculator.LocalMoveMultiplier(fieldPending, "infantry", shallowZone.X, shallowZone.Y) < 1
-            && BattleCalculator.LocalMoveMultiplier(fieldPending, "cavalry", shallowZone.X, shallowZone.Y)
-                < BattleCalculator.LocalMoveMultiplier(fieldPending, "infantry", shallowZone.X, shallowZone.Y), "野战浅滩降低全军机动且骑兵受影响最大");
+        Require(fieldPending.Terrain == "plain"
+            && BattleCalculator.LocalMoveMultiplier(fieldPending, "infantry", 500, 500) == 1,
+            "军团野战统一按平地演算且没有浅滩减速");
         Require(interception.StartPendingBattle(), "军团野战开始实时演算");
         BattleCalculator.RunToCompletion(interception.State, fieldPending);
         Require(fieldPending.Status == "resolved" && fieldPending.Timeline.All(item => item.Action != "structure") && fieldPending.WallBefore == 0 && fieldPending.GateBefore == 0, "军团野战不读取城墙城门且无攻城事件");

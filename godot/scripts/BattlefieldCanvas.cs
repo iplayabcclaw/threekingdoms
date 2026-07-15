@@ -4,7 +4,7 @@ namespace ThreeKingdomsSimulator.Godot;
 
 public partial class BattlefieldCanvas : Control
 {
-    private const float HeaderHeight = 92;
+    private const float HeaderHeight = 74;
     private const float LogicalExtent = 1000;
     private const float WorldWidth = 2400;
     private const float WorldHeight = 1350;
@@ -44,7 +44,7 @@ public partial class BattlefieldCanvas : Control
 
     public BattlefieldCanvas()
     {
-        CustomMinimumSize = new Vector2(0, 500);
+        CustomMinimumSize = new Vector2(0, 610);
         MouseFilter = MouseFilterEnum.Stop;
         MouseDefaultCursorShape = CursorShape.Cross;
         ClipContents = true;
@@ -116,7 +116,6 @@ public partial class BattlefieldCanvas : Control
 
         BuildActiveEventCache();
         DrawRangeBands();
-        DrawTerrainZoneOverlays();
         DrawFortification();
         foreach (var group in _battle!.Groups.OrderBy(item => item.Y).ThenByDescending(item => item.Depth)) DrawGroup(group);
         foreach (var officer in _battle.OfficerUnits.OrderBy(item => item.Y)) DrawMountedOfficer(officer);
@@ -338,19 +337,22 @@ public partial class BattlefieldCanvas : Control
     private void DrawBattleHeader()
     {
         var stage = _battle!.Status == "planning" ? "战前布阵" : _battle.Status == "resolved" ? "战斗结束" : _latestActiveEvent?.Stage ?? "实时交战";
-        DrawRect(new Rect2(0, 0, Size.X, 92), new Color(.025f, .035f, .025f, .88f));
+        var hud = new Color(.025f, .035f, .025f, .78f);
+        DrawRect(new Rect2(10, 6, 336, 62), hud);
+        DrawRect(new Rect2(Size.X - 346, 6, 336, 62), hud);
+        DrawRect(new Rect2(Size.X / 2 - 96, 6, 192, 62), new Color(.025f, .035f, .025f, .84f));
         var enemySide = _battle.PlayerSide == "attacker" ? "defender" : "attacker";
         var font = GetThemeDefaultFont();
         DrawForceBar(enemySide, 18, false, Color.FromHtml("#d79077"), "敌军（左侧）");
         DrawForceBar(_battle.PlayerSide, Size.X - 338, true, Color.FromHtml("#88c9a3"), "我军（右侧）");
         var remaining = _battle.Status == "planning" ? _battle.Duration : Math.Max(0, _battle.Duration - _battle.Elapsed);
-        DrawString(font, new Vector2(Size.X / 2 - 115, 25), stage, HorizontalAlignment.Center, 230, 16, GameTheme.OnAccent);
-        DrawString(font, new Vector2(Size.X / 2 - 90, 54), $"{Math.Ceiling(remaining):00} 秒", HorizontalAlignment.Center, 180, 25, Color.FromHtml("#f0d58a"));
+        DrawString(font, new Vector2(Size.X / 2 - 90, 22), stage, HorizontalAlignment.Center, 180, 15, GameTheme.OnAccent);
+        DrawString(font, new Vector2(Size.X / 2 - 78, 51), $"{Math.Ceiling(remaining):00} 秒", HorizontalAlignment.Center, 156, 24, Color.FromHtml("#f0d58a"));
         if (_battle.BattleType == "siege")
         {
             var structureX = _battle.PlayerSide == "defender" ? Size.X - 250 : 18;
-            DrawStructureBar("外墙", _battle.WallBefore, _battle.WallAfter, structureX, 62);
-            DrawStructureBar("城门", _battle.GateBefore, _battle.GateAfter, structureX, 76);
+            DrawStructureBar("外墙", _battle.WallBefore, _battle.WallAfter, structureX, 51);
+            DrawStructureBar("城门", _battle.GateBefore, _battle.GateAfter, structureX, 62);
         }
     }
 
@@ -363,11 +365,11 @@ public partial class BattlefieldCanvas : Control
         var routed = groups.Count(item => item.IsRouted);
         var name = string.IsNullOrEmpty(label) ? (_battle.BattleType == "field" ? side == "attacker" ? "出击军" : "敌军" : side == "attacker" ? "攻方" : "守方") : label;
         var alignment = alignRight ? HorizontalAlignment.Right : HorizontalAlignment.Left;
-        DrawString(GetThemeDefaultFont(), new Vector2(x, 24), $"{name} {current:N0}/{before:N0} · 士气{morale:F0}{(routed > 0 ? $" · 溃{routed}" : "")}", alignment, 320, 16, color);
-        DrawRect(new Rect2(x, 34, 320, 12), new Color(.04f, .05f, .04f, .92f));
+        DrawString(GetThemeDefaultFont(), new Vector2(x, 23), $"{name} {current:N0}/{before:N0} · 士气{morale:F0}{(routed > 0 ? $" · 溃{routed}" : "")}", alignment, 320, 15, color);
+        DrawRect(new Rect2(x, 31, 320, 10), new Color(.04f, .05f, .04f, .92f));
         var width = 320 * Math.Clamp(current / (float)Math.Max(1, before), 0, 1);
         var barX = alignRight ? x + 320 - width : x;
-        DrawRect(new Rect2(barX, 34, width, 12), color);
+        DrawRect(new Rect2(barX, 31, width, 10), color);
     }
 
     private void DrawStructureBar(string label, int before, int current, float x, float y)
@@ -402,38 +404,6 @@ public partial class BattlefieldCanvas : Control
         }
     }
 
-    private void DrawTerrainZoneOverlays()
-    {
-        if (_battle is null) return;
-        var planning = _battle.Status == "planning";
-        foreach (var zone in _battle.TerrainZones.OrderBy(item => item.Height))
-        {
-            var center = LogicalPosition(zone.X, zone.Y);
-            var radii = new Vector2(
-                zone.RadiusX / LogicalExtent * WorldWidth,
-                zone.RadiusY / LogicalExtent * BattleGroundHeight * WorldHeight);
-            var (fill, edge, label) = zone.Type switch
-            {
-                "forest" => (new Color(.10f, .25f, .13f, .055f), new Color(.44f, .62f, .35f, .27f), "林地 · 隐蔽"),
-                "hill" => (new Color(.38f, .27f, .12f, .045f), new Color(.78f, .63f, .34f, .25f), "坡顶 · 高地"),
-                "shallow" => (new Color(.12f, .31f, .39f, .055f), new Color(.40f, .68f, .75f, .28f), "浅滩 · 减速"),
-                _ => (Colors.Transparent, Colors.Transparent, string.Empty),
-            };
-            if (string.IsNullOrEmpty(label)) continue;
-
-            var activeFill = planning ? fill : new Color(fill, fill.A * .36f);
-            var activeEdge = planning ? edge : new Color(edge, edge.A * .34f);
-            DrawWorldEllipse(center, radii, activeFill);
-            DrawWorldEllipseOutline(center, radii, activeEdge, planning ? 2 : 1.2f);
-            if (planning) DrawWorldEllipseOutline(center, radii * .91f, new Color(edge, edge.A * .33f), 1);
-
-            var labelPosition = center + new Vector2(-54, Math.Min(radii.Y * .42f, 48));
-            DrawRect(new Rect2(labelPosition, new Vector2(108, 23)), new Color(.025f, .035f, .025f, planning ? .68f : .54f));
-            DrawRect(new Rect2(labelPosition, new Vector2(108, 23)), new Color(edge, planning ? .46f : .26f), false, 1);
-            DrawString(GetThemeDefaultFont(), labelPosition + new Vector2(4, 16), label, HorizontalAlignment.Center, 100, 11, new Color(Color.FromHtml("#f3e6c1"), planning ? 1 : .82f));
-        }
-    }
-
     private void DrawFortification()
     {
         if (_battle?.BattleType != "siege") return;
@@ -441,18 +411,116 @@ public partial class BattlefieldCanvas : Control
         var wallX = defenderOnRight ? WorldWidth * .64f : WorldWidth * .36f;
         var fieldTop = WorldHeight * BattleGroundTop;
         var fieldBottom = WorldHeight * (BattleGroundTop + BattleGroundHeight);
+        var gateY = (fieldTop + fieldBottom) * .5f;
         var zone = defenderOnRight
             ? new Rect2(wallX, fieldTop, WorldWidth - wallX, fieldBottom - fieldTop)
             : new Rect2(0, fieldTop, wallX, fieldBottom - fieldTop);
-        DrawRect(zone, new Color(.12f, .10f, .065f, .075f));
-        var boundary = _battle.WallAfter <= 0 ? new Color(.58f, .31f, .19f, .36f) : new Color(.76f, .63f, .38f, .34f);
-        DrawDashedLine(new Vector2(wallX, fieldTop), new Vector2(wallX, fieldBottom), boundary, 2, 14);
+        DrawRect(zone, new Color(.12f, .10f, .065f, .11f));
 
-        var gateY = (BattleGroundTop + BattleGroundHeight * .50f) * WorldHeight;
-        DrawArc(new Vector2(wallX, gateY), 24, 0, Mathf.Tau, 28, new Color(boundary, .72f), 2.2f, true);
-        var labelX = defenderOnRight ? wallX + 18 : wallX - 126;
-        DrawRect(new Rect2(labelX, fieldTop + 18, 108, 24), new Color(.025f, .035f, .025f, .66f));
+        var wallRatio = Math.Clamp(_battle.WallAfter / (float)Math.Max(1, _battle.WallBefore), 0, 1);
+        var gateRatio = Math.Clamp(_battle.GateAfter / (float)Math.Max(1, _battle.GateBefore), 0, 1);
+        const float gateHalfHeight = 90;
+        const float wallWidth = 96;
+        const int segmentCount = 8;
+        var upperLength = gateY - gateHalfHeight - fieldTop;
+        var lowerStart = gateY + gateHalfHeight;
+        var lowerLength = fieldBottom - lowerStart;
+        for (var index = 0; index < segmentCount; index++)
+        {
+            var upper = index < segmentCount / 2;
+            var localIndex = upper ? index : index - segmentCount / 2;
+            var localCount = segmentCount / 2;
+            var length = upper ? upperLength : lowerLength;
+            var start = upper ? fieldTop : lowerStart;
+            var segmentLength = length / localCount;
+            var y = start + localIndex * segmentLength;
+            var damageRank = (index * 5 + 3) % segmentCount;
+            var intact = wallRatio > damageRank / (float)segmentCount;
+            if (intact) DrawWallSegment(wallX, y + 2, segmentLength - 4, wallWidth, defenderOnRight, wallRatio);
+            else DrawWallRubble(wallX, y + segmentLength * .52f, wallWidth, index);
+        }
+        DrawGatehouse(wallX, gateY, wallWidth, gateHalfHeight, defenderOnRight, gateRatio);
+
+        var labelX = defenderOnRight ? wallX + 48 : wallX - 156;
+        DrawRect(new Rect2(labelX, fieldTop + 18, 108, 24), new Color(.025f, .035f, .025f, .76f));
         DrawString(GetThemeDefaultFont(), new Vector2(labelX + 4, fieldTop + 35), "城内守备区", HorizontalAlignment.Center, 100, 11, Color.FromHtml("#f0dfb8"));
+    }
+
+    private void DrawWallSegment(float x, float y, float height, float width, bool defenderOnRight, float integrity)
+    {
+        var stone = Color.FromHtml("#71634d").Lerp(Color.FromHtml("#514438"), 1 - integrity);
+        var light = stone.Lightened(.11f);
+        var shadow = stone.Darkened(.28f);
+        var left = x - width / 2;
+        DrawRect(new Rect2(left, y, width, height), shadow);
+        var frontX = defenderOnRight ? left : x + width * .05f;
+        DrawRect(new Rect2(frontX, y + 4, width * .45f, height - 8), stone);
+        DrawColoredPolygon(
+        [
+            new Vector2(left, y), new Vector2(x + width / 2, y),
+            new Vector2(x + width / 2 - 8, y + 7), new Vector2(left - 8, y + 7),
+        ], light);
+        for (var blockY = y + 18; blockY < y + height - 6; blockY += 22)
+        {
+            DrawLine(new Vector2(left + 2, blockY), new Vector2(x + width / 2 - 2, blockY), new Color(.22f, .18f, .13f, .58f), 1.4f);
+            var seamOffset = ((int)((blockY - y) / 22) % 2) * width * .25f;
+            DrawLine(new Vector2(left + width * .5f + seamOffset - width * .25f, blockY - 20), new Vector2(left + width * .5f + seamOffset - width * .25f, blockY), new Color(.22f, .18f, .13f, .48f), 1.2f);
+        }
+        var battlementX = defenderOnRight ? left - 8 : x + width / 2 - 2;
+        for (var merlonY = y + 5; merlonY < y + height - 10; merlonY += 28)
+            DrawRect(new Rect2(battlementX, merlonY, 10, 17), light);
+        if (integrity < .72f)
+        {
+            DrawLine(new Vector2(x - 6, y + height * .25f), new Vector2(x + 12, y + height * .43f), new Color(.18f, .12f, .08f, .86f), 3);
+            DrawLine(new Vector2(x + 12, y + height * .43f), new Vector2(x - 3, y + height * .62f), new Color(.18f, .12f, .08f, .76f), 2);
+        }
+    }
+
+    private void DrawGatehouse(float x, float y, float wallWidth, float gateHalfHeight, bool defenderOnRight, float integrity)
+    {
+        var towerColor = Color.FromHtml("#655642").Lerp(Color.FromHtml("#493a2f"), 1 - integrity);
+        var towerSize = new Vector2(wallWidth + 42, 66);
+        foreach (var towerY in new[] { y - gateHalfHeight - towerSize.Y * .30f, y + gateHalfHeight - towerSize.Y * .70f })
+        {
+            DrawRect(new Rect2(x - towerSize.X / 2, towerY - towerSize.Y / 2, towerSize.X, towerSize.Y), towerColor.Darkened(.18f));
+            DrawColoredPolygon(
+            [
+                new Vector2(x - towerSize.X / 2 - 12, towerY - towerSize.Y / 2 + 10),
+                new Vector2(x - towerSize.X / 2, towerY - towerSize.Y / 2),
+                new Vector2(x + towerSize.X / 2, towerY - towerSize.Y / 2),
+                new Vector2(x + towerSize.X / 2 - 12, towerY - towerSize.Y / 2 + 10),
+            ], towerColor.Lightened(.20f));
+        }
+        if (integrity > .04f)
+        {
+            var gateColor = Color.FromHtml("#4a2d20").Lerp(Color.FromHtml("#2b1d18"), 1 - integrity);
+            DrawRect(new Rect2(x - wallWidth * .34f, y - gateHalfHeight + 22, wallWidth * .68f, gateHalfHeight * 2 - 44), gateColor);
+            for (var plankY = y - gateHalfHeight + 30; plankY < y + gateHalfHeight - 20; plankY += 18)
+                DrawLine(new Vector2(x - wallWidth * .31f, plankY), new Vector2(x + wallWidth * .31f, plankY), new Color(.72f, .52f, .30f, .34f), 2);
+            DrawLine(new Vector2(x, y - gateHalfHeight + 24), new Vector2(x, y + gateHalfHeight - 24), new Color(.12f, .08f, .06f, .86f), 3);
+            if (integrity < .65f)
+                DrawLine(new Vector2(x - 18, y - 35), new Vector2(x + 18, y + 28), new Color(.08f, .05f, .04f, .9f), 5);
+        }
+        else
+        {
+            DrawWallRubble(x, y - 18, wallWidth + 24, 21);
+            DrawWallRubble(x, y + 24, wallWidth + 24, 22);
+        }
+        var textX = defenderOnRight ? x + 58 : x - 118;
+        DrawRect(new Rect2(textX, y - 12, 60, 22), new Color(.025f, .035f, .025f, .82f));
+        DrawString(GetThemeDefaultFont(), new Vector2(textX + 2, y + 4), integrity > .04f ? "城门" : "缺口", HorizontalAlignment.Center, 56, 11, integrity > .04f ? Color.FromHtml("#f0dfb8") : Color.FromHtml("#e38a68"));
+    }
+
+    private void DrawWallRubble(float x, float y, float width, int seed)
+    {
+        var rubble = Color.FromHtml("#5b4b3b");
+        for (var index = 0; index < 7; index++)
+        {
+            var offsetX = (seed * 17 + index * 23) % (int)width - width / 2;
+            var offsetY = (seed * 11 + index * 13) % 34 - 17;
+            var size = 8 + (seed + index * 5) % 12;
+            DrawRect(new Rect2(x + offsetX, y + offsetY, size, size * .55f), rubble.Lightened(index % 3 * .06f));
+        }
     }
 
     private void DrawGroup(BattleUnitGroupData group)

@@ -45,9 +45,22 @@ public sealed partial class GameRuntime
         return ExecutePlayerCityCommand(cityId, officerId, focus);
     }
 
-    public bool BuildFacility(string cityId, string officerId, string facilityId)
+    public bool BuildFacility(string cityId, string officerId, string facilityId, int slotIndex = -1)
     {
-        return ExecutePlayerFacilityBuild(cityId, officerId, facilityId);
+        return ExecutePlayerFacilityBuild(cityId, officerId, facilityId, slotIndex);
+    }
+
+    public static Dictionary<int, FacilityInstanceData> FacilitiesBySlot(CityData city)
+    {
+        var result = new Dictionary<int, FacilityInstanceData>();
+        foreach (var facility in city.Facilities.Where(item => item.SlotIndex >= 0 && item.SlotIndex < city.FacilitySlots))
+            result.TryAdd(facility.SlotIndex, facility);
+        foreach (var facility in city.Facilities.Where(item => !result.ContainsValue(item)))
+        {
+            var freeSlot = Enumerable.Range(0, Math.Max(1, city.FacilitySlots)).FirstOrDefault(index => !result.ContainsKey(index), -1);
+            if (freeSlot >= 0) result[freeSlot] = facility;
+        }
+        return result;
     }
 
     public bool MaintainFacility(string cityId, string instanceId, bool upgrade)
@@ -531,7 +544,7 @@ public sealed partial class GameRuntime
             var queue = city.ConstructionQueue!;
             queue.RemainingMonths--;
             if (queue.RemainingMonths > 0) continue;
-            if (queue.Kind == "build") city.Facilities.Add(new FacilityInstanceData { Id = $"{city.Id}-{queue.DefinitionId}-{State.Turn}", DefinitionId = queue.DefinitionId, Level = 1, Condition = 100 });
+            if (queue.Kind == "build") city.Facilities.Add(new FacilityInstanceData { Id = $"{city.Id}-{queue.DefinitionId}-{State.Turn}", DefinitionId = queue.DefinitionId, SlotIndex = queue.TargetSlotIndex, Level = 1, Condition = 100 });
             else
             {
                 var target = city.Facilities.FirstOrDefault(item => item.Id == queue.TargetInstanceId);

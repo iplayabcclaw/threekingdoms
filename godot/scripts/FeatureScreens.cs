@@ -624,13 +624,15 @@ public partial class AiCouncilView : FeatureScreen
 
 public partial class BattleView : FeatureScreen
 {
+    public event Action? BattleResultConfirmed;
+
     private BattlefieldCanvas _battlefield = null!;
     private HBoxContainer _officers = null!;
     private PanelContainer _planningPanel = null!, _battlefieldPanel = null!, _commandPanel = null!, _resultPanel = null!, _doctrinePanel = null!, _briefPanel = null!;
     private OptionButton _formation = null!, _infantryOrder = null!, _spearOrder = null!, _archerOrder = null!, _cavalryOrder = null!, _siegeOrder = null!, _speed = null!, _battleStance = null!, _battleTactic = null!;
     private Label _eventText = null!, _reports = null!, _resultTitle = null!, _resultSubtitle = null!, _resultStats = null!, _resultNarrative = null!, _battleBrief = null!, _tacticBrief = null!;
     private Label _commandStatus = null!;
-    private Button _start = null!, _skip = null!, _attackTarget = null!, _defendGate = null!, _innerCity = null!, _sortie = null!, _reserveLine = null!;
+    private Button _start = null!, _skip = null!, _attackTarget = null!, _defendGate = null!, _innerCity = null!, _sortie = null!, _reserveLine = null!, _confirmResult = null!;
     private string _battleId = string.Empty;
     private double _playback;
     private double _playbackSpeed = 1;
@@ -648,6 +650,8 @@ public partial class BattleView : FeatureScreen
         foreach (var option in new[] { _infantryOrder, _spearOrder, _archerOrder, _cavalryOrder, _siegeOrder }) planning.AddChild(option);
         _speed = Choice(90); AddChoice(_speed, "×1", "1"); AddChoice(_speed, "×2", "2"); _speed.ItemSelected += _ => _playbackSpeed = double.TryParse(Selected(_speed), out var speed) ? speed : 1; planning.AddChild(_speed);
         _skip = GameTheme.Button("跳过演算"); _skip.Pressed += SkipBattle; planning.AddChild(_skip);
+        _formation.ItemSelected += _ => PreviewBattlePlan();
+        foreach (var option in new[] { _infantryOrder, _spearOrder, _archerOrder, _cavalryOrder, _siegeOrder }) option.ItemSelected += _ => PreviewBattlePlan();
         _planningPanel = Panel(planning); Body.AddChild(_planningPanel);
 
         var doctrine = Row(); doctrine.AddChild(Text("临战军略", 82));
@@ -661,7 +665,7 @@ public partial class BattleView : FeatureScreen
 
         _officers = new HBoxContainer { CustomMinimumSize = new Vector2(0, 134), Alignment = BoxContainer.AlignmentMode.Center }; _officers.AddThemeConstantOverride("separation", 12); Body.AddChild(Panel(_officers));
         _battlefield = new BattlefieldCanvas();
-        _battlefield.CustomMinimumSize = new Vector2(0, 490);
+        _battlefield.CustomMinimumSize = new Vector2(0, 610);
         _battlefield.FriendlySelectionChanged += _ => UpdateCommandStatus();
         _battlefield.EnemySelectionChanged += _ => UpdateCommandStatus();
         _battlefield.AttackCommandIssued += (groups, target) => Runtime.IssueBattleCommand(groups, "attack", target);
@@ -688,7 +692,7 @@ public partial class BattleView : FeatureScreen
         _innerCity = GameTheme.Button("退守内城"); _innerCity.Pressed += () => IssueSelectedCommand("inner-city"); commands.AddChild(_innerCity);
         _sortie = GameTheme.Button("出城突袭"); _sortie.Pressed += () => IssueSelectedCommand("sortie"); commands.AddChild(_sortie);
         _reserveLine = GameTheme.Button("保存预备队"); _reserveLine.Pressed += () => IssueSelectedCommand("reserve-line"); commands.AddChild(_reserveLine);
-        commands.AddChild(Text("滚轮缩放　中键拖动战场　左键点选/拖框　右键移动/集火", 500));
+        commands.AddChild(Text("滚轮缩放　中键拖动　左键框选　右键移动/集火", 340));
         _commandPanel = Panel(commands); _commandPanel.Visible = false; Body.AddChild(_commandPanel);
     }
 
@@ -719,7 +723,7 @@ public partial class BattleView : FeatureScreen
 
     private void BuildResultPanel()
     {
-        _resultPanel = new PanelContainer { CustomMinimumSize = new Vector2(0, 430), Visible = false };
+        _resultPanel = new PanelContainer { CustomMinimumSize = new Vector2(0, 520), Visible = false };
         _resultPanel.AddThemeStyleboxOverride("panel", GameTheme.Box(new Color(GameTheme.PanelRaised, .98f), new Color(GameTheme.Bronze, .66f), 12, 2));
         UiOrnaments.AttachInkCorners(_resultPanel, 300, .13f);
         var margin = new MarginContainer();
@@ -731,6 +735,17 @@ public partial class BattleView : FeatureScreen
         _resultSubtitle.AddThemeFontSizeOverride("font_size", 22); _resultSubtitle.AddThemeColorOverride("font_color", GameTheme.Paper); layout.AddChild(_resultSubtitle);
         _resultStats = new Label { CustomMinimumSize = new Vector2(0, 78), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, AutowrapMode = TextServer.AutowrapMode.WordSmart };
         _resultStats.AddThemeFontSizeOverride("font_size", 18); _resultStats.AddThemeColorOverride("font_color", GameTheme.Bronze); layout.AddChild(_resultStats);
+        _confirmResult = GameTheme.Button("确认战果，返回天下");
+        _confirmResult.CustomMinimumSize = new Vector2(360, 58);
+        _confirmResult.SizeFlagsHorizontal = SizeFlags.ShrinkCenter;
+        _confirmResult.AddThemeFontSizeOverride("font_size", 21);
+        _confirmResult.AddThemeColorOverride("font_color", GameTheme.OnAccent);
+        _confirmResult.AddThemeColorOverride("font_hover_color", GameTheme.OnAccent);
+        _confirmResult.AddThemeColorOverride("font_pressed_color", GameTheme.OnAccent);
+        _confirmResult.AddThemeStyleboxOverride("normal", GameTheme.Box(GameTheme.Cinnabar, new Color(GameTheme.Bronze, .88f), 8, 2, 22, 10));
+        _confirmResult.AddThemeStyleboxOverride("hover", GameTheme.Box(Color.FromHtml("#b95b4a"), GameTheme.Cinnabar, 8, 2, 22, 10));
+        _confirmResult.Pressed += () => BattleResultConfirmed?.Invoke();
+        layout.AddChild(_confirmResult);
         _resultNarrative = new Label { CustomMinimumSize = new Vector2(0, 112), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, AutowrapMode = TextServer.AutowrapMode.WordSmart };
         _resultNarrative.AddThemeColorOverride("font_color", GameTheme.Muted); layout.AddChild(_resultNarrative);
         Body.AddChild(_resultPanel);
@@ -772,8 +787,10 @@ public partial class BattleView : FeatureScreen
         _eventText.Visible = pending is not null;
         _battlefieldPanel.Visible = pending is not null;
         _resultPanel.Visible = pending is null && latestReport is not null;
+        Notice.Visible = pending?.Status != "running";
         if (pending is not null)
         {
+            RefreshTroopOrderVisibility(pending);
             if (_battleId != pending.Id)
             {
                 _battleId = pending.Id; _playback = 0; _finishing = false;
@@ -863,9 +880,40 @@ public partial class BattleView : FeatureScreen
 
     private void StartBattle()
     {
-        var orders = new Dictionary<string, string> { ["infantry"] = Selected(_infantryOrder), ["spears"] = Selected(_spearOrder), ["archers"] = Selected(_archerOrder), ["cavalry"] = Selected(_cavalryOrder), ["siege"] = Selected(_siegeOrder) };
-        if (!Runtime.ConfigurePendingBattle(Selected(_formation), orders, Selected(_battleStance), Selected(_battleTactic))) return;
+        if (!Runtime.ConfigurePendingBattle(Selected(_formation), CurrentBattleOrders(), Selected(_battleStance), Selected(_battleTactic))) return;
         Runtime.StartPendingBattle();
+    }
+
+    private Dictionary<string, string> CurrentBattleOrders() => new()
+    {
+        ["infantry"] = Selected(_infantryOrder),
+        ["spears"] = Selected(_spearOrder),
+        ["archers"] = Selected(_archerOrder),
+        ["cavalry"] = Selected(_cavalryOrder),
+        ["siege"] = Selected(_siegeOrder),
+    };
+
+    private void RefreshTroopOrderVisibility(PendingBattleData pending)
+    {
+        var playerTroops = pending.Groups
+            .Where(item => item.Side == pending.PlayerSide && item.InitialSoldiers > 0)
+            .Select(item => item.TroopType)
+            .ToHashSet();
+        _infantryOrder.Visible = playerTroops.Contains("infantry");
+        _spearOrder.Visible = playerTroops.Contains("spears");
+        _archerOrder.Visible = playerTroops.Contains("archers");
+        _cavalryOrder.Visible = playerTroops.Contains("cavalry");
+        _siegeOrder.Visible = playerTroops.Contains("siege");
+    }
+
+    private void PreviewBattlePlan()
+    {
+        var pending = Runtime?.State.PendingBattle;
+        if (pending is null || pending.Status != "planning" || _battlefield is null) return;
+        BattleCalculator.Configure(pending, Selected(_formation), CurrentBattleOrders(), Selected(_battleStance), Selected(_battleTactic));
+        _battlefield.SetBattle(pending);
+        UpdateBattleBrief(pending);
+        RefreshTacticBrief();
     }
 
     private void SkipBattle()

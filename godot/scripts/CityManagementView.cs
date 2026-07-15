@@ -100,7 +100,8 @@ public partial class CityManagementView : Control
         _overviewResources.Text = $"势力府库\n金　{treasury.Gold:N0}\n粮　{treasury.Food:N0}\n军备　{treasury.Equipment:N0}\n\n本城月度贡献\n金 {forecast.GoldIncome - forecast.GoldUpkeep:+#,0;-#,0;0}\n粮 {forecast.FoodIncome - forecast.FoodUpkeep:+#,0;-#,0;0}\n\n驻军 {city.Garrison:N0}　人口 {city.Population:N0}";
         _overviewDevelopment.Text = $"太守\n{city.GovernorName}\n\n农业　{city.Agriculture}　商业　{city.Commerce}\n治安　{city.PublicOrder}　民心　{city.PublicSupport}\n城防　{city.Defense}　文化　{city.Culture}\n训练　{city.Training}　疲敝　{city.Fatigue}\n\n当前要务：{_runtime.CityPrioritySummary(city)}";
         var ledger = city.LedgerEntries.TakeLast(5).Reverse().Select(item => $"第{item.Turn}月 · {item.Description}");
-        _overviewLedger.Text = $"城池状态\n{GameRuntime.CityStatusLabel(city.Status)}　{GameRuntime.CityRoleLabel(city.CityRole)}\n设施 {city.Facilities.Count}/{city.FacilitySlots}\n" +
+        var occupiedFacilitySlots = city.Facilities.Count + (city.ConstructionQueue?.Kind == "build" ? 1 : 0);
+        _overviewLedger.Text = $"城池状态\n{GameRuntime.CityStatusLabel(city.Status)}　{GameRuntime.CityRoleLabel(city.CityRole)}\n设施 {occupiedFacilitySlots}/{city.FacilitySlots}\n" +
             (city.ConstructionQueue is null ? "当前无工程" : $"在建：{GameRuntime.FacilityName(city.ConstructionQueue.DefinitionId)} · 余{city.ConstructionQueue.RemainingMonths}月") +
             $"\n\n最近台账\n{(ledger.Any() ? string.Join('\n', ledger) : "尚无月报")}";
         FillOfficers(city);
@@ -228,33 +229,48 @@ public partial class CityManagementView : Control
         if (_buildingSlots is null) return;
         foreach (var child in _buildingSlots.GetChildren()) child.QueueFree();
         var slots = Math.Max(1, city.FacilitySlots);
+        var facilitiesBySlot = GameRuntime.FacilitiesBySlot(city);
         for (var index = 0; index < slots; index += 2)
         {
             var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 10); _buildingSlots.AddChild(row);
             for (var column = 0; column < 2 && index + column < slots; column++)
             {
-                var item = index + column < city.Facilities.Count ? city.Facilities[index + column] : null;
-                var slotKey = item?.Id ?? $"empty-{index + column}";
-                var label = item is null ? $"＋ 空地 {index + column + 1}\n点击选择建筑" : $"{GameRuntime.FacilityName(item.DefinitionId)}  Lv.{item.Level}\n状况 {item.Condition}%";
+                var slotIndex = index + column;
+                var item = facilitiesBySlot.GetValueOrDefault(slotIndex);
+                var construction = city.ConstructionQueue is { Kind: "build" } queue && queue.TargetSlotIndex == slotIndex ? queue : null;
+                var slotKey = $"slot-{slotIndex}";
+                var label = construction is not null
+                    ? $"{GameRuntime.FacilityName(construction.DefinitionId)}\n建造中 · 余{construction.RemainingMonths}月"
+                    : item is null
+                        ? $"＋ 空地 {slotIndex + 1}\n点击选择建筑"
+                        : $"{GameRuntime.FacilityName(item.DefinitionId)}  Lv.{item.Level}\n状况 {item.Condition}%";
                 var button = GameTheme.Button(label); button.CustomMinimumSize = new Vector2(0, 102); button.SizeFlagsHorizontal = SizeFlags.ExpandFill; button.AddThemeFontSizeOverride("font_size", 18);
+                if (construction is not null) button.AddThemeColorOverride("font_color", GameTheme.Gold);
                 if (slotKey == _selectedSlot) button.AddThemeStyleboxOverride("normal", GameTheme.Box(new Color(GameTheme.Gold, .22f), GameTheme.Gold, 8, 2, 14, 8));
                 var selected = slotKey; button.Pressed += () => { _selectedSlot = selected; _awaitingBuilder = false; Refresh(); }; row.AddChild(button);
             }
         }
-        if (string.IsNullOrEmpty(_selectedSlot)) _selectedSlot = city.Facilities.FirstOrDefault()?.Id ?? "empty-0";
+        if (string.IsNullOrEmpty(_selectedSlot) || SelectedSlotIndex() >= slots) _selectedSlot = "slot-0";
     }
 
     private void RefreshBuildingPanel(CityData? city)
     {
         if (city is null || _buildingTitle is null) return;
-        var facility = city.Facilities.FirstOrDefault(item => item.Id == _selectedSlot);
-        var isEmpty = facility is null;
+        var slotIndex = SelectedSlotIndex();
+        var facility = GameRuntime.FacilitiesBySlot(city).GetValueOrDefault(slotIndex);
+        var construction = city.ConstructionQueue is { Kind: "build" } queue && queue.TargetSlotIndex == slotIndex ? queue : null;
+        var isEmpty = facility is null && construction is null;
         _facilityChoice.Visible = isEmpty;
         _buildAction.Visible = isEmpty;
         _builderRow.Visible = isEmpty && _awaitingBuilder;
-        _upgradeAction.Visible = !isEmpty;
-        _repairAction.Visible = !isEmpty;
-        if (isEmpty)
+        _upgradeAction.Visible = facility is not null;
+        _repairAction.Visible = facility is not null;
+        if (construction is not null)
+        {
+            _buildingTitle.Text = $"{GameRuntime.FacilityName(construction.DefinitionId)} · 建造中";
+            _buildingInfo.Text = $"{GameRuntime.FacilityEffect(construction.DefinitionId)}\n\n状态：建造中\n进度：{construction.TotalMonths - construction.RemainingMonths}/{construction.TotalMonths}个月\n剩余：{construction.RemainingMonths}个月\n\n工程完成后会在当前地块转为正式设施。";
+        }
+        else if (isEmpty)
         {
             var selectedId = Selected(_facilityChoice); if (string.IsNullOrEmpty(selectedId) && _facilityChoice.ItemCount > 0) { _facilityChoice.Select(0); selectedId = Selected(_facilityChoice); }
             var definition = GameRuntime.FacilityCatalog.GetValueOrDefault(selectedId);
@@ -272,14 +288,18 @@ public partial class CityManagementView : Control
     private void BeginOrConfirmBuild()
     {
         if (!_awaitingBuilder) { _awaitingBuilder = true; Refresh(); _notice.Text = "请选择负责建设的武将，再确认开工。"; return; }
-        _runtime.BuildFacility(_cityId, Selected(_builderChoice), Selected(_facilityChoice));
+        if (_runtime.BuildFacility(_cityId, Selected(_builderChoice), Selected(_facilityChoice), SelectedSlotIndex())) Refresh();
     }
 
     private void MaintainSelected(bool upgrade)
     {
-        if (string.IsNullOrEmpty(_selectedSlot) || _selectedSlot.StartsWith("empty-")) return;
-        _runtime.MaintainFacility(_cityId, _selectedSlot, upgrade);
+        var city = _runtime.City(_cityId);
+        var facility = city is null ? null : GameRuntime.FacilitiesBySlot(city).GetValueOrDefault(SelectedSlotIndex());
+        if (facility is null) return;
+        _runtime.MaintainFacility(_cityId, facility.Id, upgrade);
     }
+
+    private int SelectedSlotIndex() => _selectedSlot.StartsWith("slot-") && int.TryParse(_selectedSlot[5..], out var index) ? index : 0;
 
     private void ApplyGovernance() => _runtime.ConfigureCityGovernance(_cityId, Selected(_governanceMode), Selected(_policy), Selected(_role), _allowAid.ButtonPressed);
 

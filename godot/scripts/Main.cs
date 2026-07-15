@@ -85,6 +85,7 @@ public partial class Main : Control
         _worldMap.ArmyMovementFinished += OnArmyMovementFinished;
         _expedition.ArmyMovementRequested += ShowArmyMovement;
         _cityManagement.BackRequested += () => Navigate("world");
+        _battleView.BattleResultConfirmed += () => Navigate("world");
         _current = _worldMap;
         foreach (var screen in _screens.Values) screen.Visible = screen == _current;
 
@@ -215,7 +216,7 @@ public partial class Main : Control
         var road = _runtime.State.Roads.First(item => (item.FromCityId == source.Id && _runtime.City(item.ToCityId)?.OwnerFactionId != _runtime.State.PlayerFactionId) || (item.ToCityId == source.Id && _runtime.City(item.FromCityId)?.OwnerFactionId != _runtime.State.PlayerFactionId));
         var targetId = road.FromCityId == source.Id ? road.ToCityId : road.FromCityId;
         var commander = _runtime.PlayerOfficers().Where(item => item.InitialState.CityId == source.Id && item.InitialState.Status == "serving").OrderByDescending(item => _runtime.EffectiveAbility(item, "leadership", "military")).First();
-        _runtime.CreateExpedition(source.Id, targetId, commander.Profile.Id, 3000, 5000, "standard", "arrow-volley", [], new Dictionary<string, int> { ["infantry"] = 2000, ["spears"] = 500, ["archers"] = 500 });
+        _runtime.CreateExpedition(source.Id, targetId, commander.Profile.Id, 3000, 5000, "standard", "steady-advance", [], new Dictionary<string, int> { ["infantry"] = 2000, ["spears"] = 500, ["archers"] = 500 });
         var army = _runtime.State.Armies.Last();
         while (_runtime.State.PendingBattle is null && army.Status == "marching") { _runtime.State.Turn++; _runtime.MarchArmy(army.Id); }
         Navigate("battle");
@@ -237,6 +238,7 @@ public partial class Main : Control
     private async void RunUiVisualTest()
     {
         _reduceMotion = true;
+        await SaveUiFrame("world-regional");
         _worldMap.ShowWholeMapForVisualTest();
         var enemy = _runtime.State.Cities.First(city => city.OwnerFactionId != _runtime.State.PlayerFactionId);
         _worldMap.SelectCityForVisualTest(enemy.Id);
@@ -269,6 +271,10 @@ public partial class Main : Control
         Navigate("city");
         await SaveUiFrame("city");
         var cityForVisualTest = _runtime.State.Cities.First(item => item.OwnerFactionId == _runtime.State.PlayerFactionId);
+        var visualBuilder = _runtime.PlayerOfficers().First(item => item.InitialState.CityId == cityForVisualTest.Id && item.InitialState.Status == "serving");
+        _runtime.State.Resources.Gold = Math.Max(_runtime.State.Resources.Gold, 100_000);
+        _runtime.State.Resources.Food = Math.Max(_runtime.State.Resources.Food, 100_000);
+        _runtime.BuildFacility(cityForVisualTest.Id, visualBuilder.Profile.Id, "market", 2);
         _cityManagement.ShowCity(cityForVisualTest);
         _cityManagement.ShowPageForVisualTest("buildings");
         await SaveUiFrame("city-buildings");

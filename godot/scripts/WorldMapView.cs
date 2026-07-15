@@ -51,7 +51,7 @@ public partial class WorldMapView : Control
     private Vector2 _mapSize = new(1672, 941);
     private Vector2 _panOffset;
     private float _baseScale = 1.0f;
-    private const float RegionalZoom = 2.6f;
+    private const float RegionalZoom = 3.2f;
     private float _zoom = RegionalZoom;
     private bool _dragging;
     private bool _initialFocusPending = true;
@@ -894,7 +894,10 @@ public partial class WorldMapView : Control
 
     private void UpdateFixedMarkerTransforms(float mapScale)
     {
-        var overviewScale = Mathf.Lerp(.68f, .98f, Mathf.Clamp((_zoom - 1.0f) / 1.4f, 0, 1));
+        // Keep overview markers compact so nearby cities never present a large,
+        // overlapping click target. Regional focus still enlarges them enough
+        // to read while the increased zoom creates more space between cities.
+        var overviewScale = Mathf.Lerp(.36f, .78f, Mathf.Clamp((_zoom - 1.0f) / 1.8f, 0, 1));
         foreach (var marker in _fixedMarkers)
         {
             marker.Control.Scale = Vector2.One * (overviewScale / mapScale);

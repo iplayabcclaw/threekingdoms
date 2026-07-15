@@ -25,6 +25,8 @@ case "$MODE" in
   smoke) exec "$GODOT" --headless --path "$PROJECT" -- --smoke-test ;;
   test) exec "$GODOT" --headless --path "$PROJECT" -- --runtime-self-test ;;
   ui-test) exec "$GODOT" --headless --path "$PROJECT" -- --ui-visual-test ;;
+  ui-visual-test) exec "$GODOT" --path "$PROJECT" -- --ui-visual-test ;;
+  battle-visual-test) exec "$GODOT" --path "$PROJECT" -- --battle-visual-test ;;
   editor) exec "$GODOT" --editor --path "$PROJECT" ;;
   run) exec "$GODOT" --path "$PROJECT" ;;
   *)

@@ -218,22 +218,25 @@ public sealed partial class GameRuntime
         return true;
     }
 
-    private bool ExecutePlayerFacilityBuild(string cityId, string officerId, string facilityId)
+    private bool ExecutePlayerFacilityBuild(string cityId, string officerId, string facilityId, int slotIndex)
     {
         var city = City(cityId);
         var officer = Officer(officerId);
         if (!CanCityAct(city, officer, State.PlayerFactionId, false, out var error)) return Fail(error);
-        if (!ExecuteFacilityBuild(city!, officer!, facilityId, State.PlayerFactionId, false, out var message)) return Fail(message);
+        if (!ExecuteFacilityBuild(city!, officer!, facilityId, State.PlayerFactionId, false, out var message, slotIndex)) return Fail(message);
         return Success(message, "city");
     }
 
-    private bool ExecuteFacilityBuild(CityData city, ScenarioOfficerData officer, string facilityId, string factionId, bool delegated, out string message)
+    private bool ExecuteFacilityBuild(CityData city, ScenarioOfficerData officer, string facilityId, string factionId, bool delegated, out string message, int slotIndex = -1)
     {
         message = string.Empty;
         if (!CanCityAct(city, officer, factionId, delegated, out message)) return false;
         if (city.ConstructionQueue is not null) { message = $"{city.Name}已有建设工程。"; return false; }
         if (city.Facilities.Count >= city.FacilitySlots) { message = $"{city.Name}设施槽已满。"; return false; }
         if (city.Facilities.Any(item => item.DefinitionId == facilityId)) { message = $"{city.Name}已经建成{FacilityName(facilityId)}。"; return false; }
+        var occupiedSlots = FacilitiesBySlot(city);
+        if (slotIndex < 0) slotIndex = Enumerable.Range(0, Math.Max(1, city.FacilitySlots)).FirstOrDefault(index => !occupiedSlots.ContainsKey(index), -1);
+        if (slotIndex < 0 || slotIndex >= city.FacilitySlots || occupiedSlots.ContainsKey(slotIndex)) { message = "所选地块不可用于建设。"; return false; }
         var definition = FacilityCatalog.GetValueOrDefault(facilityId);
         if (definition is null) { message = "未知设施。"; return false; }
         var treasury = Treasury(factionId);
@@ -247,7 +250,7 @@ public sealed partial class GameRuntime
         city.ActionSlots--;
         city.MonthlyOfficerActionIds.Add(officer.Profile.Id);
         officer.InitialState.Fatigue = Clamp100(officer.InitialState.Fatigue + 8);
-        city.ConstructionQueue = new ConstructionData { DefinitionId = facilityId, OfficerId = officer.Profile.Id, RemainingMonths = definition.Months, TotalMonths = definition.Months };
+        city.ConstructionQueue = new ConstructionData { DefinitionId = facilityId, OfficerId = officer.Profile.Id, RemainingMonths = definition.Months, TotalMonths = definition.Months, TargetSlotIndex = slotIndex };
         message = $"{city.Name}开始建设{definition.Name}，预计{definition.Months}个月。本城余{city.ActionSlots}/{city.ActionCapacity}城务。";
         RecordCityLedger(city, "construction", -definition.Gold, -definition.Food, message);
         return true;

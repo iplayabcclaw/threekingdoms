@@ -235,20 +235,8 @@ public sealed class PendingBattleData
     public FormationPlanData DefenderFormation { get; set; } = new();
     public List<BattleUnitGroupData> Groups { get; set; } = [];
     public List<BattleOfficerUnitData> OfficerUnits { get; set; } = [];
-    public List<BattleTerrainZoneData> TerrainZones { get; set; } = [];
     public List<BattleTimelineEventData> Timeline { get; set; } = [];
     public List<BattlePhaseResultData> PhaseResults { get; set; } = [];
-}
-
-public sealed class BattleTerrainZoneData
-{
-    public string Id { get; set; } = string.Empty;
-    public string Type { get; set; } = "forest";
-    public float X { get; set; }
-    public float Y { get; set; }
-    public float RadiusX { get; set; } = 100;
-    public float RadiusY { get; set; } = 100;
-    public float Height { get; set; }
 }
 
 public static class BattleCalculator
@@ -262,7 +250,6 @@ public static class BattleCalculator
 
     public static PendingBattleData Create(GameSession state, ArmyData army, CityData city)
     {
-        var road = army.RouteRoadIds.Select(id => state.Roads.FirstOrDefault(item => item.Id == id)).LastOrDefault(item => item is not null);
         var defenders = state.Officers
             .Where(item => item.InitialState.FactionId == city.OwnerFactionId && item.InitialState.CityId == city.Id && item.InitialState.Alive && item.InitialState.Status == "serving")
             .OrderByDescending(item => OfficerProgressionRules.EffectiveAbility(item, "leadership", "military") * 2
@@ -282,7 +269,7 @@ public static class BattleCalculator
             Id = $"battle-{state.Turn}-{state.BattleReports.Count + 1}",
             ArmyId = army.Id,
             CityId = city.Id,
-            Terrain = road?.Terrain ?? "plain",
+            Terrain = "plain",
             Region = city.Region,
             AttackerFactionId = army.FactionId,
             DefenderFactionId = city.OwnerFactionId,
@@ -304,7 +291,6 @@ public static class BattleCalculator
             DefenderFormation = DefaultFormation(defenderComposition, false),
         };
         AssignRoles(pending);
-        pending.TerrainZones = BuildTerrainZones(pending.Terrain, pending.BattleType);
         pending.Groups = ExpandArmy(army.Composition, army.Soldiers, "attacker", pending.AttackerFormation, pending.AttackerOfficerIds);
         pending.Groups.AddRange(ExpandArmy(defenderComposition, city.Garrison, "defender", pending.DefenderFormation, pending.DefenderOfficerIds));
         return pending;
@@ -323,7 +309,7 @@ public static class BattleCalculator
         var pending = new PendingBattleData
         {
             Id = $"battle-{state.Turn}-{state.BattleReports.Count + 1}", ArmyId = attacker.Id, DefenderArmyId = defender.Id,
-            CityId = battlefieldCity.Id, BattleType = "field", Terrain = road?.Terrain ?? "plain", Region = battlefieldCity.Region,
+            CityId = battlefieldCity.Id, BattleType = "field", Terrain = "plain", Region = battlefieldCity.Region,
             AttackerFactionId = attacker.FactionId, DefenderFactionId = defender.FactionId,
             PlayerSide = attacker.FactionId == state.PlayerFactionId ? "attacker" : "defender",
             AttackerCommanderId = attacker.CommanderId, DefenderCommanderId = defender.CommanderId,
@@ -335,7 +321,6 @@ public static class BattleCalculator
             AttackerFormation = ArmyFormation(state, attacker, true), DefenderFormation = ArmyFormation(state, defender, false),
         };
         AssignRoles(pending);
-        pending.TerrainZones = BuildTerrainZones(pending.Terrain, pending.BattleType);
         pending.Groups = ExpandArmy(attacker.Composition, attacker.Soldiers, "attacker", pending.AttackerFormation, attackerOfficers, pending.BattleType);
         pending.Groups.AddRange(ExpandArmy(defender.Composition, defender.Soldiers, "defender", pending.DefenderFormation, defenderOfficers, pending.BattleType));
         return pending;
@@ -354,9 +339,12 @@ public static class BattleCalculator
         foreach (var troopGroup in pending.Groups.Where(item => item.Side == pending.PlayerSide).GroupBy(item => item.TroopType))
         {
             var index = 0;
+            var count = troopGroup.Count();
             foreach (var group in troopGroup)
             {
                 group.FormationId = plan.TroopOrders.GetValueOrDefault(group.TroopType)?.OrderId ?? group.FormationId;
+                group.Lane = LaneFor(group.TroopType, index);
+                group.Depth = DepthFor(group.TroopType, index, count);
                 ApplyOrderLayout(group, index++, plan.FormationId);
                 ApplyDeployment(group, group.Side, pending.BattleType);
             }
@@ -1351,9 +1339,12 @@ public static class BattleCalculator
     {
         switch (group.FormationId)
         {
+            case "shield-line": group.Lane = new[] { 1, 3, 2, 0, 4 }[index % 5]; group.Depth = 0; break;
+            case "loose-line": group.Lane = new[] { 0, 2, 4, 1, 3 }[index % 5]; group.Depth = index % 2; break;
             case "assault-column": group.Lane = 2 + (index % 3 - 1); group.Depth = index % 3 == 0 ? 0 : 1; break;
             case "spear-wall": group.Lane = new[] { 0, 4, 1, 3, 2 }[index % 5]; group.Depth = 0; break;
             case "support-line": group.Lane = new[] { 1, 3, 2, 0, 4 }[index % 5]; group.Depth = 1; break;
+            case "spear-column": group.Lane = new[] { 2, 1, 3 }[index % 3]; group.Depth = index % 2; break;
             case "skirmish": group.Lane = new[] { 1, 3, 2, 0, 4 }[index % 5]; group.Depth = 1; break;
             case "wing-fire": group.Lane = index % 2 == 0 ? 0 : 4; group.Depth = 2; break;
             case "rear-double": group.Lane = new[] { 1, 3, 2, 0, 4 }[index % 5]; group.Depth = 2; break;
@@ -1364,8 +1355,34 @@ public static class BattleCalculator
             case "wall-pressure": group.Lane = new[] { 1, 3, 0, 4, 2 }[index % 5]; group.Depth = 2; break;
             case "protected-siege": group.Lane = new[] { 2, 1, 3 }[index % 3]; group.Depth = 2; break;
         }
-        if (armyFormation == "wedge" && group.Depth == 0) group.Lane = new[] { 2, 1, 3 }[index % 3];
-        if (armyFormation == "crane" && (group.TroopType is "infantry" or "cavalry")) group.Lane = index % 2 == 0 ? 0 : 4;
+        ApplyArmyFormationLayout(group, index, armyFormation);
+    }
+
+    private static void ApplyArmyFormationLayout(BattleUnitGroupData group, int index, string formation)
+    {
+        switch (formation)
+        {
+            case "goose":
+                group.Depth = Math.Clamp(group.Depth + (Math.Abs(group.Lane - 2) >= 2 ? 1 : 0), 0, 2);
+                break;
+            case "wedge":
+                group.Lane = new[] { 2, 1, 3, 0, 4 }[index % 5];
+                group.Depth = Math.Clamp((Math.Abs(group.Lane - 2) + 1) / 2 + (group.TroopType is "archers" or "siege" ? 1 : 0), 0, 2);
+                break;
+            case "crane":
+                if (group.TroopType is "infantry" or "cavalry") group.Lane = index % 2 == 0 ? 0 : 4;
+                else group.Lane = new[] { 2, 1, 3 }[index % 3];
+                group.Depth = group.TroopType is "archers" or "siege" ? 2 : Math.Min(group.Depth, 1);
+                break;
+            case "shield":
+                group.Lane = new[] { 1, 3, 2, 0, 4 }[index % 5];
+                group.Depth = group.TroopType is "infantry" or "spears" ? 0 : group.TroopType is "archers" or "siege" ? 2 : 1;
+                break;
+            case "siege-array":
+                group.Lane = group.TroopType == "siege" ? new[] { 2, 1, 3 }[index % 3] : group.Lane;
+                group.Depth = group.TroopType is "infantry" or "spears" ? 0 : group.TroopType == "cavalry" ? 1 : 2;
+                break;
+        }
     }
 
     private static void SpreadGroups(List<BattleUnitGroupData> groups, string side)
@@ -1705,13 +1722,7 @@ public static class BattleCalculator
         _ => "正面攻势1.00，承受损失1.00，攻城效率1.00",
     };
 
-    public static string TerrainEffectSummary(string terrain) => terrain switch
-    {
-        "mountain" => "山地，骑兵与器械机动受限，步枪兵更稳",
-        "hill" => "丘陵，弓兵与枪兵占优，骑兵冲击受限",
-        "river" => "水路浅滩，全军减速，骑兵与器械影响最大",
-        _ => "平原，骑兵机动占优，弓兵视野良好",
-    };
+    public static string TerrainEffectSummary(string terrain) => "平地，无树林、坡顶或浅滩额外修正";
 
     private static double TroopShare(List<BattleUnitGroupData> groups, string troop) =>
         groups.Where(item => item.TroopType == troop).Sum(item => item.FinalSoldiers) / (double)Math.Max(1, groups.Sum(item => item.FinalSoldiers));
@@ -1743,72 +1754,13 @@ public static class BattleCalculator
         _ => 1,
     };
 
-    private static double Terrain(string troop, string terrain) => terrain switch
-    {
-        "mountain" => troop switch { "cavalry" => .78, "siege" => .65, "spears" => 1.08, "infantry" => 1.06, _ => 1.05 },
-        "hill" => troop switch { "cavalry" => .88, "archers" => 1.10, "spears" => 1.05, _ => 1.02 },
-        "river" => troop switch { "cavalry" => .82, "siege" => .75, "archers" => 1.08, "spears" => 1.06, _ => .96 },
-        _ => troop switch { "cavalry" => 1.10, "archers" => 1.03, "siege" => .90, _ => 1 },
-    };
+    private static double Terrain(string troop, string terrain) => 1;
 
-    public static double LocalMoveMultiplier(PendingBattleData pending, string troop, float x, float y)
-    {
-        var zone = TerrainZoneAt(pending, x, y);
-        return zone?.Type switch
-        {
-            "forest" => troop switch { "cavalry" => .70, "siege" => .72, _ => .88 },
-            "hill" => troop switch { "cavalry" => .80, "siege" => .68, _ => .90 },
-            "shallow" => troop switch { "cavalry" => .62, "siege" => .55, _ => .74 },
-            _ => 1,
-        };
-    }
+    public static double LocalMoveMultiplier(PendingBattleData pending, string troop, float x, float y) => 1;
 
-    private static double LocalAttackMultiplier(PendingBattleData pending, BattleUnitGroupData source)
-    {
-        var zone = TerrainZoneAt(pending, source.X, source.Y);
-        return zone?.Type switch
-        {
-            "hill" => source.TroopType == "archers" ? 1.16 : 1.08,
-            "forest" => source.TroopType switch { "cavalry" => .82, "archers" => .92, _ => 1.02 },
-            "shallow" => .88,
-            _ => 1,
-        };
-    }
+    private static double LocalAttackMultiplier(PendingBattleData pending, BattleUnitGroupData source) => 1;
 
-    private static double LocalDefenseMultiplier(PendingBattleData pending, BattleUnitGroupData target)
-    {
-        var zone = TerrainZoneAt(pending, target.X, target.Y);
-        return zone?.Type switch
-        {
-            "forest" => 1.12,
-            "hill" => 1.08,
-            "shallow" => .92,
-            _ => 1,
-        };
-    }
-
-    private static BattleTerrainZoneData? TerrainZoneAt(PendingBattleData pending, float x, float y) =>
-        pending.TerrainZones
-            .Where(zone => Math.Pow((x - zone.X) / Math.Max(1, zone.RadiusX), 2) + Math.Pow((y - zone.Y) / Math.Max(1, zone.RadiusY), 2) <= 1)
-            .OrderByDescending(zone => zone.Height)
-            .FirstOrDefault();
-
-    private static List<BattleTerrainZoneData> BuildTerrainZones(string terrain, string battleType)
-    {
-        var zones = new List<BattleTerrainZoneData>
-        {
-            new() { Id = "west-woods", Type = "forest", X = 590, Y = 155, RadiusX = 150, RadiusY = 135 },
-            new() { Id = "east-woods", Type = "forest", X = 405, Y = 845, RadiusX = 130, RadiusY = 125 },
-            new() { Id = "ridge", Type = "hill", X = 530, Y = 735, RadiusX = 175, RadiusY = 150, Height = terrain is "hill" or "mountain" ? 2.4f : 1.5f },
-        };
-        if (battleType == "field")
-            zones.Add(new BattleTerrainZoneData { Id = "ford", Type = "shallow", X = 500, Y = 500, RadiusX = terrain == "river" ? 105 : 62, RadiusY = 440 });
-        if (terrain == "mountain")
-            zones.Add(new BattleTerrainZoneData { Id = "north-ridge", Type = "hill", X = 300, Y = 365, RadiusX = 185, RadiusY = 180, Height = 2.8f });
-        if (terrain == "river" && zones.All(item => item.Id != "ford"))
-            zones.Add(new BattleTerrainZoneData { Id = "ford", Type = "shallow", X = 500, Y = 500, RadiusX = 105, RadiusY = 440 });
-        return zones;
-    }
+    private static double LocalDefenseMultiplier(PendingBattleData pending, BattleUnitGroupData target) => 1;
 
     private static double OrderStagePower(string order, string stage) => (order, stage) switch
     {
