@@ -4,11 +4,12 @@ namespace ThreeKingdomsSimulator.Godot;
 
 public partial class BattlefieldCanvas : Control
 {
-    private readonly bool _useSimple3D;
     private const float HeaderHeight = 92;
     private const float LogicalExtent = 1000;
     private const float WorldWidth = 2400;
     private const float WorldHeight = 1350;
+    private const float BattleGroundTop = .30f;
+    private const float BattleGroundHeight = .64f;
     private const float MinimumZoom = .42f;
     private const float MaximumZoom = 1.35f;
     private readonly Dictionary<string, Texture2D> _troopTextures = [];
@@ -26,13 +27,13 @@ public partial class BattlefieldCanvas : Control
     private Vector2 _dragStart;
     private Vector2 _dragCurrent;
     private bool _dragSelecting;
-    private Vector2 _cameraCenter = new(WorldWidth / 2, WorldHeight / 2);
+    private Vector2 _cameraCenter = new(WorldWidth / 2, WorldHeight * .62f);
     private float _cameraZoom = .58f;
     private Vector2 _worldOrigin;
     private bool _cameraDragging;
+    private bool _reducedMotion;
     private Vector2 _cameraDragStart;
     private Vector2 _cameraCenterAtDragStart;
-    private readonly Battlefield3DScene? _battleScene;
 
     public event Action<IReadOnlyCollection<string>>? FriendlySelectionChanged;
     public event Action<string>? EnemySelectionChanged;
@@ -47,25 +48,17 @@ public partial class BattlefieldCanvas : Control
         MouseFilter = MouseFilterEnum.Stop;
         MouseDefaultCursorShape = CursorShape.Cross;
         ClipContents = true;
-        _useSimple3D = DisplayServer.GetName() != "headless";
-        if (_useSimple3D)
-        {
-            _battleScene = new Battlefield3DScene();
-            AddChild(_battleScene);
-        }
     }
 
     public void SetBattle(PendingBattleData? battle)
     {
         if (ReferenceEquals(_battle, battle))
         {
-            _battleScene?.SetBattle(battle);
             EnsureBattleTextures();
             QueueRedraw();
             return;
         }
         _battle = battle;
-        _battleScene?.SetBattle(battle);
         _time = 0;
         _selectedGroupIds.Clear();
         _selectedEnemyId = string.Empty;
@@ -89,30 +82,21 @@ public partial class BattlefieldCanvas : Control
     public void SetPlaybackTime(double value)
     {
         _time = Math.Max(0, value);
-        _battleScene?.SetPlaybackTime(_time);
+        QueueRedraw();
+    }
+
+    public void SetReducedMotion(bool value)
+    {
+        _reducedMotion = value;
         QueueRedraw();
     }
 
     public override void _Draw()
     {
-        if (!_useSimple3D || _battle is null) DrawRect(new Rect2(Vector2.Zero, Size), GameTheme.Backdrop);
+        DrawRect(new Rect2(Vector2.Zero, Size), GameTheme.Backdrop);
         if (_battle is null)
         {
             DrawString(GetThemeDefaultFont(), new Vector2(40, 70), "尚无待演算战斗", HorizontalAlignment.Left, -1, 24, GameTheme.Paper);
-            return;
-        }
-
-        if (_useSimple3D)
-        {
-            BuildActiveEventCache();
-            DrawProjectedUnitHud();
-            DrawCommandOverlay();
-            DrawProjectiles();
-            DrawDamageNumbers();
-            DrawBattleHeader();
-            DrawMiniMap();
-            DrawCameraHelp();
-            if (_dragSelecting) DrawSelectionBox();
             return;
         }
 
@@ -123,17 +107,18 @@ public partial class BattlefieldCanvas : Control
             if (_battle?.PlayerSide == "defender")
             {
                 DrawSetTransform(_worldOrigin + new Vector2(WorldWidth * _cameraZoom, 0), 0, new Vector2(-_cameraZoom, _cameraZoom));
-                DrawTextureRect(_background, new Rect2(0, 0, WorldWidth, WorldHeight), false, new Color(.88f, .88f, .82f, .9f));
+                DrawTextureRect(_background, new Rect2(0, 0, WorldWidth, WorldHeight), false, new Color(.98f, .98f, .95f, 1));
                 ApplyWorldTransform();
             }
-            else DrawTextureRect(_background, new Rect2(0, 0, WorldWidth, WorldHeight), false, new Color(.88f, .88f, .82f, .9f));
+            else DrawTextureRect(_background, new Rect2(0, 0, WorldWidth, WorldHeight), false, new Color(.98f, .98f, .95f, 1));
         }
-        DrawRect(new Rect2(0, 0, WorldWidth, WorldHeight), new Color(.035f, .05f, .035f, .17f));
+        DrawRect(new Rect2(0, 0, WorldWidth, WorldHeight), new Color(.035f, .04f, .025f, .055f));
 
         BuildActiveEventCache();
         DrawRangeBands();
+        DrawTerrainZoneOverlays();
         DrawFortification();
-        foreach (var group in _battle.Groups.OrderByDescending(item => item.Depth).ThenBy(item => item.Y)) DrawGroup(group);
+        foreach (var group in _battle!.Groups.OrderBy(item => item.Y).ThenByDescending(item => item.Depth)) DrawGroup(group);
         foreach (var officer in _battle.OfficerUnits.OrderBy(item => item.Y)) DrawMountedOfficer(officer);
         DrawCommandOverlay();
         DrawProjectiles();
@@ -147,9 +132,8 @@ public partial class BattlefieldCanvas : Control
 
     public void ResetCameraView()
     {
-        if (_useSimple3D) _battleScene!.ResetCamera();
         _cameraZoom = .58f;
-        _cameraCenter = new Vector2(WorldWidth / 2, WorldHeight / 2);
+        _cameraCenter = new Vector2(WorldWidth / 2, WorldHeight * .62f);
         ClampCamera();
         QueueRedraw();
     }
@@ -159,7 +143,7 @@ public partial class BattlefieldCanvas : Control
         _selectedGroupIds.Clear();
         if (_battle is not null)
         {
-            foreach (var group in _battle.Groups.Where(item => item.Side == _battle.PlayerSide && CurrentSoldiers(item) > 0)) _selectedGroupIds.Add(group.Id);
+            foreach (var group in _battle.Groups.Where(item => item.Side == _battle.PlayerSide && CurrentSoldiers(item) > 0 && !item.IsRouted && item.Morale >= 25)) _selectedGroupIds.Add(group.Id);
         }
         FriendlySelectionChanged?.Invoke(_selectedGroupIds);
         QueueRedraw();
@@ -177,8 +161,7 @@ public partial class BattlefieldCanvas : Control
         switch (inputEvent)
         {
             case InputEventMouseButton button when (button.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown) && button.Pressed:
-                if (_useSimple3D) _battleScene!.Zoom(button.ButtonIndex == MouseButton.WheelUp ? 1.12f : 1 / 1.12f);
-                else ZoomCamera(button.Position, button.ButtonIndex == MouseButton.WheelUp ? 1.12f : 1 / 1.12f);
+                ZoomCamera(button.Position, button.ButtonIndex == MouseButton.WheelUp ? 1.12f : 1 / 1.12f);
                 QueueRedraw();
                 AcceptEvent();
                 break;
@@ -190,16 +173,8 @@ public partial class BattlefieldCanvas : Control
                 AcceptEvent();
                 break;
             case InputEventMouseMotion motion when _cameraDragging:
-                if (_useSimple3D)
-                {
-                    _battleScene!.Pan(motion.Position - _cameraDragStart);
-                    _cameraDragStart = motion.Position;
-                }
-                else
-                {
-                    _cameraCenter = _cameraCenterAtDragStart - (motion.Position - _cameraDragStart) / _cameraZoom;
-                    ClampCamera();
-                }
+                _cameraCenter = _cameraCenterAtDragStart - (motion.Position - _cameraDragStart) / _cameraZoom;
+                ClampCamera();
                 QueueRedraw();
                 AcceptEvent();
                 break;
@@ -276,9 +251,9 @@ public partial class BattlefieldCanvas : Control
         else
         {
             if (!append) _selectedGroupIds.Clear();
-            foreach (var group in _battle.Groups.Where(item => item.Side == _battle.PlayerSide && CurrentSoldiers(item) > 0))
+            foreach (var group in _battle.Groups.Where(item => item.Side == _battle.PlayerSide && CurrentSoldiers(item) > 0 && !item.IsRouted && item.Morale >= 25))
             {
-                if (selectionRect.HasPoint(PresentationToScreen(BattlePosition(group, true)))) _selectedGroupIds.Add(group.Id);
+                if (selectionRect.HasPoint(WorldToScreen(BattlePosition(group, true)))) _selectedGroupIds.Add(group.Id);
             }
         }
         FriendlySelectionChanged?.Invoke(_selectedGroupIds);
@@ -287,9 +262,9 @@ public partial class BattlefieldCanvas : Control
     private BattleUnitGroupData? HitTestGroup(Vector2 pointer)
     {
         if (_battle is null) return null;
-        return _battle.Groups.Where(item => CurrentSoldiers(item) > 0)
-            .Select(item => (Group: item, Distance: PresentationToScreen(BattlePosition(item, true)).DistanceTo(pointer)))
-            .Where(item => item.Distance <= (_useSimple3D ? 42 : Math.Clamp(48 * _cameraZoom, 24, 62)))
+        return _battle.Groups.Where(item => CurrentSoldiers(item) > 0 && (item.Side != _battle.PlayerSide || (!item.IsRouted && item.Morale >= 25)))
+            .Select(item => (Group: item, Distance: WorldToScreen(BattlePosition(item, true)).DistanceTo(pointer)))
+            .Where(item => item.Distance <= Math.Clamp(48 * _cameraZoom, 24, 62))
             .OrderBy(item => item.Distance)
             .Select(item => item.Group)
             .FirstOrDefault();
@@ -297,11 +272,10 @@ public partial class BattlefieldCanvas : Control
 
     private Vector2 ScreenToLogical(Vector2 point)
     {
-        if (_useSimple3D) return _battleScene!.ScreenToLogical(point);
         var world = ScreenToWorld(point);
         var x = Math.Clamp(world.X / WorldWidth * LogicalExtent, 0, LogicalExtent);
         if (_battle?.PlayerSide == "defender") x = LogicalExtent - x;
-        var y = Math.Clamp(world.Y / WorldHeight * LogicalExtent, 0, LogicalExtent);
+        var y = Math.Clamp((world.Y / WorldHeight - BattleGroundTop) / BattleGroundHeight * LogicalExtent, 0, LogicalExtent);
         return new Vector2(x, y);
     }
 
@@ -348,8 +322,10 @@ public partial class BattlefieldCanvas : Control
         _activeDamage.Clear();
         _latestActiveEvent = null;
         if (_battle is null) return;
-        foreach (var item in _battle.Timeline)
+        for (var index = _battle.Timeline.Count - 1; index >= 0; index--)
         {
+            var item = _battle.Timeline[index];
+            if (item.Start < _time - 1.5) break;
             if (item.Start > _time || item.Start + Math.Max(.2, item.Duration) < _time) continue;
             if (!string.IsNullOrEmpty(item.GroupId)) _activeActions[item.GroupId] = item.Action;
             if (!string.IsNullOrEmpty(item.OfficerId) && item.Action is "officer-charge" or "officer-command") _activeOfficerActions[item.OfficerId] = item.Action;
@@ -359,45 +335,14 @@ public partial class BattlefieldCanvas : Control
         }
     }
 
-    private void DrawProjectedUnitHud()
-    {
-        if (_battle is null) return;
-        DrawString(GetThemeDefaultFont(), new Vector2(18, HeaderHeight + 27), "敌　军", HorizontalAlignment.Left, 110, 16, Color.FromHtml("#ef9b85"));
-        DrawString(GetThemeDefaultFont(), new Vector2(18, Size.Y - 62), "我　军", HorizontalAlignment.Left, 110, 16, Color.FromHtml("#9fddb5"));
-        foreach (var zone in _battle.TerrainZones)
-        {
-            var center = _battleScene!.ProjectLogical(zone.X, zone.Y, zone.Type == "hill" ? .3f : .08f);
-            var label = zone.Type switch { "forest" => "树林·隐蔽", "hill" => "坡顶·高地", "shallow" => "浅滩·减速", _ => string.Empty };
-            if (!string.IsNullOrEmpty(label))
-            {
-                DrawRect(new Rect2(center + new Vector2(-39, 8), new Vector2(78, 19)), new Color(.03f, .04f, .03f, .58f));
-                DrawString(GetThemeDefaultFont(), center + new Vector2(-36, 22), label, HorizontalAlignment.Center, 72, 10, GameTheme.OnAccent);
-            }
-        }
-        foreach (var group in _battle.Groups.Where(item => CurrentSoldiers(item) > 0).OrderBy(item => item.Side == _battle.PlayerSide ? 1 : 0))
-        {
-            var position = BattlePosition(group, true);
-            var selected = _selectedGroupIds.Contains(group.Id) || group.Id == _selectedEnemyId;
-            var color = group.Side == _battle.PlayerSide ? Color.FromHtml("#8ed2a9") : Color.FromHtml("#df8d77");
-            var initial = Math.Max(1, group.InitialSoldiers);
-            var current = CurrentSoldiers(group);
-            var barWidth = 48f;
-            DrawRect(new Rect2(position + new Vector2(-barWidth / 2, -25), new Vector2(barWidth, 5)), new Color(.03f, .04f, .03f, .92f));
-            DrawRect(new Rect2(position + new Vector2(-barWidth / 2, -25), new Vector2(barWidth * Math.Clamp(current / (float)initial, 0, 1), 5)), color);
-            DrawString(GetThemeDefaultFont(), position + new Vector2(-34, -31), $"{ShortName(group.TroopType)} {current:N0}", HorizontalAlignment.Center, 68, 11, Color.FromHtml("#fff0cf"));
-            if (selected) DrawArc(position + new Vector2(0, 10), 31, 0, Mathf.Tau, 28, group.Side == _battle.PlayerSide ? GameTheme.Gold : Color.FromHtml("#ef785f"), 2.2f, true);
-        }
-    }
-
     private void DrawBattleHeader()
     {
         var stage = _battle!.Status == "planning" ? "战前布阵" : _battle.Status == "resolved" ? "战斗结束" : _latestActiveEvent?.Stage ?? "实时交战";
         DrawRect(new Rect2(0, 0, Size.X, 92), new Color(.025f, .035f, .025f, .88f));
-        var leftSide = _battle.PlayerSide == "attacker" ? "defender" : "attacker";
-        var rightSide = _battle.PlayerSide;
+        var enemySide = _battle.PlayerSide == "attacker" ? "defender" : "attacker";
         var font = GetThemeDefaultFont();
-        DrawForceBar(leftSide, 18, false, Color.FromHtml("#d79077"));
-        DrawForceBar(rightSide, Size.X - 338, true, Color.FromHtml("#88c9a3"));
+        DrawForceBar(enemySide, 18, false, Color.FromHtml("#d79077"), "敌军（左侧）");
+        DrawForceBar(_battle.PlayerSide, Size.X - 338, true, Color.FromHtml("#88c9a3"), "我军（右侧）");
         var remaining = _battle.Status == "planning" ? _battle.Duration : Math.Max(0, _battle.Duration - _battle.Elapsed);
         DrawString(font, new Vector2(Size.X / 2 - 115, 25), stage, HorizontalAlignment.Center, 230, 16, GameTheme.OnAccent);
         DrawString(font, new Vector2(Size.X / 2 - 90, 54), $"{Math.Ceiling(remaining):00} 秒", HorizontalAlignment.Center, 180, 25, Color.FromHtml("#f0d58a"));
@@ -409,13 +354,16 @@ public partial class BattlefieldCanvas : Control
         }
     }
 
-    private void DrawForceBar(string side, float x, bool alignRight, Color color)
+    private void DrawForceBar(string side, float x, bool alignRight, Color color, string label = "")
     {
         var before = side == "attacker" ? _battle!.AttackerBefore : _battle!.DefenderBefore;
         var current = _battle.Groups.Where(item => item.Side == side).Sum(item => CurrentSoldiers(item));
-        var name = _battle.BattleType == "field" ? side == "attacker" ? "出击军" : "敌军" : side == "attacker" ? "攻方" : "守方";
+        var groups = _battle.Groups.Where(item => item.Side == side && CurrentSoldiers(item) > 0).ToList();
+        var morale = groups.Count == 0 ? 0 : groups.Sum(item => item.Morale * CurrentSoldiers(item)) / Math.Max(1, current);
+        var routed = groups.Count(item => item.IsRouted);
+        var name = string.IsNullOrEmpty(label) ? (_battle.BattleType == "field" ? side == "attacker" ? "出击军" : "敌军" : side == "attacker" ? "攻方" : "守方") : label;
         var alignment = alignRight ? HorizontalAlignment.Right : HorizontalAlignment.Left;
-        DrawString(GetThemeDefaultFont(), new Vector2(x, 24), $"{name} {current:N0} / {before:N0}", alignment, 320, 16, color);
+        DrawString(GetThemeDefaultFont(), new Vector2(x, 24), $"{name} {current:N0}/{before:N0} · 士气{morale:F0}{(routed > 0 ? $" · 溃{routed}" : "")}", alignment, 320, 16, color);
         DrawRect(new Rect2(x, 34, 320, 12), new Color(.04f, .05f, .04f, .92f));
         var width = 320 * Math.Clamp(current / (float)Math.Max(1, before), 0, 1);
         var barX = alignRight ? x + 320 - width : x;
@@ -433,13 +381,16 @@ public partial class BattlefieldCanvas : Control
     private void DrawRangeBands()
     {
         if (_battle is null || _battle.Status != "planning") return;
-        var guide = new Color(.84f, .72f, .42f, .12f);
+        var guide = new Color(.84f, .72f, .42f, .09f);
+        var groundTop = WorldHeight * BattleGroundTop;
+        var groundBottom = WorldHeight * (BattleGroundTop + BattleGroundHeight);
         for (var lane = 0; lane < 5; lane++)
         {
-            var y = (120 + lane * 170) / LogicalExtent * WorldHeight;
+            var y = (BattleGroundTop + (120 + lane * 170) / LogicalExtent * BattleGroundHeight) * WorldHeight;
             DrawLine(new Vector2(0, y), new Vector2(WorldWidth, y), guide, 1);
         }
-        foreach (var x in new[] { .08f, .15f, .22f, .78f, .85f, .92f }) DrawLine(new Vector2(WorldWidth * x, 0), new Vector2(WorldWidth * x, WorldHeight), guide, 1);
+        foreach (var x in new[] { .08f, .15f, .22f, .78f, .85f, .92f })
+            DrawLine(new Vector2(WorldWidth * x, groundTop), new Vector2(WorldWidth * x, groundBottom), guide, 1);
         foreach (var group in _battle.Groups.Where(item => item.TroopType == "archers" && item.Side == _battle.PlayerSide))
         {
             var position = BattlePosition(group, false);
@@ -451,31 +402,57 @@ public partial class BattlefieldCanvas : Control
         }
     }
 
+    private void DrawTerrainZoneOverlays()
+    {
+        if (_battle is null) return;
+        var planning = _battle.Status == "planning";
+        foreach (var zone in _battle.TerrainZones.OrderBy(item => item.Height))
+        {
+            var center = LogicalPosition(zone.X, zone.Y);
+            var radii = new Vector2(
+                zone.RadiusX / LogicalExtent * WorldWidth,
+                zone.RadiusY / LogicalExtent * BattleGroundHeight * WorldHeight);
+            var (fill, edge, label) = zone.Type switch
+            {
+                "forest" => (new Color(.10f, .25f, .13f, .055f), new Color(.44f, .62f, .35f, .27f), "林地 · 隐蔽"),
+                "hill" => (new Color(.38f, .27f, .12f, .045f), new Color(.78f, .63f, .34f, .25f), "坡顶 · 高地"),
+                "shallow" => (new Color(.12f, .31f, .39f, .055f), new Color(.40f, .68f, .75f, .28f), "浅滩 · 减速"),
+                _ => (Colors.Transparent, Colors.Transparent, string.Empty),
+            };
+            if (string.IsNullOrEmpty(label)) continue;
+
+            var activeFill = planning ? fill : new Color(fill, fill.A * .36f);
+            var activeEdge = planning ? edge : new Color(edge, edge.A * .34f);
+            DrawWorldEllipse(center, radii, activeFill);
+            DrawWorldEllipseOutline(center, radii, activeEdge, planning ? 2 : 1.2f);
+            if (planning) DrawWorldEllipseOutline(center, radii * .91f, new Color(edge, edge.A * .33f), 1);
+
+            var labelPosition = center + new Vector2(-54, Math.Min(radii.Y * .42f, 48));
+            DrawRect(new Rect2(labelPosition, new Vector2(108, 23)), new Color(.025f, .035f, .025f, planning ? .68f : .54f));
+            DrawRect(new Rect2(labelPosition, new Vector2(108, 23)), new Color(edge, planning ? .46f : .26f), false, 1);
+            DrawString(GetThemeDefaultFont(), labelPosition + new Vector2(4, 16), label, HorizontalAlignment.Center, 100, 11, new Color(Color.FromHtml("#f3e6c1"), planning ? 1 : .82f));
+        }
+    }
+
     private void DrawFortification()
     {
         if (_battle?.BattleType != "siege") return;
         var defenderOnRight = _battle.PlayerSide == "defender";
         var wallX = defenderOnRight ? WorldWidth * .64f : WorldWidth * .36f;
-        const float fieldTop = 0;
+        var fieldTop = WorldHeight * BattleGroundTop;
+        var fieldBottom = WorldHeight * (BattleGroundTop + BattleGroundHeight);
         var zone = defenderOnRight
-            ? new Rect2(wallX, fieldTop, WorldWidth - wallX, WorldHeight)
-            : new Rect2(0, fieldTop, wallX, WorldHeight);
-        DrawRect(zone, new Color(.13f, .12f, .085f, .19f));
+            ? new Rect2(wallX, fieldTop, WorldWidth - wallX, fieldBottom - fieldTop)
+            : new Rect2(0, fieldTop, wallX, fieldBottom - fieldTop);
+        DrawRect(zone, new Color(.12f, .10f, .065f, .075f));
+        var boundary = _battle.WallAfter <= 0 ? new Color(.58f, .31f, .19f, .36f) : new Color(.76f, .63f, .38f, .34f);
+        DrawDashedLine(new Vector2(wallX, fieldTop), new Vector2(wallX, fieldBottom), boundary, 2, 14);
 
-        var wallColor = _battle.WallAfter <= 0 ? new Color(.34f, .25f, .18f, .42f) : new Color(.48f, .39f, .27f, .82f);
-        DrawRect(new Rect2(wallX - 13, fieldTop, 26, WorldHeight), wallColor);
-        DrawLine(new Vector2(wallX - 16, fieldTop), new Vector2(wallX - 16, WorldHeight), Color.FromHtml("#c3a56e"), 2);
-        DrawLine(new Vector2(wallX + 16, fieldTop), new Vector2(wallX + 16, WorldHeight), Color.FromHtml("#6e5637"), 3);
-        for (var y = fieldTop + 8; y < WorldHeight; y += 34)
-        {
-            DrawRect(new Rect2(wallX - 20, y, 10, 17), wallColor.Lightened(.18f));
-            DrawRect(new Rect2(wallX + 10, y + 15, 10, 17), wallColor.Darkened(.1f));
-        }
-
-        var gateY = WorldHeight * .48f;
-        var gateColor = _battle.GateAfter <= 0 ? new Color(.18f, .12f, .08f, .32f) : new Color(.24f, .15f, .08f, .95f);
-        DrawRect(new Rect2(wallX - 18, gateY - 38, 36, 76), gateColor);
-        DrawString(GetThemeDefaultFont(), new Vector2(defenderOnRight ? wallX + 24 : wallX - 104, fieldTop + 24), "城内守备区", HorizontalAlignment.Center, 80, 12, GameTheme.OnAccent);
+        var gateY = (BattleGroundTop + BattleGroundHeight * .50f) * WorldHeight;
+        DrawArc(new Vector2(wallX, gateY), 24, 0, Mathf.Tau, 28, new Color(boundary, .72f), 2.2f, true);
+        var labelX = defenderOnRight ? wallX + 18 : wallX - 126;
+        DrawRect(new Rect2(labelX, fieldTop + 18, 108, 24), new Color(.025f, .035f, .025f, .66f));
+        DrawString(GetThemeDefaultFont(), new Vector2(labelX + 4, fieldTop + 35), "城内守备区", HorizontalAlignment.Center, 100, 11, Color.FromHtml("#f0dfb8"));
     }
 
     private void DrawGroup(BattleUnitGroupData group)
@@ -489,7 +466,8 @@ public partial class BattlefieldCanvas : Control
         var attacking = active is "volley" or "charge" or "melee" or "brace" or "siege";
         var animationRate = moving ? 9.5 : attacking ? 8.5 : 3.5;
         var phase = group.Id.Sum(character => character) * .17;
-        if (moving || attacking) position.Y += MathF.Sin((float)(_time * animationRate + phase)) * (moving ? 1.8f : 1.2f);
+        if (!_reducedMotion && (moving || attacking)) position.Y += MathF.Sin((float)(_time * animationRate + phase)) * (moving ? 1.8f : 1.2f);
+        var depthScale = DepthScale(group.Y);
         var frame = (int)(_time * animationRate + phase) % 4 + (attacking ? 4 : 0);
         var textureSize = texture.GetSize();
         var frameSize = new Vector2(textureSize.X / 4f, textureSize.Y / 2f);
@@ -497,19 +475,33 @@ public partial class BattlefieldCanvas : Control
         var people = Math.Clamp(1 + (int)Math.Ceiling(group.InitialSoldiers / 150d), 1, 6);
         var color = group.Side == "attacker" ? Color.FromHtml("#99cdb0") : Color.FromHtml("#d58c72");
         if (_battle!.PlayerSide == "defender") color = group.Side == "defender" ? Color.FromHtml("#99cdb0") : Color.FromHtml("#d58c72");
+        if (group.IsRouted || group.State == "retreat") color = color.Lerp(Colors.Gray, .58f);
+        DrawWorldEllipse(position + new Vector2(2, 22 * depthScale), new Vector2(54, 13) * depthScale, new Color(.015f, .02f, .012f, .30f));
+        if (moving && !_reducedMotion) DrawMovementDust(position, depthScale, group.Side == _battle.PlayerSide);
         for (var index = 0; index < people; index++)
         {
             var row = index / 3; var column = index % 3;
-            var offset = new Vector2((column - 1) * 17 + row * 4, row * 12);
-            var size = group.TroopType == "cavalry" ? new Vector2(52, 46) : group.TroopType == "siege" ? new Vector2(56, 44) : new Vector2(40, 43);
+            var offset = new Vector2((column - 1) * 27 + row * 5, row * 18) * depthScale;
+            var baseSize = group.TroopType == "cavalry" ? new Vector2(82, 70) : group.TroopType == "siege" ? new Vector2(92, 68) : new Vector2(62, 68);
+            var size = baseSize * depthScale;
             var destination = new Rect2(position - size / 2 + offset, size);
-            var colorModulate = new Color(1, 1, 1, index >= Math.Ceiling(people * current / (double)Math.Max(1, group.InitialSoldiers)) ? .2f : 1);
+            var alpha = index >= Math.Ceiling(people * current / (double)Math.Max(1, group.InitialSoldiers)) ? .2f : group.IsRouted ? .42f : 1;
+            var colorModulate = new Color(1, 1, 1, alpha);
             DrawTroopFrame(texture, destination, source, colorModulate, group.Side == _battle.PlayerSide);
         }
-        DrawRect(new Rect2(position.X - 30, position.Y + 34, 60, 5), new Color(.04f, .05f, .04f, .9f));
-        DrawRect(new Rect2(position.X - 30, position.Y + 34, 60 * current / Math.Max(1f, group.InitialSoldiers), 5), color);
-        DrawRect(new Rect2(position.X - 35, position.Y - 34, 10, 22), color);
-        DrawString(GetThemeDefaultFont(), new Vector2(position.X - 22, position.Y - 20), ShortName(group.TroopType), HorizontalAlignment.Left, 20, 11, GameTheme.OnAccent);
+        var barWidth = 78 * depthScale;
+        var barY = position.Y + 52 * depthScale;
+        DrawRect(new Rect2(position.X - barWidth / 2, barY, barWidth, 6), new Color(.025f, .035f, .025f, .92f));
+        DrawRect(new Rect2(position.X - barWidth / 2, barY, barWidth * current / Math.Max(1f, group.InitialSoldiers), 6), color);
+        var moraleColor = group.Morale < 10 ? GameTheme.Danger : group.Morale < 25 ? GameTheme.Bronze : Color.FromHtml("#d9c56f");
+        DrawRect(new Rect2(position.X - barWidth / 2, barY + 8, barWidth, 3), new Color(.025f, .035f, .025f, .86f));
+        DrawRect(new Rect2(position.X - barWidth / 2, barY + 8, barWidth * (float)Math.Clamp(group.Morale / 100, 0, 1), 3), moraleColor);
+        var flagTop = position.Y - 51 * depthScale;
+        DrawLine(new Vector2(position.X - 43 * depthScale, flagTop), new Vector2(position.X - 43 * depthScale, flagTop + 29 * depthScale), new Color(.20f, .14f, .08f, .9f), 2);
+        DrawRect(new Rect2(position.X - 42 * depthScale, flagTop, 20 * depthScale, 16 * depthScale), color);
+        DrawString(GetThemeDefaultFont(), new Vector2(position.X - 39 * depthScale, flagTop + 13 * depthScale), ShortName(group.TroopType), HorizontalAlignment.Center, 14 * depthScale, Math.Max(9, (int)(11 * depthScale)), GameTheme.OnAccent);
+        if (group.IsRouted || group.State == "retreat")
+            DrawString(GetThemeDefaultFont(), new Vector2(position.X - 42, flagTop - 8), group.IsRouted ? "溃散" : "后撤", HorizontalAlignment.Center, 84, 11, moraleColor);
     }
 
     private void DrawMountedOfficer(BattleOfficerUnitData officer)
@@ -521,18 +513,62 @@ public partial class BattlefieldCanvas : Control
         var moving = active == "mounted-move";
         var rate = attacking ? 8.5 : moving ? 7.5 : 3.2;
         var phase = officer.OfficerId.Sum(character => character) * .13;
-        position.Y += MathF.Sin((float)(_time * rate + phase)) * (moving ? 1.6f : .8f);
+        if (!_reducedMotion) position.Y += MathF.Sin((float)(_time * rate + phase)) * (moving ? 1.6f : .8f);
+        var depthScale = DepthScale(officer.Y);
         var frame = (int)(_time * rate + phase) % 4 + (attacking ? 4 : 0);
         var textureSize = texture.GetSize();
         var frameSize = new Vector2(textureSize.X / 4f, textureSize.Y / 2f);
         var source = new Rect2(new Vector2(frame % 4 * frameSize.X, frame / 4 * frameSize.Y), frameSize);
-        var size = officer.SpriteId == "lu-bu" ? new Vector2(102, 78) : new Vector2(94, 72);
+        var size = (officer.SpriteId == "lu-bu" ? new Vector2(136, 104) : new Vector2(126, 96)) * depthScale;
         var destination = new Rect2(position - size / 2, size);
+        DrawWorldEllipse(position + new Vector2(3, size.Y * .34f), new Vector2(size.X * .40f, size.Y * .12f), new Color(.015f, .02f, .012f, .34f));
+        if (moving && !_reducedMotion) DrawMovementDust(position, depthScale * 1.12f, officer.Side == _battle!.PlayerSide);
         DrawTroopFrame(texture, destination, source, Colors.White, officer.Side == _battle!.PlayerSide);
         var ownColor = officer.Side == _battle.PlayerSide ? Color.FromHtml("#f2d36f") : Color.FromHtml("#ee8a70");
         DrawArc(position + new Vector2(0, 8), size.X * .43f, 0, Mathf.Tau, 28, new Color(ownColor, .78f), 2, true);
-        DrawRect(new Rect2(position.X - 38, position.Y - 43, 76, 17), new Color(.035f, .045f, .03f, .88f));
-        DrawString(GetThemeDefaultFont(), new Vector2(position.X - 36, position.Y - 30), $"将·{officer.Name} {officer.CombatPower:F1}", HorizontalAlignment.Center, 72, 10, ownColor);
+        var plaqueWidth = 96 * depthScale;
+        var plaqueY = position.Y - size.Y * .60f;
+        DrawRect(new Rect2(position.X - plaqueWidth / 2, plaqueY, plaqueWidth, 19), new Color(.025f, .035f, .025f, .88f));
+        DrawRect(new Rect2(position.X - plaqueWidth / 2, plaqueY, plaqueWidth, 19), new Color(ownColor, .48f), false, 1);
+        DrawString(GetThemeDefaultFont(), new Vector2(position.X - plaqueWidth / 2 + 2, plaqueY + 14), $"将·{officer.Name} {officer.CombatPower:F1}", HorizontalAlignment.Center, plaqueWidth - 4, 10, ownColor);
+    }
+
+    private static float DepthScale(float logicalY) => .78f + Math.Clamp(logicalY / LogicalExtent, 0, 1) * .32f;
+
+    private void DrawMovementDust(Vector2 position, float scale, bool movingLeft)
+    {
+        var trail = movingLeft ? 1 : -1;
+        var pulse = .72f + MathF.Sin((float)_time * 8) * .12f;
+        for (var index = 0; index < 3; index++)
+        {
+            var center = position + new Vector2(trail * (26 + index * 16) * scale, (22 + index * 3) * scale);
+            var radii = new Vector2((17 - index * 3) * scale, (6 - index) * scale) * pulse;
+            DrawWorldEllipse(center, radii, new Color(.72f, .63f, .45f, .11f - index * .022f));
+        }
+    }
+
+    private void DrawWorldEllipse(Vector2 center, Vector2 radii, Color color)
+    {
+        const int segments = 36;
+        var points = new Vector2[segments];
+        for (var index = 0; index < segments; index++)
+        {
+            var angle = Mathf.Tau * index / segments;
+            points[index] = center + new Vector2(MathF.Cos(angle) * radii.X, MathF.Sin(angle) * radii.Y);
+        }
+        DrawColoredPolygon(points, color);
+    }
+
+    private void DrawWorldEllipseOutline(Vector2 center, Vector2 radii, Color color, float width)
+    {
+        const int segments = 48;
+        var points = new Vector2[segments + 1];
+        for (var index = 0; index <= segments; index++)
+        {
+            var angle = Mathf.Tau * index / segments;
+            points[index] = center + new Vector2(MathF.Cos(angle) * radii.X, MathF.Sin(angle) * radii.Y);
+        }
+        DrawPolyline(points, color, width, true);
     }
 
     private void DrawTroopFrame(Texture2D texture, Rect2 destination, Rect2 source, Color color, bool faceLeft)
@@ -550,7 +586,7 @@ public partial class BattlefieldCanvas : Control
 
     private void DrawProjectiles()
     {
-        if (_battle is null) return;
+        if (_battle is null || _reducedMotion) return;
         foreach (var item in _activeVolleys)
         {
             var source = _battle.Groups.FirstOrDefault(group => group.Id == item.GroupId); var target = _battle.Groups.FirstOrDefault(group => group.Id == item.TargetGroupId);
@@ -628,7 +664,7 @@ public partial class BattlefieldCanvas : Control
             x = Mathf.Lerp(group.PreviousX, group.X, alpha);
             y = Mathf.Lerp(group.PreviousY, group.Y, alpha);
         }
-        return _useSimple3D ? _battleScene!.ProjectLogical(x, y, .9f) : LogicalPosition(x, y);
+        return LogicalPosition(x, y);
     }
 
     private Vector2 OfficerPosition(BattleOfficerUnitData officer)
@@ -641,14 +677,15 @@ public partial class BattlefieldCanvas : Control
             x = Mathf.Lerp(officer.PreviousX, officer.X, alpha);
             y = Mathf.Lerp(officer.PreviousY, officer.Y, alpha);
         }
-        return _useSimple3D ? _battleScene!.ProjectLogical(x, y, 1.1f) : LogicalPosition(x, y);
+        return LogicalPosition(x, y);
     }
 
     private Vector2 LogicalPosition(float x, float y)
     {
-        if (_useSimple3D) return _battleScene!.ProjectLogical(x, y, .12f);
         if (_battle?.PlayerSide == "defender") x = LogicalExtent - x;
-        return new Vector2(x / LogicalExtent * WorldWidth, y / LogicalExtent * WorldHeight);
+        return new Vector2(
+            x / LogicalExtent * WorldWidth,
+            (BattleGroundTop + y / LogicalExtent * BattleGroundHeight) * WorldHeight);
     }
 
     private Rect2 BattlefieldViewportRect() => new(0, HeaderHeight, Math.Max(1, Size.X), Math.Max(1, Size.Y - HeaderHeight));
@@ -661,8 +698,6 @@ public partial class BattlefieldCanvas : Control
     }
 
     private Vector2 WorldToScreen(Vector2 point) => _worldOrigin + point * _cameraZoom;
-
-    private Vector2 PresentationToScreen(Vector2 point) => _useSimple3D ? point : WorldToScreen(point);
 
     private Vector2 ScreenToWorld(Vector2 point) => (point - _worldOrigin) / Math.Max(.01f, _cameraZoom);
 
@@ -696,15 +731,6 @@ public partial class BattlefieldCanvas : Control
     {
         var map = MiniMapRect();
         var local = pointer - map.Position;
-        if (_useSimple3D)
-        {
-            var logicalY = Math.Clamp(local.X / map.Size.X * LogicalExtent, 0, LogicalExtent);
-            var vertical = Math.Clamp(local.Y / map.Size.Y * LogicalExtent, 0, LogicalExtent);
-            var logicalX = _battle?.PlayerSide == "attacker" ? vertical : LogicalExtent - vertical;
-            _battleScene!.CenterOnLogical(logicalX, logicalY);
-            QueueRedraw();
-            return;
-        }
         _cameraCenter = new Vector2(
             Math.Clamp(local.X / map.Size.X * WorldWidth, 0, WorldWidth),
             Math.Clamp(local.Y / map.Size.Y * WorldHeight, 0, WorldHeight));
@@ -720,40 +746,24 @@ public partial class BattlefieldCanvas : Control
         DrawRect(map, new Color(GameTheme.Bronze, .68f), false, 1.5f);
         foreach (var group in _battle.Groups.Where(item => CurrentSoldiers(item) > 0))
         {
-            var point = _useSimple3D
-                ? map.Position + new Vector2(group.Y / LogicalExtent * map.Size.X,
-                    (_battle.PlayerSide == "attacker" ? group.X : LogicalExtent - group.X) / LogicalExtent * map.Size.Y)
-                : map.Position + new Vector2(BattlePosition(group, true).X / WorldWidth * map.Size.X, BattlePosition(group, true).Y / WorldHeight * map.Size.Y);
+            var world = BattlePosition(group, true);
+            var point = map.Position + new Vector2(world.X / WorldWidth * map.Size.X, world.Y / WorldHeight * map.Size.Y);
             var color = group.Side == _battle.PlayerSide ? Color.FromHtml("#8ed2a9") : Color.FromHtml("#df8d77");
             DrawCircle(point, _selectedGroupIds.Contains(group.Id) ? 3.8f : 2.4f, color);
         }
-        Rect2 cameraRect;
-        if (_useSimple3D)
-        {
-            var visible = _battleScene!.ApproximateVisibleLogicalRect();
-            var top = _battle.PlayerSide == "attacker" ? visible.Position.X : LogicalExtent - visible.End.X;
-            cameraRect = new Rect2(
-                map.Position + new Vector2(visible.Position.Y / LogicalExtent * map.Size.X, top / LogicalExtent * map.Size.Y),
-                new Vector2(visible.Size.Y / LogicalExtent * map.Size.X, visible.Size.X / LogicalExtent * map.Size.Y));
-        }
-        else
-        {
-            var viewport = BattlefieldViewportRect();
-            var visibleTopLeft = ScreenToWorld(viewport.Position);
-            var visibleBottomRight = ScreenToWorld(viewport.End);
-            cameraRect = new Rect2(
-                map.Position + new Vector2(visibleTopLeft.X / WorldWidth * map.Size.X, visibleTopLeft.Y / WorldHeight * map.Size.Y),
-                new Vector2((visibleBottomRight.X - visibleTopLeft.X) / WorldWidth * map.Size.X, (visibleBottomRight.Y - visibleTopLeft.Y) / WorldHeight * map.Size.Y));
-        }
+        var viewport = BattlefieldViewportRect();
+        var visibleTopLeft = ScreenToWorld(viewport.Position);
+        var visibleBottomRight = ScreenToWorld(viewport.End);
+        var cameraRect = new Rect2(
+            map.Position + new Vector2(visibleTopLeft.X / WorldWidth * map.Size.X, visibleTopLeft.Y / WorldHeight * map.Size.Y),
+            new Vector2((visibleBottomRight.X - visibleTopLeft.X) / WorldWidth * map.Size.X, (visibleBottomRight.Y - visibleTopLeft.Y) / WorldHeight * map.Size.Y));
         DrawRect(cameraRect.Intersection(map), Color.FromHtml("#f0d58a"), false, 1.5f);
         DrawString(GetThemeDefaultFont(), map.Position + new Vector2(8, 17), "全域战场", HorizontalAlignment.Left, 80, 11, GameTheme.OnAccent);
     }
 
     private void DrawCameraHelp()
     {
-        var text = _useSimple3D
-            ? "简易3D大战场　敌军在上 · 我军在下　滚轮缩放 · 中键拖动 · 点击小地图跳转"
-            : $"大战场视野 {_cameraZoom * 100:0}%　滚轮缩放 · 中键拖动画面 · 点击小地图跳转";
+        var text = $"高质量2.5D大战场　敌军在左 · 我军在右　视野 {_cameraZoom * 100:0}% · 滚轮缩放 · 中键拖动";
         var width = Math.Min(430, Math.Max(240, Size.X - 270));
         var rect = new Rect2(14, Size.Y - 43, width, 29);
         DrawRect(rect, new Color(.025f, .035f, .025f, .82f));

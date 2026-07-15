@@ -39,6 +39,7 @@ public partial class NewGameSetupView : Control
         };
         panel.AddThemeStyleboxOverride("panel", GameTheme.RaisedBox(14));
         AddChild(panel);
+        UiOrnaments.AttachInkCorners(panel, 310, .13f);
 
         var layout = new VBoxContainer();
         layout.AddThemeConstantOverride("separation", 16);

@@ -94,6 +94,8 @@ public sealed class BattleUnitGroupData
     public string AssignedOfficerId { get; set; } = string.Empty;
     public int InitialSoldiers { get; set; }
     public int FinalSoldiers { get; set; }
+    public double InitialMorale { get; set; } = 70;
+    public double Morale { get; set; } = 70;
     public int Lane { get; set; }
     public int Depth { get; set; }
     public float X { get; set; }
@@ -113,6 +115,8 @@ public sealed class BattleUnitGroupData
     public float CommandDestinationX { get; set; }
     public float CommandDestinationY { get; set; }
     public bool IsSortie { get; set; }
+    public bool IsRouted { get; set; }
+    public bool RallyAttempted { get; set; }
 }
 
 public sealed class BattleTimelineEventData
@@ -170,6 +174,10 @@ public sealed class BattlePhaseResultData
     public int GateDamage { get; set; }
     public int InnerDamage { get; set; }
     public double PowerRatio { get; set; }
+    public double AttackerMorale { get; set; }
+    public double DefenderMorale { get; set; }
+    public int AttackerRouted { get; set; }
+    public int DefenderRouted { get; set; }
     public string Explanation { get; set; } = string.Empty;
     public Dictionary<string, int> AttackerGroupLosses { get; set; } = [];
     public Dictionary<string, int> DefenderGroupLosses { get; set; } = [];
@@ -210,9 +218,8 @@ public sealed class PendingBattleData
     public string Summary { get; set; } = string.Empty;
     public string Stance { get; set; } = "standard";
     public string PrimaryTactic { get; set; } = "steady-advance";
-    public string BackupTactic { get; set; } = "fortify-camp";
-    public string EffectiveTactic { get; set; } = "steady-advance";
-    public bool BackupTriggered { get; set; }
+    public string DefenderStance { get; set; } = "standard";
+    public string DefenderPrimaryTactic { get; set; } = "fortify-camp";
     public string DecisionSummary { get; set; } = string.Empty;
     public double Duration { get; set; } = 60;
     public double Elapsed { get; set; }
@@ -257,16 +264,18 @@ public static class BattleCalculator
     {
         var road = army.RouteRoadIds.Select(id => state.Roads.FirstOrDefault(item => item.Id == id)).LastOrDefault(item => item is not null);
         var defenders = state.Officers
-            .Where(item => item.InitialState.FactionId == city.OwnerFactionId && item.InitialState.CityId == city.Id && item.InitialState.Alive && item.InitialState.Status != "deployed")
-            .OrderByDescending(item => item.Profile.Id == city.GovernorId)
-            .ThenByDescending(item => OfficerProgressionRules.EffectiveAbility(item, "leadership", "military"))
+            .Where(item => item.InitialState.FactionId == city.OwnerFactionId && item.InitialState.CityId == city.Id && item.InitialState.Alive && item.InitialState.Status == "serving")
+            .OrderByDescending(item => OfficerProgressionRules.EffectiveAbility(item, "leadership", "military") * 2
+                + OfficerProgressionRules.EffectiveAbility(item, "might", "military")
+                + OfficerProgressionRules.EffectiveAbility(item, "intelligence", "military")
+                - item.InitialState.Fatigue)
             .Take(3)
             .ToList();
-        var defenderCommander = defenders.FirstOrDefault() ?? state.Officers
-            .Where(item => item.InitialState.FactionId == city.OwnerFactionId && item.InitialState.Alive)
-            .OrderByDescending(item => OfficerProgressionRules.EffectiveAbility(item, "leadership", "military"))
-            .FirstOrDefault();
-        if (defenderCommander is not null && defenders.All(item => item.Profile.Id != defenderCommander.Profile.Id)) defenders.Insert(0, defenderCommander);
+        var defenderCommander = defenders.FirstOrDefault();
+        var defenderComposition = DefenderComposition(city.Garrison, city.Defense);
+        var defenderDoctrine = SelectCityDefenseDoctrine(army.Composition, defenderComposition, army.Soldiers, city.Garrison, defenderCommander);
+        var attackerFormation = DefaultFormation(army.Composition, true);
+        if (army.FactionId != state.PlayerFactionId && IsFormationId(army.FormationId)) attackerFormation.FormationId = army.FormationId;
 
         var pending = new PendingBattleData
         {
@@ -289,24 +298,26 @@ public static class BattleCalculator
             InnerBefore = city.InnerControl,
             Stance = army.Stance,
             PrimaryTactic = army.Tactic,
-            BackupTactic = army.BackupTactic,
-            EffectiveTactic = army.Tactic,
-            AttackerFormation = DefaultFormation(army.Composition, true),
-            DefenderFormation = DefaultFormation(DefenderComposition(city.Garrison, city.Defense), false),
+            DefenderStance = defenderDoctrine.Stance,
+            DefenderPrimaryTactic = defenderDoctrine.Primary,
+            AttackerFormation = attackerFormation,
+            DefenderFormation = DefaultFormation(defenderComposition, false),
         };
         AssignRoles(pending);
         pending.TerrainZones = BuildTerrainZones(pending.Terrain, pending.BattleType);
         pending.Groups = ExpandArmy(army.Composition, army.Soldiers, "attacker", pending.AttackerFormation, pending.AttackerOfficerIds);
-        pending.Groups.AddRange(ExpandArmy(DefenderComposition(city.Garrison, city.Defense), city.Garrison, "defender", pending.DefenderFormation, pending.DefenderOfficerIds));
+        pending.Groups.AddRange(ExpandArmy(defenderComposition, city.Garrison, "defender", pending.DefenderFormation, pending.DefenderOfficerIds));
         return pending;
     }
 
-    public static PendingBattleData CreateFieldBattle(GameSession state, ArmyData attacker, ArmyData defender)
+    public static PendingBattleData CreateFieldBattle(GameSession state, ArmyData attacker, ArmyData defender, string encounterRoadId = "")
     {
-        var battlefieldCity = state.Cities.FirstOrDefault(item => item.Id == defender.TargetCityId)
-            ?? state.Cities.First(item => item.Id == attacker.TargetCityId);
-        var road = defender.RouteRoadIds.Select(id => state.Roads.FirstOrDefault(item => item.Id == id)).LastOrDefault(item => item is not null)
+        var road = state.Roads.FirstOrDefault(item => item.Id == encounterRoadId)
+            ?? defender.RouteRoadIds.Select(id => state.Roads.FirstOrDefault(item => item.Id == id)).LastOrDefault(item => item is not null)
             ?? attacker.RouteRoadIds.Select(id => state.Roads.FirstOrDefault(item => item.Id == id)).LastOrDefault(item => item is not null);
+        var battlefieldCity = state.Cities.FirstOrDefault(item => item.Id == road?.ToCityId)
+            ?? state.Cities.FirstOrDefault(item => item.Id == defender.TargetCityId)
+            ?? state.Cities.First(item => item.Id == attacker.TargetCityId);
         List<string> attackerOfficers = [attacker.CommanderId, .. attacker.DeputyIds];
         List<string> defenderOfficers = [defender.CommanderId, .. defender.DeputyIds];
         var pending = new PendingBattleData
@@ -319,8 +330,9 @@ public static class BattleCalculator
             AttackerOfficerIds = attackerOfficers, DefenderOfficerIds = defenderOfficers,
             AttackerBefore = attacker.Soldiers, DefenderBefore = defender.Soldiers,
             WallBefore = 0, GateBefore = 0, InnerBefore = 0, WallAfter = 0, GateAfter = 0, InnerAfter = 0,
-            Stance = attacker.Stance, PrimaryTactic = attacker.Tactic, BackupTactic = attacker.BackupTactic, EffectiveTactic = attacker.Tactic,
-            AttackerFormation = DefaultFormation(attacker.Composition, true), DefenderFormation = DefaultFormation(defender.Composition, false),
+            Stance = attacker.Stance, PrimaryTactic = attacker.Tactic,
+            DefenderStance = defender.Stance, DefenderPrimaryTactic = defender.Tactic,
+            AttackerFormation = ArmyFormation(state, attacker, true), DefenderFormation = ArmyFormation(state, defender, false),
         };
         AssignRoles(pending);
         pending.TerrainZones = BuildTerrainZones(pending.Terrain, pending.BattleType);
@@ -329,7 +341,8 @@ public static class BattleCalculator
         return pending;
     }
 
-    public static void Configure(PendingBattleData pending, string formationId, Dictionary<string, string> orders)
+    public static void Configure(PendingBattleData pending, string formationId, Dictionary<string, string> orders,
+        string stance = "", string primaryTactic = "")
     {
         var plan = pending.PlayerSide == "attacker" ? pending.AttackerFormation : pending.DefenderFormation;
         plan.FormationId = formationId;
@@ -349,6 +362,16 @@ public static class BattleCalculator
             }
         }
         SpreadGroups(pending.Groups.Where(item => item.Side == pending.PlayerSide).ToList(), pending.PlayerSide);
+        if (pending.PlayerSide == "attacker")
+        {
+            if (!string.IsNullOrEmpty(stance)) pending.Stance = stance;
+            if (!string.IsNullOrEmpty(primaryTactic)) pending.PrimaryTactic = primaryTactic;
+        }
+        else
+        {
+            if (!string.IsNullOrEmpty(stance)) pending.DefenderStance = stance;
+            if (!string.IsNullOrEmpty(primaryTactic)) pending.DefenderPrimaryTactic = primaryTactic;
+        }
     }
 
     public static int IssueRealtimeCommand(PendingBattleData pending, IEnumerable<string> groupIds, string command,
@@ -356,9 +379,11 @@ public static class BattleCalculator
     {
         if (pending.Status != "running") return 0;
         var selected = pending.Groups
-            .Where(item => item.Side == pending.PlayerSide && item.FinalSoldiers > 0 && groupIds.Contains(item.Id))
+            .Where(item => item.Side == pending.PlayerSide && item.FinalSoldiers > 0 && !item.IsRouted && item.Morale >= 25 && groupIds.Contains(item.Id))
             .ToList();
         if (selected.Count == 0) return 0;
+        var defensiveCommand = command is "defend-gate" or "inner-city" or "sortie" or "reserve-line";
+        if (defensiveCommand && (pending.PlayerSide != "defender" || pending.BattleType != "siege")) return 0;
 
         BattleUnitGroupData? target = null;
         if (command == "attack")
@@ -401,6 +426,37 @@ public static class BattleCalculator
                     group.CommandTargetGroupId = string.Empty;
                     group.TargetGroupId = string.Empty;
                     break;
+                case "defend-gate":
+                    group.CommandMode = "move";
+                    group.CommandTargetGroupId = string.Empty;
+                    group.CommandDestinationX = 305;
+                    group.CommandDestinationY = Math.Clamp(460 + group.Y - (float)formationCenterY, 120, 800);
+                    group.Lane = 2;
+                    group.IsSortie = false;
+                    group.TargetGroupId = string.Empty;
+                    break;
+                case "inner-city":
+                    group.CommandMode = "move";
+                    group.CommandTargetGroupId = string.Empty;
+                    group.CommandDestinationX = 165 + group.Depth * 18;
+                    group.CommandDestinationY = group.Y;
+                    group.IsSortie = false;
+                    group.TargetGroupId = string.Empty;
+                    break;
+                case "sortie":
+                    DeploySortieGroup(group);
+                    group.CommandMode = "move";
+                    group.CommandDestinationX = 560;
+                    group.CommandDestinationY = group.Y;
+                    break;
+                case "reserve-line":
+                    group.CommandMode = "move";
+                    group.CommandTargetGroupId = string.Empty;
+                    group.CommandDestinationX = 215 + group.Depth * 18;
+                    group.CommandDestinationY = group.Y;
+                    group.IsSortie = false;
+                    group.TargetGroupId = string.Empty;
+                    break;
                 default:
                     return 0;
             }
@@ -411,6 +467,10 @@ public static class BattleCalculator
             "attack" => $"集火{BattleCatalog.TroopName(target!.TroopType)}军团",
             "move" => "向指定位置移动",
             "hold" => "原地固守",
+            "defend-gate" => "增援城门",
+            "inner-city" => "退守内城",
+            "sortie" => "出城突袭",
+            "reserve-line" => "转入后军预备",
             _ => "恢复自由接敌",
         };
         AddRealtimeEvent(pending, "实时军令", "command", pending.PlayerSide, selected[0], target,
@@ -432,6 +492,12 @@ public static class BattleCalculator
         foreach (var group in pending.Groups)
         {
             group.FinalSoldiers = group.InitialSoldiers;
+            var sideMorale = group.Side == "attacker"
+                ? army.Morale
+                : defenderArmy?.Morale ?? Math.Clamp(58 + city.Defense / 4, 45, 88);
+            if (group.Side == "defender" && pending.DefenderOfficerIds.Count == 0) sideMorale = Math.Min(sideMorale, 55);
+            group.InitialMorale = sideMorale;
+            group.Morale = sideMorale;
             group.AttackCooldown = group.Id.Sum(character => character) % 9 / 10d;
             group.TargetGroupId = string.Empty;
             group.State = group.Side == "defender" ? "guard" : "advance";
@@ -440,18 +506,16 @@ public static class BattleCalculator
             group.CommandDestinationX = group.X;
             group.CommandDestinationY = group.Y;
             group.IsSortie = false;
+            group.IsRouted = false;
+            group.RallyAttempted = false;
             ApplyDeployment(group, group.Side, pending.BattleType);
             if (pending.DefenderSortie && group.Side == "defender" && group.TroopType is "infantry" or "spears" or "cavalry") DeploySortieGroup(group);
         }
         pending.OfficerUnits = BuildMountedOfficerUnits(state, pending);
         pending.PhaseResults.Clear();
         pending.Timeline.Clear();
-        pending.PrimaryTactic = army.Tactic;
-        pending.BackupTactic = army.BackupTactic;
-        pending.EffectiveTactic = army.Tactic;
         pending.Stance = army.Stance;
-        pending.BackupTriggered = false;
-        pending.DecisionSummary = $"实时执行主战术“{BattleCatalog.TacticName(pending.PrimaryTactic)}”";
+        pending.DecisionSummary = $"攻方执行“{BattleCatalog.TacticName(pending.PrimaryTactic)}”；守方执行“{BattleCatalog.TacticName(pending.DefenderPrimaryTactic)}”";
         pending.Result = string.Empty;
         pending.Summary = string.Empty;
         pending.Elapsed = 0;
@@ -463,7 +527,10 @@ public static class BattleCalculator
         pending.GateAfter = pending.GateBefore;
         pending.InnerAfter = pending.InnerBefore;
         var attackerOfficer = OfficerMultiplier(state, pending.AttackerOfficerIds, pending.OfficerRoles, pending.OfficerContributions, true);
-        var defenderOfficer = OfficerMultiplier(state, pending.DefenderOfficerIds, pending.OfficerRoles, pending.OfficerContributions, false);
+        var defenderOfficer = pending.DefenderOfficerIds.Count == 0
+            ? .82
+            : OfficerMultiplier(state, pending.DefenderOfficerIds, pending.OfficerRoles, pending.OfficerContributions, false);
+        if (pending.DefenderOfficerIds.Count == 0) pending.DecisionSummary += "；守方无将指挥，战力与士气受限";
         var defenderComposition = defenderArmy?.Composition ?? DefenderComposition(city.Garrison, city.Defense);
 
         double AttackerTrait(string stage) => OfficerProgressionRules.BattleTraitMultiplier(state, pending.AttackerOfficerIds, pending.OfficerRoles, army.Composition, army.SpecialTroops, stage, pending.OfficerContributions);
@@ -531,23 +598,10 @@ public static class BattleCalculator
             officer.PreviousX = officer.X;
             officer.PreviousY = officer.Y;
         }
-        var attackers = pending.Groups.Where(item => item.Side == "attacker" && item.FinalSoldiers > 0).ToList();
-        var defenders = pending.Groups.Where(item => item.Side == "defender" && item.FinalSoldiers > 0).ToList();
+        var attackers = pending.Groups.Where(item => item.Side == "attacker" && item.FinalSoldiers > 0 && !item.IsRouted).ToList();
+        var defenders = pending.Groups.Where(item => item.Side == "defender" && item.FinalSoldiers > 0 && !item.IsRouted).ToList();
         var breached = !siege || pending.WallAfter <= 0 || pending.GateAfter <= 0;
         EvaluateDefenderSortie(pending, attackers, defenders, breached);
-
-        if (!pending.BackupTriggered && pending.Elapsed >= pending.Duration * .5)
-        {
-            var army = state.Armies.First(item => item.Id == pending.ArmyId);
-            var reason = BackupReason(pending, attackers, defenders, army.Composition);
-            if (!string.IsNullOrEmpty(reason) && !string.IsNullOrEmpty(pending.BackupTactic) && pending.BackupTactic != pending.PrimaryTactic)
-            {
-                pending.BackupTriggered = true;
-                pending.EffectiveTactic = pending.BackupTactic;
-                pending.DecisionSummary = $"{reason}，实时切换为“{BattleCatalog.TacticName(pending.BackupTactic)}”";
-                AddRealtimeEvent(pending, "军令切换", "message", "attacker", null, null, pending.DecisionSummary, 0, 0);
-            }
-        }
 
         var defenderFirst = (int)Math.Floor(pending.Elapsed * 10) % 2 == 0;
         var actingGroups = pending.Groups
@@ -561,6 +615,18 @@ public static class BattleCalculator
             if (source.FinalSoldiers <= 0) continue;
             source.AttackCooldown = Math.Max(0, source.AttackCooldown - delta);
             breached = !siege || pending.WallAfter <= 0 || pending.GateAfter <= 0;
+
+            if (source.IsRouted || source.State == "retreat")
+            {
+                TryRallyGroup(state, pending, source);
+                if (source.Morale < 25 || source.IsRouted)
+                {
+                    var withdrawalX = source.Side == "attacker" ? 972f : 28f;
+                    MoveGroup(pending, source, withdrawalX, source.Y, delta);
+                    source.State = source.IsRouted ? "routed" : "retreat";
+                    continue;
+                }
+            }
 
             if (source.CommandMode == "move")
             {
@@ -594,14 +660,15 @@ public static class BattleCalculator
             }
 
             var enemies = source.Side == "attacker" ? defenders : attackers;
+            var allies = source.Side == "attacker" ? attackers : defenders;
             var target = source.CommandMode == "attack"
                 ? enemies.FirstOrDefault(item => item.Id == source.CommandTargetGroupId && item.FinalSoldiers > 0)
-                : SelectRealtimeTarget(source, enemies);
+                : SelectRealtimeTarget(source, enemies, allies);
             if (source.CommandMode == "attack" && target is null)
             {
                 source.CommandMode = "auto";
                 source.CommandTargetGroupId = string.Empty;
-                target = SelectRealtimeTarget(source, enemies);
+                target = SelectRealtimeTarget(source, enemies, allies);
             }
             if (source.CommandMode == "hold" && target is not null && BattleDistance(source, target) > source.MaximumRange)
             {
@@ -619,6 +686,17 @@ public static class BattleCalculator
             var attackRange = source.MaximumRange;
             if (source.Side == "defender" && source.TroopType != "archers" && !breached) attackRange = Math.Max(attackRange, 96);
 
+            if (source.MinimumRange > 0 && distance < source.MinimumRange)
+            {
+                source.State = "threatened";
+                if (source.CommandMode != "hold" && (!siege || source.Side == "attacker" || source.IsSortie))
+                {
+                    var retreatX = source.Side == "attacker" ? target.X + source.MinimumRange * 1.18f : target.X - source.MinimumRange * 1.18f;
+                    MoveGroup(pending, source, Math.Clamp(retreatX, 28, 972), source.Y, delta);
+                }
+                continue;
+            }
+
             if (source.CommandMode != "hold" && (!siege || source.Side == "attacker" || source.IsSortie) && distance > source.PreferredRange)
             {
                 var spacing = Math.Max(source.PreferredRange, source.MaximumRange * .82f);
@@ -634,10 +712,36 @@ public static class BattleCalculator
 
             if (distance <= attackRange && source.AttackCooldown <= 0)
             {
+                if (!HasEngagementSlot(source, target, allies))
+                {
+                    source.State = "reserve";
+                    continue;
+                }
                 AttackTroop(state, pending, city, source, target, breached);
             }
         }
         StepMountedOfficers(pending, delta);
+    }
+
+    private static void TryRallyGroup(GameSession state, PendingBattleData pending, BattleUnitGroupData group)
+    {
+        if (group.RallyAttempted || string.IsNullOrEmpty(group.AssignedOfficerId)) return;
+        group.RallyAttempted = true;
+        var officer = state.Officers.FirstOrDefault(item => item.Profile.Id == group.AssignedOfficerId);
+        if (officer is null) return;
+        var leadership = OfficerProgressionRules.EffectiveAbility(officer, "leadership", "military");
+        var charisma = OfficerProgressionRules.EffectiveAbility(officer, "charisma", "military");
+        if (leadership + charisma < 145) return;
+        var restored = Math.Clamp(8 + (leadership + charisma - 145) * .22, 8, 18);
+        group.Morale = Math.Min(100, group.Morale + restored);
+        if (group.Morale >= 10) group.IsRouted = false;
+        if (group.Morale >= 25)
+        {
+            group.CommandMode = "auto";
+            group.State = "rallied";
+        }
+        AddRealtimeEvent(pending, "收拢溃兵", "rally", group.Side, group, null,
+            $"{officer.Profile.Name}收拢所属战斗队，士气恢复至{group.Morale:F0}", 0, 0);
     }
 
     private static List<BattleOfficerUnitData> BuildMountedOfficerUnits(GameSession state, PendingBattleData pending)
@@ -708,8 +812,8 @@ public static class BattleCalculator
         foreach (var officer in pending.OfficerUnits)
         {
             officer.AttackCooldown = Math.Max(0, officer.AttackCooldown - delta);
-            var allies = pending.Groups.Where(item => item.Side == officer.Side && item.FinalSoldiers > 0).ToList();
-            var enemies = pending.Groups.Where(item => item.Side != officer.Side && item.FinalSoldiers > 0).ToList();
+            var allies = pending.Groups.Where(item => item.Side == officer.Side && item.FinalSoldiers > 0 && !item.IsRouted).ToList();
+            var enemies = pending.Groups.Where(item => item.Side != officer.Side && item.FinalSoldiers > 0 && !item.IsRouted).ToList();
             if (allies.Count == 0 || enemies.Count == 0) { officer.State = "mounted-retreat"; continue; }
             var anchor = allies.FirstOrDefault(item => item.Id == officer.AssignedGroupId)
                 ?? allies.Where(item => item.AssignedOfficerId == officer.OfficerId).OrderByDescending(item => item.FinalSoldiers).FirstOrDefault()
@@ -785,7 +889,7 @@ public static class BattleCalculator
         return current + Math.Sign(target - current) * maximumDelta;
     }
 
-    private static BattleUnitGroupData? SelectRealtimeTarget(BattleUnitGroupData source, List<BattleUnitGroupData> enemies)
+    private static BattleUnitGroupData? SelectRealtimeTarget(BattleUnitGroupData source, List<BattleUnitGroupData> enemies, List<BattleUnitGroupData> allies)
     {
         var alive = enemies.Where(item => item.FinalSoldiers > 0).ToList();
         if (alive.Count == 0) return null;
@@ -800,7 +904,20 @@ public static class BattleCalculator
             };
             return BattleDistance(source, target) + Math.Abs(source.Lane - target.Lane) * 55 + preference;
         }
-        return alive.OrderBy(Priority).ThenBy(item => item.Id).First();
+        return alive.OrderBy(target => HasEngagementSlot(source, target, allies) ? 0 : 1).ThenBy(Priority).ThenBy(item => item.Id).First();
+    }
+
+    private static bool HasEngagementSlot(BattleUnitGroupData source, BattleUnitGroupData target, List<BattleUnitGroupData> allies)
+    {
+        var capacity = EngagementCapacity(source.TroopType);
+        var engaged = allies
+            .Where(item => item.FinalSoldiers > 0 && !item.IsRouted && item.TargetGroupId == target.Id)
+            .OrderBy(item => BattleDistance(item, target))
+            .ThenBy(item => item.Id)
+            .Take(capacity)
+            .Select(item => item.Id)
+            .ToHashSet();
+        return engaged.Count < capacity || engaged.Contains(source.Id);
     }
 
     private static double BattleDistance(BattleUnitGroupData first, BattleUnitGroupData second)
@@ -813,7 +930,7 @@ public static class BattleCalculator
     private static void AttackTroop(GameSession state, PendingBattleData pending, CityData city, BattleUnitGroupData source, BattleUnitGroupData target, bool breached)
     {
         var stage = source.TroopType == "archers" ? "远程压制" : breached ? "决胜" : "正面接战";
-        var ownGroups = pending.Groups.Where(item => item.Side == source.Side && item.FinalSoldiers > 0).ToList();
+        var ownGroups = pending.Groups.Where(item => item.Side == source.Side && item.FinalSoldiers > 0 && !item.IsRouted).ToList();
         var stateMultiplier = source.Side == "attacker"
             ? pending.AttackerStageMultipliers.GetValueOrDefault(stage, 1)
             : pending.DefenderStageMultipliers.GetValueOrDefault(stage, 1);
@@ -827,20 +944,24 @@ public static class BattleCalculator
             * LocalAttackMultiplier(pending, source)
             * OrderStagePower(source.FormationId, stage)
             * FormationStageModifier(formation, stage)
+            * MoralePower(source.Morale)
             * stateMultiplier;
-        if (source.Side == "attacker")
-        {
-            power *= StanceOffense(pending.Stance, stage) * TacticOffense(pending.EffectiveTactic, stage, ownGroups);
-        }
+        power *= StanceOffense(SideStance(pending, source.Side), stage)
+            * TacticOffense(SideTactic(pending, source.Side), stage, ownGroups);
         var surrounding = ownGroups.Count(item => item.TargetGroupId == target.Id && Math.Abs(item.Lane - target.Lane) <= 1);
         var encirclement = 1 + Math.Clamp(surrounding - 1, 0, 4) * .12;
         var defense = pending.BattleType == "siege" && target.Side == "defender" && !target.IsSortie
             ? 1 + city.Defense / (breached ? 450d : 150d)
             : 1d;
-        defense *= LocalDefenseMultiplier(pending, target);
-        var losses = Math.Clamp((int)Math.Round(power * encirclement / defense), 1, Math.Max(1, (int)Math.Ceiling(target.FinalSoldiers * .16)));
+        var targetFormation = target.Side == "attacker" ? pending.AttackerFormation.FormationId : pending.DefenderFormation.FormationId;
+        defense *= LocalDefenseMultiplier(pending, target)
+            * FormationDefenseModifier(targetFormation, stage)
+            * OrderDefenseModifier(target.FormationId, stage);
+        var incoming = StanceLoss(SideStance(pending, target.Side)) * TacticLoss(SideTactic(pending, target.Side), stage);
+        var losses = Math.Clamp((int)Math.Round(power * encirclement * incoming / defense), 1, Math.Max(1, (int)Math.Ceiling(target.FinalSoldiers * .16)));
         losses = Math.Min(losses, target.FinalSoldiers);
         target.FinalSoldiers -= losses;
+        ApplyMoraleImpact(pending, source, target, losses, encirclement);
         source.State = source.TroopType == "archers" ? "volley" : source.TroopType == "cavalry" ? "charge" : "melee";
         source.AttackCooldown = AttackInterval(source.TroopType);
         var action = source.TroopType == "archers" ? "volley" : source.TroopType == "cavalry" ? "charge" : "melee";
@@ -854,13 +975,46 @@ public static class BattleCalculator
         }
     }
 
+    private static void ApplyMoraleImpact(PendingBattleData pending, BattleUnitGroupData source, BattleUnitGroupData target, int losses, double encirclement)
+    {
+        var lossShare = losses / (double)Math.Max(1, target.InitialSoldiers);
+        var shock = 1.2 + lossShare * 48 + Math.Max(0, encirclement - 1) * 7;
+        if (source.TroopType == "cavalry") shock += 1.8;
+        if (source.TroopType == "archers") shock *= .72;
+        target.Morale = Math.Max(0, target.Morale - shock);
+        if (target.Morale >= 25) return;
+
+        target.CommandTargetGroupId = string.Empty;
+        target.TargetGroupId = string.Empty;
+        if (target.Morale < 10)
+        {
+            if (!target.IsRouted)
+            {
+                target.IsRouted = true;
+                target.CommandMode = "routed";
+                target.State = "routed";
+                foreach (var ally in pending.Groups.Where(item => item.Side == target.Side && item.Id != target.Id && item.FinalSoldiers > 0 && !item.IsRouted && Math.Abs(item.Lane - target.Lane) <= 1))
+                    ally.Morale = Math.Max(0, ally.Morale - 3);
+                AddRealtimeEvent(pending, "军心崩溃", "rout", target.Side, target, source,
+                    $"{BattleCatalog.TroopName(target.TroopType)}战斗队士气崩溃，退出战线", 0, 0);
+            }
+        }
+        else
+        {
+            target.CommandMode = "retreat";
+            target.State = "retreat";
+            AddRealtimeEvent(pending, "战线后撤", "retreat", target.Side, target, source,
+                $"{BattleCatalog.TroopName(target.TroopType)}战斗队士气降至{target.Morale:F0}，向后军撤退", 0, 0);
+        }
+    }
+
     private static void AttackStructure(PendingBattleData pending, BattleUnitGroupData source)
     {
         var target = source.FormationId == "wall-pressure" ? "wall" : "gate";
         if (target == "wall" && pending.WallAfter <= 0) target = "gate";
         if (target == "gate" && pending.GateAfter <= 0) target = "wall";
         var stateMultiplier = pending.AttackerStageMultipliers.GetValueOrDefault("攻城与内城", 1);
-        var tacticMultiplier = pending.EffectiveTactic switch
+        var tacticMultiplier = pending.PrimaryTactic switch
         {
             "undermine-walls" => 1.55,
             "siege-ladders" => 1.38,
@@ -934,16 +1088,18 @@ public static class BattleCalculator
     {
         var attackerLeft = pending.Groups.Where(item => item.Side == "attacker").Sum(item => item.FinalSoldiers);
         var defenderLeft = pending.Groups.Where(item => item.Side == "defender").Sum(item => item.FinalSoldiers);
+        var attackerEffective = pending.Groups.Where(item => item.Side == "attacker" && !item.IsRouted && item.Morale >= 25).Sum(item => item.FinalSoldiers);
+        var defenderEffective = pending.Groups.Where(item => item.Side == "defender" && !item.IsRouted && item.Morale >= 25).Sum(item => item.FinalSoldiers);
         var fieldBattle = pending.BattleType == "field";
         var breached = fieldBattle || pending.WallAfter <= 0 || pending.GateAfter <= 0;
-        if (attackerLeft <= Math.Max(1, pending.AttackerBefore * .03))
+        if (attackerLeft <= Math.Max(1, pending.AttackerBefore * .03) || attackerEffective <= 0)
         {
-            FinishRealtime(state, pending, "defeat", fieldBattle ? "出击军团总兵力条耗尽，被迫撤离战场" : "攻军总兵力条耗尽，被迫撤退");
+            FinishRealtime(state, pending, "defeat", attackerEffective <= 0 ? "攻军士气崩溃，战斗队全部退出战线" : fieldBattle ? "出击军团总兵力条耗尽，被迫撤离战场" : "攻军总兵力条耗尽，被迫撤退");
             return;
         }
-        if (breached && defenderLeft <= Math.Max(0, pending.DefenderBefore * .03))
+        if (breached && (defenderLeft <= Math.Max(0, pending.DefenderBefore * .03) || defenderEffective <= 0))
         {
-            FinishRealtime(state, pending, "victory", fieldBattle ? "敌方军团总兵力条耗尽，出击军团赢得野战" : "守军总兵力条耗尽，攻方控制城池");
+            FinishRealtime(state, pending, "victory", defenderEffective <= 0 ? "守军士气崩溃，防线失去有效抵抗" : fieldBattle ? "敌方军团总兵力条耗尽，出击军团赢得野战" : "守军总兵力条耗尽，攻方控制城池");
             return;
         }
         if (pending.Elapsed + .0001 < pending.Duration) return;
@@ -971,15 +1127,15 @@ public static class BattleCalculator
             pending.OfficerContributions[officer.OfficerId] = string.IsNullOrEmpty(current) ? mounted : $"{current} · {mounted}";
         }
         if (result == "victory" && pending.BattleType == "siege") pending.InnerAfter = Math.Min(25, pending.InnerAfter);
-        var attackerRatio = pending.AttackerAfter / (double)Math.Max(1, pending.AttackerBefore);
-        var defenderRatio = pending.DefenderAfter / (double)Math.Max(1, pending.DefenderBefore);
-        var powerRatio = attackerRatio / Math.Max(.01, defenderRatio);
+        var attackerPower = RealtimePowerSnapshot(pending, "attacker");
+        var defenderPower = RealtimePowerSnapshot(pending, "defender");
+        var powerRatio = attackerPower / Math.Max(1, defenderPower);
         pending.PhaseResults =
         [
             new BattlePhaseResultData
             {
                 Stage = "实时交战",
-                Tactic = pending.EffectiveTactic,
+                Tactic = $"{pending.PrimaryTactic}/{pending.DefenderPrimaryTactic}",
                 AttackerBefore = pending.AttackerBefore,
                 AttackerAfter = pending.AttackerAfter,
                 DefenderBefore = pending.DefenderBefore,
@@ -990,7 +1146,11 @@ public static class BattleCalculator
                 GateDamage = pending.GateBefore - pending.GateAfter,
                 InnerDamage = pending.InnerBefore - pending.InnerAfter,
                 PowerRatio = Math.Round(powerRatio, 3),
-                Explanation = $"{StanceName(pending.Stance)}姿态执行{BattleCatalog.TacticName(pending.EffectiveTactic)}；战斗队按距离、兵种克制、射程与围攻数量实时结算，双方骑将按统率、武力和智力独立参战；{(string.IsNullOrEmpty(pending.DefenderSortieSummary) ? "" : pending.DefenderSortieSummary + "；")}{reason}。倒计时剩余 {Math.Max(0, pending.Duration - pending.Elapsed):F1} 秒",
+                AttackerMorale = Math.Round(AverageMorale(pending, "attacker"), 1),
+                DefenderMorale = Math.Round(AverageMorale(pending, "defender"), 1),
+                AttackerRouted = pending.Groups.Count(item => item.Side == "attacker" && item.IsRouted),
+                DefenderRouted = pending.Groups.Count(item => item.Side == "defender" && item.IsRouted),
+                Explanation = $"攻方以{StanceName(pending.Stance)}姿态执行{BattleCatalog.TacticName(pending.PrimaryTactic)}，守方以{StanceName(pending.DefenderStance)}姿态执行{BattleCatalog.TacticName(pending.DefenderPrimaryTactic)}；战斗队按距离、兵种克制、最小/最大射程、接战宽度、士气与防御减伤实时结算；{(string.IsNullOrEmpty(pending.DefenderSortieSummary) ? "" : pending.DefenderSortieSummary + "；")}{reason}。倒计时剩余 {Math.Max(0, pending.Duration - pending.Elapsed):F1} 秒",
                 AttackerGroupLosses = pending.Groups.Where(item => item.Side == "attacker" && item.InitialSoldiers > item.FinalSoldiers).ToDictionary(item => item.Id, item => item.InitialSoldiers - item.FinalSoldiers),
                 DefenderGroupLosses = pending.Groups.Where(item => item.Side == "defender" && item.InitialSoldiers > item.FinalSoldiers).ToDictionary(item => item.Id, item => item.InitialSoldiers - item.FinalSoldiers),
             }
@@ -1004,11 +1164,77 @@ public static class BattleCalculator
         pending.Status = "resolved";
     }
 
+    private static double AverageMorale(PendingBattleData pending, string side)
+    {
+        var groups = pending.Groups.Where(item => item.Side == side && item.FinalSoldiers > 0).ToList();
+        var soldiers = groups.Sum(item => item.FinalSoldiers);
+        return soldiers <= 0 ? 0 : groups.Sum(item => item.Morale * item.FinalSoldiers) / soldiers;
+    }
+
+    private static double RealtimePowerSnapshot(PendingBattleData pending, string side)
+    {
+        var own = pending.Groups.Where(item => item.Side == side && item.FinalSoldiers > 0 && !item.IsRouted).ToList();
+        var enemies = pending.Groups.Where(item => item.Side != side && item.FinalSoldiers > 0 && !item.IsRouted).ToList();
+        if (own.Count == 0) return 0;
+        var enemyTotal = Math.Max(1, enemies.Sum(item => item.FinalSoldiers));
+        var stage = pending.BattleType == "siege" && pending.WallAfter > 0 && pending.GateAfter > 0 ? "攻城与内城" : "决胜";
+        var formation = side == "attacker" ? pending.AttackerFormation.FormationId : pending.DefenderFormation.FormationId;
+        var stateMultiplier = side == "attacker"
+            ? pending.AttackerStageMultipliers.GetValueOrDefault(stage, 1)
+            : pending.DefenderStageMultipliers.GetValueOrDefault(stage, 1);
+        var raw = own.Sum(group =>
+        {
+            var matchup = enemies.Count == 0 ? 1 : enemies.Sum(target => target.FinalSoldiers / (double)enemyTotal * Matchup(group.TroopType, target.TroopType));
+            return group.FinalSoldiers * TroopPower.GetValueOrDefault(group.TroopType, 1) * StageTroopPower(group.TroopType, stage)
+                * matchup * Terrain(group.TroopType, pending.Terrain) * LocalAttackMultiplier(pending, group)
+                * OrderStagePower(group.FormationId, stage) * MoralePower(group.Morale);
+        });
+        return raw * FormationStageModifier(formation, stage) * stateMultiplier
+            * StanceOffense(SideStance(pending, side), stage) * TacticOffense(SideTactic(pending, side), stage, own);
+    }
+
     private static FormationPlanData DefaultFormation(Dictionary<string, int> composition, bool attacker)
     {
-        var plan = new FormationPlanData { FormationId = composition.GetValueOrDefault("siege") > 0 && attacker ? "siege-array" : composition.GetValueOrDefault("archers") >= composition.Values.Sum() * .25 ? "goose" : "shield" };
+        var total = Math.Max(1, composition.Values.Sum());
+        var formation = composition.GetValueOrDefault("siege") > 0 && attacker
+            ? "siege-array"
+            : composition.GetValueOrDefault("cavalry") >= total * .25
+                ? "wedge"
+                : composition.GetValueOrDefault("archers") >= total * .25
+                    ? "goose"
+                    : attacker && composition.Count(item => item.Value > 0) >= 3 ? "crane" : "shield";
+        var plan = new FormationPlanData { FormationId = formation };
         foreach (var troop in BattleCatalog.TroopTypes) plan.TroopOrders[troop] = BattleCatalog.DefaultOrder(troop);
         return plan;
+    }
+
+    private static FormationPlanData ArmyFormation(GameSession state, ArmyData army, bool attacker)
+    {
+        var plan = DefaultFormation(army.Composition, attacker);
+        if (army.FactionId != state.PlayerFactionId && IsFormationId(army.FormationId)) plan.FormationId = army.FormationId;
+        return plan;
+    }
+
+    private static bool IsFormationId(string value) => value is "goose" or "wedge" or "crane" or "shield" or "siege-array";
+
+    private static (string Stance, string Primary) SelectCityDefenseDoctrine(
+        Dictionary<string, int> attackerComposition,
+        Dictionary<string, int> defenderComposition,
+        int attackerSoldiers,
+        int defenderSoldiers,
+        ScenarioOfficerData? commander)
+    {
+        var attackerTotal = Math.Max(1, attackerComposition.Values.Sum());
+        var defenderTotal = Math.Max(1, defenderComposition.Values.Sum());
+        var intelligence = commander is null ? 0 : OfficerProgressionRules.EffectiveAbility(commander, "intelligence", "military");
+        var sortieAdvantage = defenderSoldiers / (double)Math.Max(1, attackerSoldiers) >= DefenderSortieRatio;
+        if (sortieAdvantage && defenderComposition.GetValueOrDefault("cavalry") + defenderComposition.GetValueOrDefault("infantry") >= defenderTotal * .45)
+            return ("aggressive", "encirclement");
+        if (attackerComposition.GetValueOrDefault("archers") >= attackerTotal * .25 || attackerComposition.GetValueOrDefault("siege") >= attackerTotal * .08)
+            return ("cautious", "shield-wall");
+        if (intelligence >= 75 && defenderComposition.GetValueOrDefault("archers") >= defenderTotal * .12)
+            return ("cautious", "arrow-volley");
+        return ("cautious", "fortify-camp");
     }
 
     private static Dictionary<string, int> DefenderComposition(int soldiers, int defense)
@@ -1273,7 +1499,7 @@ public static class BattleCalculator
         double defenderState)
     {
         const string stage = "攻城与内城";
-        var tactic = pending.EffectiveTactic;
+        var tactic = pending.PrimaryTactic;
         var result = new BattlePhaseResultData
         {
             Stage = stage,
@@ -1398,6 +1624,39 @@ public static class BattleCalculator
         _ => 1,
     };
 
+    private static string SideStance(PendingBattleData pending, string side) => side == "attacker" ? pending.Stance : pending.DefenderStance;
+
+    private static string SideTactic(PendingBattleData pending, string side) => side == "attacker" ? pending.PrimaryTactic : pending.DefenderPrimaryTactic;
+
+    private static double MoralePower(double morale) => .75 + Math.Clamp(morale, 0, 100) / 400d;
+
+    private static double FormationDefenseModifier(string formation, string stage) => (formation, stage) switch
+    {
+        ("shield", "远程压制") => 1.14,
+        ("shield", "正面接战") => 1.10,
+        ("goose", "远程压制") => 1.04,
+        ("crane", "决胜") => 1.06,
+        ("siege-array", "攻城与内城") => 1.08,
+        ("wedge", "远程压制") => .94,
+        _ => 1,
+    };
+
+    private static double OrderDefenseModifier(string order, string stage) => (order, stage) switch
+    {
+        ("shield-line", "远程压制") => 1.14,
+        ("shield-line", "正面接战") => 1.10,
+        ("loose-line", "远程压制") => 1.12,
+        ("spear-wall", "正面接战") => 1.12,
+        ("support-line", "决胜") => 1.07,
+        ("rear-double", "正面接战") => .92,
+        ("wing-fire", "正面接战") => .90,
+        ("protected-siege", "攻城与内城") => 1.14,
+        ("reserve", "决胜") => 1.08,
+        ("assault-column", "远程压制") => .92,
+        ("cavalry-wedge", "远程压制") => .90,
+        _ => 1,
+    };
+
     private static double TacticStructure(string tactic, bool hasSiege) => tactic switch
     {
         "fire-attack" => 10,
@@ -1446,26 +1705,29 @@ public static class BattleCalculator
         _ => "正面攻势1.00，承受损失1.00，攻城效率1.00",
     };
 
+    public static string TerrainEffectSummary(string terrain) => terrain switch
+    {
+        "mountain" => "山地，骑兵与器械机动受限，步枪兵更稳",
+        "hill" => "丘陵，弓兵与枪兵占优，骑兵冲击受限",
+        "river" => "水路浅滩，全军减速，骑兵与器械影响最大",
+        _ => "平原，骑兵机动占优，弓兵视野良好",
+    };
+
     private static double TroopShare(List<BattleUnitGroupData> groups, string troop) =>
         groups.Where(item => item.TroopType == troop).Sum(item => item.FinalSoldiers) / (double)Math.Max(1, groups.Sum(item => item.FinalSoldiers));
 
-    private static string BackupReason(PendingBattleData pending, List<BattleUnitGroupData> attackers, List<BattleUnitGroupData> defenders, Dictionary<string, int> composition)
+    public static string TacticRequirement(string primary, IReadOnlyDictionary<string, int> composition)
     {
-        var primary = pending.PrimaryTactic;
         var total = Math.Max(1, composition.Values.Sum());
-        var requirementMissing = primary switch
+        return primary switch
         {
-            "arrow-volley" => composition.GetValueOrDefault("archers") < total * .12,
-            "cavalry-charge" => composition.GetValueOrDefault("cavalry") < total * .12,
-            "encirclement" => composition.GetValueOrDefault("cavalry") + composition.GetValueOrDefault("infantry") < total * .45,
-            "siege-ladders" or "undermine-walls" => composition.GetValueOrDefault("siege") < total * .06,
-            _ => false,
+            "arrow-volley" when composition.GetValueOrDefault("archers") < total * .12 => "主战术“箭雨”条件不足：弓兵需达到总兵力的12%。",
+            "cavalry-charge" when composition.GetValueOrDefault("cavalry") < total * .12 => "主战术“骑兵突击”条件不足：骑兵需达到总兵力的12%。",
+            "encirclement" when composition.GetValueOrDefault("cavalry") + composition.GetValueOrDefault("infantry") < total * .45 => "主战术“包围”条件不足：步兵与骑兵合计需达到总兵力的45%。",
+            "siege-ladders" when composition.GetValueOrDefault("siege") < total * .06 => "主战术“云梯强攻”条件不足：攻城器械需达到总兵力的6%。",
+            "undermine-walls" when composition.GetValueOrDefault("siege") < total * .06 => "主战术“掘城墙”条件不足：攻城器械需达到总兵力的6%。",
+            _ => string.Empty,
         };
-        if (requirementMissing) return $"主战术“{BattleCatalog.TacticName(primary)}”的兵种条件不足";
-        var losses = pending.AttackerBefore - attackers.Sum(item => item.FinalSoldiers);
-        if (losses >= pending.AttackerBefore * .11) return "前两阶段损失超过一成";
-        if (attackers.Sum(item => item.FinalSoldiers) < defenders.Sum(item => item.FinalSoldiers) * .72) return "接战后兵力比低于 0.72";
-        return string.Empty;
     }
 
     private static double Matchup(string attacker, string defender) => (attacker, defender) switch
@@ -1623,12 +1885,12 @@ public static class BattleCalculator
         AddAttacks(pending, defenders, attackers, "infantry", 6.7, "melee", "守军接战");
         AddAttacks(pending, defenders, attackers, "spears", 6.9, "brace", "守军架枪");
         AddPhaseDamageEvents(pending, pending.PhaseResults.First(item => item.Stage == "正面接战"), 7.25);
-        pending.Timeline.Add(new BattleTimelineEventData { Start = 8.05, Duration = 1.0, Stage = "军令切换", Action = "message", Side = "attacker", Text = pending.DecisionSummary });
+        pending.Timeline.Add(new BattleTimelineEventData { Start = 8.05, Duration = 1.0, Stage = "战术执行", Action = "message", Side = "attacker", Text = pending.DecisionSummary });
         AddAttacks(pending, attackers, defenders, "cavalry", 8.65, "charge", "决胜");
         AddAttacks(pending, attackers, defenders, "infantry", 8.9, "melee", "决胜");
         AddPhaseDamageEvents(pending, pending.PhaseResults.First(item => item.Stage == "决胜"), 9.45);
         AddAttacks(pending, attackers, defenders, "siege", 10.1, "siege", "攻城与内城");
-        pending.Timeline.Add(new BattleTimelineEventData { Start = 10.75, Duration = 1, Stage = "外城墙", Action = "structure", Side = "attacker", StructureTarget = "wall", StructureDamage = wallDamage, Text = $"{BattleCatalog.TacticName(pending.EffectiveTactic)}：外城墙耐久 −{wallDamage}" });
+        pending.Timeline.Add(new BattleTimelineEventData { Start = 10.75, Duration = 1, Stage = "外城墙", Action = "structure", Side = "attacker", StructureTarget = "wall", StructureDamage = wallDamage, Text = $"{BattleCatalog.TacticName(pending.PrimaryTactic)}：外城墙耐久 −{wallDamage}" });
         pending.Timeline.Add(new BattleTimelineEventData { Start = 11.65, Duration = 1, Stage = "城门", Action = "structure", Side = "attacker", StructureTarget = "gate", StructureDamage = gateDamage, Text = $"城门耐久 −{gateDamage}" });
         AddPhaseDamageEvents(pending, pending.PhaseResults.First(item => item.Stage == "攻城与内城"), 12.35);
         if (breached) pending.Timeline.Add(new BattleTimelineEventData { Start = 13.05, Duration = 1.5, Stage = "缺口争夺", Action = "breach", Side = "attacker", Text = $"城防出现缺口，内城控制 −{pending.PhaseResults.Last().InnerDamage}" });
@@ -1673,4 +1935,15 @@ public static class BattleCalculator
     public static int ExpectedGroupCount(int soldiers) => soldiers <= 0 ? 0 : Math.Clamp((int)Math.Ceiling(soldiers / 600d), 1, 40);
 
     public static double MatchupModifier(string attacker, string defender) => Matchup(attacker, defender);
+
+    public static int EngagementCapacity(string troop) => troop == "archers" ? 5 : troop == "siege" ? 2 : 3;
+
+    public static bool IsWithinEffectiveRange(BattleUnitGroupData source, BattleUnitGroupData target)
+    {
+        var distance = BattleDistance(source, target);
+        return distance >= source.MinimumRange && distance <= source.MaximumRange;
+    }
+
+    public static double DefensiveDamageMultiplier(string stance, string tactic, string formation, string order, string stage) =>
+        StanceLoss(stance) * TacticLoss(tactic, stage) / Math.Max(.01, FormationDefenseModifier(formation, stage) * OrderDefenseModifier(order, stage));
 }

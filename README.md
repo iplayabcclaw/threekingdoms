@@ -23,6 +23,25 @@
 ./tools/run-godot.sh editor  # 打开 Godot 编辑器
 ```
 
+## Windows 一键打包
+
+另一台电脑克隆仓库后，安装 **Godot 4.7 .NET**、**.NET 8 SDK**，并在 Godot 中安装同版本的 **Windows x86_64 export template** 与 **ICU Data**。如果 Godot 可执行文件不在 `PATH`，先设置 `GODOT_BIN`。
+
+Windows PowerShell：
+
+```powershell
+$env:GODOT_BIN = "C:\Tools\Godot\Godot_v4.7-stable_mono_win64.exe"
+.\tools\build-windows.cmd
+```
+
+macOS/Linux 交叉导出 Windows：
+
+```bash
+GODOT_BIN=/path/to/godot-mono ./tools/build-windows.sh
+```
+
+产物位于 `build/windows/`。导出预设会把游戏运行需要的 JSON、字体、音乐和 `assets/runtime/` 一并打包；`assets/generated/` 原始加工素材不参与运行和导出。
+
 ## 文档
 
 - [产品需求](docs/01-requirements.md)

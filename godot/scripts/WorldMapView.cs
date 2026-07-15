@@ -38,8 +38,10 @@ public partial class WorldMapView : Control
     private Label _armyName = null!;
     private Label _armyDetails = null!;
     private OptionButton _retreatCity = null!;
+    private OptionButton _armyInterceptChoice = null!;
     private Button _armyAdvance = null!;
     private Button _armyIntercept = null!;
+    private Button _armyRedirectIntercept = null!;
     private Button _armyRetreat = null!;
     private Label _date = null!;
     private Label _resources = null!;
@@ -180,6 +182,7 @@ public partial class WorldMapView : Control
         };
         panel.AddThemeStyleboxOverride("panel", GameTheme.RaisedBox(9));
         AddChild(panel);
+        UiOrnaments.AttachInkCorners(panel, 170, .08f);
 
         var caption = new Label { Text = "当前城池", Position = new Vector2(20, 15), Size = new Vector2(280, 28) };
         caption.AddThemeColorOverride("font_color", GameTheme.Gold);
@@ -233,13 +236,14 @@ public partial class WorldMapView : Control
             OffsetLeft = -420,
             OffsetRight = -22,
             OffsetTop = 96,
-            OffsetBottom = 450,
+            OffsetBottom = 590,
             MouseFilter = MouseFilterEnum.Stop,
             Visible = false,
             ZIndex = 30,
         };
         _armyPanel.AddThemeStyleboxOverride("panel", GameTheme.RaisedBox(10));
         AddChild(_armyPanel);
+        UiOrnaments.AttachInkCorners(_armyPanel, 190, .08f);
         var margin = new MarginContainer();
         foreach (var side in new[] { "margin_left", "margin_top", "margin_right", "margin_bottom" }) margin.AddThemeConstantOverride(side, 14);
         _armyPanel.AddChild(margin);
@@ -258,6 +262,9 @@ public partial class WorldMapView : Control
 
         _armyAdvance = GameTheme.Button("继续前进"); _armyAdvance.CustomMinimumSize = new Vector2(0, 42); _armyAdvance.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; _armyAdvance.Pressed += AdvanceSelectedArmy; layout.AddChild(_armyAdvance);
         _armyIntercept = GameTheme.Button("出击拦截"); _armyIntercept.CustomMinimumSize = new Vector2(0, 42); _armyIntercept.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; _armyIntercept.Pressed += InterceptSelectedArmy; layout.AddChild(_armyIntercept);
+        var interceptOrder = new HBoxContainer(); interceptOrder.AddThemeConstantOverride("separation", 8);
+        _armyInterceptChoice = new OptionButton { CustomMinimumSize = new Vector2(0, 42), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; interceptOrder.AddChild(_armyInterceptChoice);
+        _armyRedirectIntercept = GameTheme.Button("改令拦截"); _armyRedirectIntercept.CustomMinimumSize = new Vector2(130, 42); _armyRedirectIntercept.Pressed += RedirectArmyToIntercept; interceptOrder.AddChild(_armyRedirectIntercept); layout.AddChild(interceptOrder);
         var hint = new Label { Text = "出征当回合已行动；进入下一回合后，每支军团可选择一次继续前进或撤兵。", CustomMinimumSize = new Vector2(0, 34), AutowrapMode = TextServer.AutowrapMode.WordSmart };
         hint.AddThemeFontSizeOverride("font_size", 12); hint.AddThemeColorOverride("font_color", GameTheme.Muted); layout.AddChild(hint);
         var retreat = new HBoxContainer(); retreat.AddThemeConstantOverride("separation", 8);
@@ -594,7 +601,8 @@ public partial class WorldMapView : Control
         _armyAdvance.Visible = controllable;
         _armyIntercept.Visible = !controllable;
         _armyIntercept.Disabled = controllable || _runtime.State.PendingBattle is not null;
-        _armyIntercept.Text = _runtime.State.PendingBattle is null ? "出击拦截这支军团" : "当前已有战斗待处理";
+        _armyIntercept.Text = _runtime.State.PendingBattle is null ? "从城内另组新军拦截" : "当前已有战斗待处理";
+        RefreshArmyInterceptChoices(army, controllable);
         _retreatCity.Clear();
         foreach (var city in _runtime.State.Cities.Where(item => item.OwnerFactionId == army.FactionId).OrderBy(item => item.Name))
         {
@@ -620,6 +628,60 @@ public partial class WorldMapView : Control
         var army = _runtime.State.Armies.FirstOrDefault(item => item.Id == _selectedArmyId);
         if (army is null || army.FactionId == _runtime.State.PlayerFactionId) return;
         EmitSignal(SignalName.ArmyInterceptRequested, army.Id);
+        _armyPanel.Visible = false;
+    }
+
+    private void RefreshArmyInterceptChoices(ArmyData selectedArmy, bool selectedIsPlayerArmy)
+    {
+        _armyInterceptChoice.Clear();
+        var candidates = _runtime.State.Armies
+            .Where(item => item.Status is "marching" or "besieging")
+            .Where(item => selectedIsPlayerArmy ? item.FactionId != _runtime.State.PlayerFactionId : item.FactionId == _runtime.State.PlayerFactionId)
+            .OrderBy(item => item.RemainingDays)
+            .ToList();
+        var enabledIndex = -1;
+        var firstReason = string.Empty;
+        foreach (var candidate in candidates)
+        {
+            var interceptor = selectedIsPlayerArmy ? selectedArmy : candidate;
+            var target = selectedIsPlayerArmy ? candidate : selectedArmy;
+            var commander = _runtime.Officer(candidate.CommanderId)?.Profile.Name ?? "未知主将";
+            var valid = _runtime.CanOrderArmyIntercept(interceptor.Id, target.Id, out var reason);
+            _armyInterceptChoice.AddItem($"{_runtime.Faction(candidate.FactionId)?.ShortName}·{commander}军（{candidate.Soldiers:N0}兵）");
+            var index = _armyInterceptChoice.ItemCount - 1;
+            _armyInterceptChoice.SetItemMetadata(index, candidate.Id);
+            _armyInterceptChoice.SetItemDisabled(index, !valid);
+            if (valid && enabledIndex < 0) enabledIndex = index;
+            if (!valid && string.IsNullOrEmpty(firstReason)) firstReason = reason;
+        }
+        if (_armyInterceptChoice.ItemCount == 0)
+        {
+            _armyInterceptChoice.AddItem(selectedIsPlayerArmy ? "没有可拦截的敌军" : "没有可调遣的在途己军");
+            _armyInterceptChoice.SetItemMetadata(0, string.Empty);
+            _armyInterceptChoice.SetItemDisabled(0, true);
+        }
+        if (enabledIndex >= 0) _armyInterceptChoice.Select(enabledIndex);
+        _armyInterceptChoice.Disabled = enabledIndex < 0 || _runtime.State.PendingBattle is not null;
+        _armyRedirectIntercept.Disabled = _armyInterceptChoice.Disabled;
+        _armyRedirectIntercept.Text = selectedIsPlayerArmy
+            ? selectedArmy.LastMarchTurn >= _runtime.State.Turn ? "改令（下回合）" : "改令并截击"
+            : "调现有军拦截";
+        _armyRedirectIntercept.TooltipText = _runtime.State.PendingBattle is not null ? "当前已有战斗待处理。" : enabledIndex < 0 ? firstReason : "两军在共同道路上的行军区间相遇时会立即进入野战。";
+    }
+
+    private void RedirectArmyToIntercept()
+    {
+        if (string.IsNullOrEmpty(_selectedArmyId) || _armyInterceptChoice.Selected < 0) return;
+        var selected = _runtime.State.Armies.FirstOrDefault(item => item.Id == _selectedArmyId);
+        var choiceId = _armyInterceptChoice.GetItemMetadata(_armyInterceptChoice.Selected).AsString();
+        var choice = _runtime.State.Armies.FirstOrDefault(item => item.Id == choiceId);
+        if (selected is null || choice is null) return;
+        var interceptor = selected.FactionId == _runtime.State.PlayerFactionId ? selected : choice;
+        var target = selected.FactionId == _runtime.State.PlayerFactionId ? choice : selected;
+        var before = interceptor.RemainingDays;
+        if (!_runtime.OrderArmyIntercept(interceptor.Id, target.Id)) return;
+        if (interceptor.RemainingDays != before || interceptor.Status == "awaiting-battle") QueueArmyMovement(interceptor.Id, before);
+        _selectedArmyId = null;
         _armyPanel.Visible = false;
     }
 

@@ -143,7 +143,7 @@ public sealed partial class GameRuntime
         var facilityBonus = FacilityCommandBonus(city, focus);
         var fatiguePenalty = city.Fatigue / 25;
         var governor = Officer(city.GovernorId);
-        var governorBonus = governor is null || governor.Profile.Id == officer.Profile.Id ? 0 : EffectiveAbility(governor, "politics", "civil") / 35;
+        var governorBonus = !GovernorHoldsOffice(city, governor) || governor!.Profile.Id == officer.Profile.Id ? 0 : EffectiveAbility(governor, "politics", "civil") / 35;
         var trait = OfficerProgressionRules.DomesticTraitModifier(officer, focus);
         var gain = Math.Clamp((int)Math.Round((3 + ability / 18 + facilityBonus + governorBonus - fatiguePenalty) * trait.Modifier), 2, 12);
         if (focus == "recruit") populationCost = Math.Clamp((int)Math.Round(populationCost * trait.Modifier), 500, 1200);
@@ -365,7 +365,7 @@ public sealed partial class GameRuntime
             var equipmentOutput = city.Facilities.Where(item => item.DefinitionId == "workshop" && item.Condition >= 50).Sum(item => 80 * item.Level);
             if (equipmentOutput > 0) Treasury(city.OwnerFactionId).Equipment += equipmentOutput;
             var governor = Officer(city.GovernorId);
-            if (governor is not null && governor.InitialState.FactionId == city.OwnerFactionId && governor.InitialState.Status == "serving") AwardOfficerExperience(governor, 12, $"治理{city.Name}", "governor-month");
+            if (GovernorHoldsOffice(city, governor)) AwardOfficerExperience(governor!, 12, $"治理{city.Name}", "governor-month");
             city.LastMonthlyReport = $"贡献势力府库金{forecast.GoldIncome:N0}/粮{forecast.FoodIncome:N0}，维护金{goldPaid:N0}/粮{foodPaid:N0}，府库净变化金{treasury.Gold - goldBefore:+#,0;-#,0;0}/粮{treasury.Food - foodBefore:+#,0;-#,0;0}";
             RecordCityLedger(city, "economy", forecast.GoldIncome - goldPaid, forecast.FoodIncome - foodPaid, city.LastMonthlyReport);
         }
@@ -385,10 +385,12 @@ public sealed partial class GameRuntime
             {
                 city.GovernanceMode = "delegated";
                 city.GovernancePolicy = SelectAiGovernancePolicy(city, faction.Id);
-                if (city.CityRole == "unassigned" && (city.Status is "stable" or "prosperous"))
+                var suggestedRole = SuggestedCityRole(city);
+                var canAdjustRole = suggestedRole == "garrison" || city.Status is "stable" or "prosperous" or "frontline";
+                if (canAdjustRole && suggestedRole != "unassigned" && city.CityRole != suggestedRole && city.RoleTransitionMonths <= 0)
                 {
-                    city.CityRole = SuggestedCityRole(city);
-                    city.RoleTransitionMonths = city.CityRole == "unassigned" ? 0 : 3;
+                    city.CityRole = suggestedRole;
+                    city.RoleTransitionMonths = 3;
                 }
                 RunSmartDomestic(city, faction.Id, city.GovernancePolicy, true);
             }
@@ -511,7 +513,15 @@ public sealed partial class GameRuntime
             var definition = FacilityCatalog[candidate.Id];
             var treasury = Treasury(factionId);
             if (treasury.Gold < definition.Gold || treasury.Food < definition.Food) continue;
-            var actor = SelectDomesticActor(city, factionId, "agriculture");
+            var actorFocus = candidate.Id switch
+            {
+                "market" => "commerce",
+                "walls" or "barracks" or "drill-ground" => "defense",
+                "academy" => "search",
+                "administration" => "commerce",
+                _ => "agriculture",
+            };
+            var actor = SelectDomesticActor(city, factionId, actorFocus);
             if (actor is null) return false;
             facilityId = candidate.Id;
             builder = actor;
@@ -529,7 +539,9 @@ public sealed partial class GameRuntime
             .Select(other => (double)other!.Garrison)
             .DefaultIfEmpty(0)
             .Max();
-        pressure += State.Armies.Where(army => army.TargetCityId == city.Id && army.FactionId != city.OwnerFactionId && army.Status == "marching").Sum(army => army.Soldiers * .75);
+        pressure += State.Armies
+            .Where(army => army.TargetCityId == city.Id && army.FactionId != city.OwnerFactionId && army.Status is "marching" or "besieging" or "awaiting-battle")
+            .Sum(army => army.Soldiers * (army.Status == "marching" ? .75 : 1));
         return pressure;
     }
 
@@ -561,7 +573,7 @@ public sealed partial class GameRuntime
     private void ResetCityCivicCapacity(CityData city)
     {
         var governor = Officer(city.GovernorId);
-        var governorBonus = governor is not null && governor.InitialState.FactionId == city.OwnerFactionId && governor.InitialState.Status == "serving" && EffectiveAbility(governor, "politics", "civil") >= 75 ? 1 : 0;
+        var governorBonus = GovernorHoldsOffice(city, governor) && EffectiveAbility(governor!, "politics", "civil") >= 75 ? 1 : 0;
         var administrationBonus = city.Facilities.Any(item => item.DefinitionId == "administration" && item.Condition >= 50) ? 1 : 0;
         var chaosPenalty = city.PublicOrder < 30 || city.Status is "unrest" or "shortage" ? 1 : 0;
         city.ActionCapacity = Math.Clamp(2 + governorBonus + administrationBonus - chaosPenalty, 1, 4);
@@ -572,6 +584,13 @@ public sealed partial class GameRuntime
         if (city.IntegrationMonthsRemaining == 0 && city.Status == "integrating") city.Status = "stable";
         city.Status = DetermineCityStatus(city);
     }
+
+    private static bool GovernorHoldsOffice(CityData city, ScenarioOfficerData? governor) =>
+        governor is not null
+        && city.GovernorId == governor.Profile.Id
+        && governor.InitialState.FactionId == city.OwnerFactionId
+        && governor.InitialState.Alive
+        && governor.InitialState.Status is not "captive" and not "free";
 
     private string DetermineCityStatus(CityData city)
     {

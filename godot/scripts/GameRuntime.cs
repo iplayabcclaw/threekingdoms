@@ -1,3 +1,4 @@
+using Godot;
 using System.Text.Json;
 
 namespace ThreeKingdomsSimulator.Godot;
@@ -5,6 +6,7 @@ namespace ThreeKingdomsSimulator.Godot;
 public sealed partial class GameRuntime
 {
     public const int TradeIncomePerMonth = 300;
+    public const int SubversionLoyaltyLimit = 60;
     private static readonly HashSet<string> SupportedDiplomacyTypes = ["trade", "truce", "captive-exchange"];
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
     private readonly Random _random = new(194);
@@ -66,33 +68,69 @@ public sealed partial class GameRuntime
         return Success($"{officer.Profile.Name}已改任{AppointmentLabel(appointment)}。", "city");
     }
 
+    public int OfficerTransferDays(string officerId, string targetCityId)
+    {
+        var officer = Officer(officerId);
+        var target = City(targetCityId);
+        var source = officer is null ? null : City(officer.InitialState.CityId);
+        if (officer?.InitialState.FactionId != State.PlayerFactionId
+            || officer.InitialState.Status != "serving"
+            || !string.IsNullOrEmpty(officer.InitialState.ArmyId)
+            || officer.InitialState.Appointment == "ruler"
+            || source?.OwnerFactionId != State.PlayerFactionId
+            || target?.OwnerFactionId != State.PlayerFactionId
+            || officer.InitialState.CityId == target.Id) return 0;
+        var route = FindOfficerRoute(officer.InitialState.CityId, target.Id, State.PlayerFactionId);
+        return route.Sum(id => State.Roads.First(road => road.Id == id).TravelDays);
+    }
+
     public bool TransferOfficer(string officerId, string targetCityId)
     {
         var officer = Officer(officerId);
         var target = City(targetCityId);
         if (officer?.InitialState.FactionId != State.PlayerFactionId || target?.OwnerFactionId != State.PlayerFactionId) return Fail("只能在己方城池间调动己方武将。");
-        if (officer.InitialState.Appointment == "ruler") return Fail("君主不可调动。");
+        if (officer.InitialState.Appointment == "ruler") return Fail("君主不可离城调动。");
+        if (!string.IsNullOrEmpty(officer.InitialState.ArmyId)) return Fail("军团中的武将不能单独调动，请先让其离开军团。");
+        if (officer.InitialState.Status != "serving") return Fail("只有当前驻留城池且未出征的武将可以调动。");
+        if (City(officer.InitialState.CityId)?.OwnerFactionId != State.PlayerFactionId) return Fail("只有当前驻留己方城池的武将可以调动。");
         if (officer.InitialState.CityId == target.Id) return Fail("目标城不能与当前所在城相同。");
-        officer.InitialState.CityId = target.Id;
-        return Success($"{officer.Profile.Name}已调往{target.Name}。", "city");
+        var route = FindOfficerRoute(officer.InitialState.CityId, target.Id, State.PlayerFactionId);
+        if (route.Count == 0) return Fail($"{City(officer.InitialState.CityId)?.Name}与{target.Name}之间没有连通的己方道路。");
+        var travelDays = route.Sum(id => State.Roads.First(road => road.Id == id).TravelDays);
+        officer.InitialState.Status = "marching";
+        officer.InitialState.TravelTargetCityId = target.Id;
+        officer.InitialState.TravelTotalDays = travelDays;
+        officer.InitialState.TravelRemainingDays = travelDays;
+        return Success($"{officer.Profile.Name}已从{City(officer.InitialState.CityId)?.Name}调往{target.Name}，路程{travelDays}日，预计{(int)Math.Ceiling(travelDays / 30d)}个月到达。", "talent");
     }
 
-    public bool Scout(string sourceCityId, string targetCityId, string officerId)
+    public bool IsRecruitmentCandidate(string candidateId) => !string.IsNullOrEmpty(RecruitmentMethod(candidateId));
+
+    public string RecruitmentMethod(string candidateId)
     {
-        var source = City(sourceCityId); var target = City(targetCityId); var officer = Officer(officerId);
-        if (!CanAct(source, officer, out var error) || target is null) return Fail(target is null ? "目标城池不存在。" : error);
-        target.IntelligenceAge = 0; source!.ActionSlots--; source.MonthlyOfficerActionIds.Add(officer!.Profile.Id); officer.InitialState.Fatigue = Clamp100(officer.InitialState.Fatigue + 8);
-        AwardOfficerExperience(officer, 40, "完成侦察", "intelligence");
-        return Success($"{officer.Profile.Name}完成对{target.Name}的侦察。", "city");
+        var candidate = Officer(candidateId);
+        if (candidate is null || candidate.InitialState.FactionId == State.PlayerFactionId) return string.Empty;
+        if (candidate.InitialState.Status == "free" && State.DiscoveredOfficerIds.Contains(candidateId)) return "direct";
+        if (candidate.InitialState.Status == "captive") return "captive";
+        if (candidate.InitialState.Status == "serving" && candidate.InitialState.FactionId is not null && candidate.InitialState.Loyalty < SubversionLoyaltyLimit) return "subversion";
+        return string.Empty;
     }
 
-    public bool RecruitOfficer(string candidateId, string actorId, string appointment, string method)
+    public static string RecruitmentMethodLabel(string method) => method switch
+    {
+        "direct" => "登庸在野人才",
+        "captive" => "劝降俘虏",
+        "subversion" => "策反敌将",
+        _ => "不可招募",
+    };
+
+    public bool RecruitOfficer(string candidateId, string actorId, string appointment)
     {
         var candidate = Officer(candidateId); var actor = Officer(actorId);
-        if (candidate is null || actor?.InitialState.FactionId != State.PlayerFactionId) return Fail("候选人或执行者无效。");
-        var valid = candidate.InitialState.Status == "captive" || candidate.InitialState.Status == "free" && State.DiscoveredOfficerIds.Contains(candidateId) || candidate.InitialState.FactionId != State.PlayerFactionId && candidate.InitialState.Loyalty <= 79;
-        if (!valid) return Fail("该人才尚不能招募。");
-        var chance = RecruitmentChance(candidateId, actorId, method);
+        if (candidate is null || actor?.InitialState.FactionId != State.PlayerFactionId || actor.InitialState.Status != "serving") return Fail("候选人或执行者无效。");
+        var method = RecruitmentMethod(candidateId);
+        if (string.IsNullOrEmpty(method)) return Fail("该人才当前尚不能招募。");
+        var chance = RecruitmentChance(candidateId, actorId);
         if (method == "subversion")
         {
             if (State.Resources.Gold < 1000) return Fail("策反需要1000金。");
@@ -102,20 +140,27 @@ public sealed partial class GameRuntime
         var success = roll <= chance;
         if (success)
         {
+            foreach (var city in State.Cities.Where(item => item.GovernorId == candidate.Profile.Id)) { city.GovernorId = string.Empty; city.GovernorName = "空缺"; }
             candidate.InitialState.FactionId = State.PlayerFactionId;
             candidate.InitialState.CityId = actor.InitialState.CityId;
             candidate.InitialState.Status = "serving";
             candidate.InitialState.Appointment = appointment;
             candidate.InitialState.Loyalty = Math.Clamp(55 + chance / 3, 50, 90);
+            candidate.InitialState.ArmyId = null;
+            candidate.InitialState.CourtOfficeId = string.Empty;
+            candidate.InitialState.TravelTargetCityId = string.Empty;
+            candidate.InitialState.TravelTotalDays = 0;
+            candidate.InitialState.TravelRemainingDays = 0;
         }
         AwardOfficerExperience(actor, success ? 50 : 30, success ? "成功招募人才" : "完成招募交涉", "recruitment");
         return Success($"{actor.Profile.Name}{(success ? "成功招募" : "未能说服")}{candidate.Profile.Name}（成功率{chance}%，判定{roll}）。", "city");
     }
 
-    public int RecruitmentChance(string candidateId, string actorId, string method)
+    public int RecruitmentChance(string candidateId, string actorId)
     {
         var candidate = Officer(candidateId); var actor = Officer(actorId);
-        if (candidate is null || actor is null) return 0;
+        var method = RecruitmentMethod(candidateId);
+        if (candidate is null || actor is null || string.IsNullOrEmpty(method)) return 0;
         var ruler = State.Officers.FirstOrDefault(item => item.InitialState.FactionId == State.PlayerFactionId && item.InitialState.Appointment == "ruler") ?? actor;
         var actorCharisma = EffectiveAbility(actor, "charisma", "civil");
         var rulerCharisma = EffectiveAbility(ruler, "charisma", "civil");
@@ -135,9 +180,7 @@ public sealed partial class GameRuntime
 
     private static int RecruitmentMethodBonus(string method) => method switch
     {
-        "recommendation" => 12,
         "captive" => 8,
-        "subversion" => 10,
         _ => 0,
     };
 
@@ -147,7 +190,7 @@ public sealed partial class GameRuntime
     private static int WeightedPercent(int value, int percent) =>
         (int)Math.Round(value * percent / 100.0, MidpointRounding.AwayFromZero);
 
-    public bool CreateExpedition(string sourceCityId, string targetCityId, string commanderId, int soldiers, int food, string stance, string tactic, List<string>? deputyIds = null, Dictionary<string, int>? composition = null, string backupTactic = "fortify-camp", Dictionary<string, int>? specialTroops = null, string targetArmyId = "")
+    public bool CreateExpedition(string sourceCityId, string targetCityId, string commanderId, int soldiers, int food, string stance, string tactic, List<string>? deputyIds = null, Dictionary<string, int>? composition = null, Dictionary<string, int>? specialTroops = null, string targetArmyId = "")
     {
         var source = City(sourceCityId); var target = City(targetCityId); var commander = Officer(commanderId);
         var targetArmy = string.IsNullOrEmpty(targetArmyId) ? null : State.Armies.FirstOrDefault(item => item.Id == targetArmyId && item.Status is "marching" or "besieging");
@@ -169,6 +212,8 @@ public sealed partial class GameRuntime
         var activeTroops = composition.Where(item => item.Value > 0).ToList();
         if (activeTroops.Count > 3 || activeTroops.Any(item => item.Value < 500)) return Fail("军团最多混编三种兵种，每种至少500人。");
         if (activeTroops.Count == 1 && activeTroops[0].Key == "siege") return Fail("攻城器械不能成为唯一兵种。");
+        var tacticRequirement = BattleCalculator.TacticRequirement(tactic, composition);
+        if (!string.IsNullOrEmpty(tacticRequirement)) return Fail(tacticRequirement);
         specialTroops ??= [];
         var specialEquipment = 0;
         foreach (var entry in specialTroops.Where(item => item.Value > 0))
@@ -192,7 +237,7 @@ public sealed partial class GameRuntime
         if (deputyIds.Count > 0) roles[deputyIds[0]] = "vanguard";
         if (deputyIds.Count > 1) roles[deputyIds[1]] = "strategist";
         var commandPenalty = Math.Max(0, soldiers - commandCapacity) / Math.Max(1, commandCapacity / 10);
-        var army = new ArmyData { Id = armyId, FactionId = State.PlayerFactionId, SourceCityId = sourceCityId, TargetCityId = targetCityId, TargetArmyId = targetArmyId, CommanderId = commanderId, DeputyIds = deputyIds, OfficerRoles = roles, Composition = composition.Where(item => item.Value > 0).ToDictionary(item => item.Key, item => item.Value), SpecialTroops = specialTroops.Where(item => item.Value > 0).ToDictionary(item => item.Key, item => item.Value), Soldiers = soldiers, Food = food, Training = source.Training, Morale = Math.Max(50, 70 - commandPenalty), Stance = stance, Tactic = tactic, BackupTactic = backupTactic, RouteRoadIds = route, RemainingDays = travelDays, TotalDays = travelDays };
+        var army = new ArmyData { Id = armyId, FactionId = State.PlayerFactionId, SourceCityId = sourceCityId, TargetCityId = targetCityId, TargetArmyId = targetArmyId, CommanderId = commanderId, DeputyIds = deputyIds, OfficerRoles = roles, Composition = composition.Where(item => item.Value > 0).ToDictionary(item => item.Key, item => item.Value), SpecialTroops = specialTroops.Where(item => item.Value > 0).ToDictionary(item => item.Key, item => item.Value), Soldiers = soldiers, Food = food, Training = source.Training, Morale = Math.Max(50, 70 - commandPenalty), Stance = stance, Tactic = tactic, RouteRoadIds = route, RemainingDays = travelDays, TotalDays = travelDays };
         State.Armies.Add(army);
         AdvanceArmy(army);
         var objective = targetArmy is null ? target.Name : $"{Officer(targetArmy.CommanderId)?.Profile.Name ?? "敌军"}军";
@@ -208,7 +253,56 @@ public sealed partial class GameRuntime
         var before = army.RemainingDays;
         AdvanceArmy(army);
         var commanderName = Officer(army.CommanderId)?.Profile.Name ?? "军团";
-        return Success($"{commanderName}军本回合行军{Math.Min(30, before)}日{(army.Status == "marching" ? $"，距离目标尚余{army.RemainingDays}日" : "并已抵达目标")}。", "battle");
+        var engaged = State.PendingBattle is not null && (State.PendingBattle.ArmyId == army.Id || State.PendingBattle.DefenderArmyId == army.Id);
+        var result = engaged ? "并已与敌军接战" : army.Status == "marching" ? $"，距离目标尚余{army.RemainingDays}日" : "并已抵达目标";
+        return Success($"{commanderName}军本回合行军{Math.Min(30, before)}日{result}。", "battle");
+    }
+
+    public bool CanOrderArmyIntercept(string armyId, string targetArmyId, out string reason)
+    {
+        var army = State.Armies.FirstOrDefault(item => item.Id == armyId);
+        var target = State.Armies.FirstOrDefault(item => item.Id == targetArmyId);
+        if (army?.FactionId != State.PlayerFactionId || army.Status is not ("marching" or "besieging"))
+        {
+            reason = "只能改令仍在行军或围城的己方军团。";
+            return false;
+        }
+        if (target is null || target.FactionId == army.FactionId || target.Status is not ("marching" or "besieging"))
+        {
+            reason = "目标敌军已经离开可拦截状态。";
+            return false;
+        }
+        if (AreUnderTruce(army.FactionId, target.FactionId))
+        {
+            reason = "双方仍在停战期，不能下达拦截军令。";
+            return false;
+        }
+        var ownRoads = RemainingRoadIds(army);
+        var targetRoads = RemainingRoadIds(target);
+        if (!ownRoads.Overlaps(targetRoads))
+        {
+            reason = "两军后续路线没有共同路段，当前军团无法直接截击。";
+            return false;
+        }
+        reason = army.LastMarchTurn >= State.Turn ? "改令成功后将在下回合继续截击。" : "改令后立即沿当前道路截击。";
+        return true;
+    }
+
+    public bool OrderArmyIntercept(string armyId, string targetArmyId)
+    {
+        if (!CanOrderArmyIntercept(armyId, targetArmyId, out var reason)) return Fail(reason);
+        var army = State.Armies.First(item => item.Id == armyId);
+        var target = State.Armies.First(item => item.Id == targetArmyId);
+        army.TargetArmyId = target.Id;
+        var commanderName = Officer(army.CommanderId)?.Profile.Name ?? "己方军团";
+        var targetName = Officer(target.CommanderId)?.Profile.Name ?? "敌军";
+        if (army.LastMarchTurn >= State.Turn)
+            return Success($"{commanderName}军已改令拦截{targetName}军；本回合已经行动，将于下回合继续截击。", "battle");
+        AdvanceArmy(army);
+        var engaged = State.PendingBattle is not null && (State.PendingBattle.ArmyId == army.Id || State.PendingBattle.DefenderArmyId == army.Id);
+        return Success(engaged
+            ? $"{commanderName}军改令后立即截住{targetName}军，双方进入野战。"
+            : $"{commanderName}军已改令拦截{targetName}军并立即推进，尚未接敌。", "battle");
     }
 
     public bool WithdrawArmy(string armyId, string destinationCityId)
@@ -365,6 +459,7 @@ public sealed partial class GameRuntime
 
     private void FinishTurnResolution()
     {
+        ResolveOfficerTransfers();
         ResolveEconomy();
         ResolveOfficerSalaries();
         ResolveAi();
@@ -389,6 +484,44 @@ public sealed partial class GameRuntime
         EvaluateOutcome(true);
         State.TurnResolutionPending = false;
         if (SaveService.ShouldWriteAuto(State)) SaveService.WriteAuto(State);
+    }
+
+    private void ResolveOfficerTransfers()
+    {
+        foreach (var officer in State.Officers.Where(item => item.InitialState.Status == "marching").ToList())
+        {
+            var state = officer.InitialState;
+            var target = City(state.TravelTargetCityId);
+            if (target is null || target.OwnerFactionId != state.FactionId)
+            {
+                var fallback = City(state.CityId)?.OwnerFactionId == state.FactionId
+                    ? City(state.CityId)
+                    : State.Cities.FirstOrDefault(item => item.OwnerFactionId == state.FactionId);
+                if (fallback is not null) state.CityId = fallback.Id;
+                ResetOfficerTransfer(state);
+                State.Log.Add(new LogEntryData { Turn = State.Turn, Category = "talent", Message = $"{officer.Profile.Name}的调动目标已失守，调动取消。" });
+                continue;
+            }
+
+            state.TravelRemainingDays = Math.Max(0, state.TravelRemainingDays - 30);
+            if (state.TravelRemainingDays > 0)
+            {
+                State.Log.Add(new LogEntryData { Turn = State.Turn, Category = "talent", Message = $"{officer.Profile.Name}正在调往{target.Name}，尚余{state.TravelRemainingDays}日。" });
+                continue;
+            }
+
+            state.CityId = target.Id;
+            ResetOfficerTransfer(state);
+            State.Log.Add(new LogEntryData { Turn = State.Turn, Category = "talent", Message = $"{officer.Profile.Name}已抵达{target.Name}并恢复任职。" });
+        }
+    }
+
+    private static void ResetOfficerTransfer(OfficerStateData state)
+    {
+        state.Status = "serving";
+        state.TravelTargetCityId = string.Empty;
+        state.TravelTotalDays = 0;
+        state.TravelRemainingDays = 0;
     }
 
     private void ResolveConstruction()
@@ -422,13 +555,37 @@ public sealed partial class GameRuntime
 
     private void AdvanceArmy(ArmyData army)
     {
+        var beforeRemainingDays = army.RemainingDays;
         army.Food = Math.Max(0, army.Food - Math.Max(100, army.Soldiers / 25));
         army.Fatigue = Math.Clamp(army.Fatigue + (army.Status == "besieging" ? 8 : 5), 0, 100);
         army.Morale = Math.Clamp(army.Morale + (army.Food == 0 ? -12 : -1), 0, 100);
-        if (army.Food == 0) army.Tactic = army.BackupTactic;
         army.RemainingDays = Math.Max(0, army.RemainingDays - (army.Food == 0 ? 18 : 30));
         army.LastMarchTurn = State.Turn;
+        if (TryPrepareRoadEncounter(army, beforeRemainingDays)) return;
         if (army.RemainingDays == 0) PrepareBattle(army);
+    }
+
+    private bool TryPrepareRoadEncounter(ArmyData mover, int beforeRemainingDays)
+    {
+        if (State.PendingBattle is not null || mover.RouteRoadIds.Count == 0) return false;
+        var traversed = RoadIntervals(mover, beforeRemainingDays, mover.RemainingDays);
+        if (traversed.Count == 0) return false;
+        var enemies = State.Armies
+            .Where(item => item.Id != mover.Id && item.FactionId != mover.FactionId && item.Status is "marching" or "besieging")
+            .OrderByDescending(item => item.Id == mover.TargetArmyId)
+            .ThenBy(item => item.RemainingDays)
+            .ToList();
+        foreach (var enemy in enemies)
+        {
+            if (AreUnderTruce(mover.FactionId, enemy.FactionId) || !TryRoadPosition(enemy, out var enemyPosition)) continue;
+            var encounter = traversed.FirstOrDefault(item => item.RoadId == enemyPosition.RoadId
+                && enemyPosition.OffsetDays >= item.StartOffsetDays - .01
+                && enemyPosition.OffsetDays <= item.EndOffsetDays + .01);
+            if (string.IsNullOrEmpty(encounter.RoadId)) continue;
+            PrepareArmyBattle(mover, enemy, encounter.RoadId);
+            return true;
+        }
+        return false;
     }
 
     private void PrepareBattle(ArmyData army)
@@ -439,7 +596,16 @@ public sealed partial class GameRuntime
             return;
         }
         var city = City(army.TargetCityId);
-        if (city is null || city.OwnerFactionId == army.FactionId) return;
+        if (city is null)
+        {
+            RecallArmy(army, $"{Officer(army.CommanderId)?.Profile.Name}军的目标已失效，停止进军并返回驻地。");
+            return;
+        }
+        if (city.OwnerFactionId == army.FactionId)
+        {
+            RecallArmy(army, $"{city.Name}已由己方控制，{Officer(army.CommanderId)?.Profile.Name}军停止重复进攻并返回驻地。");
+            return;
+        }
         if (AreUnderTruce(army.FactionId, city.OwnerFactionId))
         {
             RecallArmy(army, $"因与{Faction(city.OwnerFactionId)?.Name}仍在停战期，{Officer(army.CommanderId)?.Profile.Name}军停止进攻并返回驻地。");
@@ -469,18 +635,31 @@ public sealed partial class GameRuntime
             RecallArmy(army, $"因双方处于停战期，{Officer(army.CommanderId)?.Profile.Name}军停止拦截并返回驻地。");
             return;
         }
-        if (army.Composition.Count == 0) army.Composition["infantry"] = army.Soldiers;
-        if (defender.Composition.Count == 0) defender.Composition["infantry"] = defender.Soldiers;
-        army.Status = "awaiting-battle";
-        defender.Status = "awaiting-battle";
-        State.PendingBattle = BattleCalculator.CreateFieldBattle(State, army, defender);
+        PrepareArmyBattle(army, defender, string.Empty);
     }
 
-    public bool ConfigurePendingBattle(string formationId, Dictionary<string, string> troopOrders)
+    private void PrepareArmyBattle(ArmyData army, ArmyData defender, string encounterRoadId)
+    {
+        if (army.Composition.Count == 0) army.Composition["infantry"] = army.Soldiers;
+        if (defender.Composition.Count == 0) defender.Composition["infantry"] = defender.Soldiers;
+        army.TargetArmyId = defender.Id;
+        army.Status = "awaiting-battle";
+        defender.Status = "awaiting-battle";
+        State.PendingBattle = BattleCalculator.CreateFieldBattle(State, army, defender, encounterRoadId);
+        if (army.FactionId != State.PlayerFactionId && defender.FactionId != State.PlayerFactionId)
+        {
+            BattleCalculator.Generate(State, State.PendingBattle);
+            BattleCalculator.RunToCompletion(State, State.PendingBattle);
+            ApplyPendingBattle(false);
+        }
+    }
+
+    public bool ConfigurePendingBattle(string formationId, Dictionary<string, string> troopOrders,
+        string stance = "", string primaryTactic = "")
     {
         var pending = State.PendingBattle;
         if (pending is null || pending.Status != "planning") return Fail("当前没有可布阵的战斗。");
-        BattleCalculator.Configure(pending, formationId, troopOrders);
+        BattleCalculator.Configure(pending, formationId, troopOrders, stance, primaryTactic);
         return Success($"已采用{BattleCatalog.FormationName(formationId)}，战斗队完成重新展开。", "battle");
     }
 
@@ -488,6 +667,13 @@ public sealed partial class GameRuntime
     {
         var pending = State.PendingBattle;
         if (pending is null || pending.Status != "planning") return Fail("当前战斗不能开始演算。");
+        var composition = pending.Groups
+            .Where(item => item.Side == pending.PlayerSide)
+            .GroupBy(item => item.TroopType)
+            .ToDictionary(group => group.Key, group => group.Sum(item => item.InitialSoldiers));
+        var tactic = pending.PlayerSide == "attacker" ? pending.PrimaryTactic : pending.DefenderPrimaryTactic;
+        var tacticRequirement = BattleCalculator.TacticRequirement(tactic, composition);
+        if (!string.IsNullOrEmpty(tacticRequirement)) return Fail(tacticRequirement);
         BattleCalculator.Generate(State, pending);
         return Success("军令已下，双方战斗队开始推进。", "battle");
     }
@@ -506,7 +692,17 @@ public sealed partial class GameRuntime
         if (pending is null || pending.Status != "running") return Fail("当前没有可以实时指挥的战斗。");
         var affected = BattleCalculator.IssueRealtimeCommand(pending, groupIds, command, targetGroupId, destinationX, destinationY);
         if (affected <= 0) return Fail(command == "attack" ? "请先选中我方军团和有效的敌方目标。" : "请先选中仍在作战的我方军团。");
-        var action = command switch { "attack" => "集火目标", "move" => "移动", "hold" => "原地固守", _ => "自由接敌" };
+        var action = command switch
+        {
+            "attack" => "集火目标",
+            "move" => "移动",
+            "hold" => "原地固守",
+            "defend-gate" => "增援城门",
+            "inner-city" => "退守内城",
+            "sortie" => "出城突袭",
+            "reserve-line" => "转入预备队",
+            _ => "自由接敌",
+        };
         return Success($"实时军令已下达：{affected}支军团开始{action}。", "battle");
     }
 
@@ -525,7 +721,6 @@ public sealed partial class GameRuntime
         var army = State.Armies.First(item => item.Id == pending.ArmyId);
         var city = City(pending.CityId)!;
         var formerOwner = city.OwnerFactionId;
-        var commander = Officer(army.CommanderId)!;
         var attackerGroups = pending.Groups.Where(item => item.Side == "attacker").ToList();
         var compositionBeforeBattle = army.Composition.ToDictionary(item => item.Key, item => item.Value);
 
@@ -539,12 +734,14 @@ public sealed partial class GameRuntime
             if (army.SpecialTroops[specialId] < 1) army.SpecialTroops.Remove(specialId);
         }
         army.Soldiers = pending.AttackerAfter;
+        army.Morale = BattleMorale(attackerGroups);
         city.Garrison = pending.DefenderAfter;
         city.WallDurability = pending.WallAfter;
         city.GateDurability = pending.GateAfter;
         city.InnerControl = pending.InnerAfter;
         army.WoundedByTroop = SplitLossesByTroop(attackerGroups, .55);
         army.RoutedByTroop = SplitLossesByTroop(attackerGroups, pending.Result == "defeat" ? .28 : .12);
+        ApplyBattleLoyalty(pending);
 
         foreach (var officerId in pending.AttackerOfficerIds)
         {
@@ -565,9 +762,15 @@ public sealed partial class GameRuntime
         if (pending.Result == "victory")
         {
             city.OwnerFactionId = army.FactionId;
-            city.GovernorId = army.CommanderId;
-            city.GovernorName = commander.Profile.Name;
-            city.Garrison += army.Soldiers;
+            var capturedGovernor = pending.AttackerOfficerIds
+                .Select(Officer)
+                .FirstOrDefault(officer => officer is not null
+                    && officer.InitialState.FactionId == army.FactionId
+                    && officer.InitialState.Alive
+                    && !State.Cities.Any(other => other.Id != city.Id && other.OwnerFactionId == army.FactionId && other.GovernorId == officer.Profile.Id));
+            city.GovernorId = capturedGovernor?.Profile.Id ?? string.Empty;
+            city.GovernorName = capturedGovernor?.Profile.Name ?? "空缺";
+            city.Garrison = army.Soldiers;
             city.WallDurability = Math.Max(20, city.WallDurability);
             city.GateDurability = Math.Max(20, city.GateDurability);
             city.InnerControl = 45;
@@ -614,8 +817,10 @@ public sealed partial class GameRuntime
             AttackerLosses = pending.AttackerLosses, DefenderLosses = pending.DefenderLosses,
             WallBefore = pending.WallBefore, WallAfter = pending.WallAfter, GateBefore = pending.GateBefore, GateAfter = pending.GateAfter, InnerBefore = pending.InnerBefore, InnerAfter = pending.InnerAfter,
             Result = pending.Result, CityCaptured = pending.Result == "victory", Terrain = pending.Terrain, FormationId = (pending.PlayerSide == "attacker" ? pending.AttackerFormation : pending.DefenderFormation).FormationId,
-            Tactic = pending.PrimaryTactic, Stance = pending.Stance, PrimaryTactic = pending.PrimaryTactic, BackupTactic = pending.BackupTactic,
-            EffectiveTactic = pending.EffectiveTactic, BackupTriggered = pending.BackupTriggered, DecisionSummary = pending.DecisionSummary,
+            Tactic = pending.PlayerSide == "attacker" ? pending.PrimaryTactic : pending.DefenderPrimaryTactic,
+            Stance = pending.PlayerSide == "attacker" ? pending.Stance : pending.DefenderStance,
+            PrimaryTactic = pending.PlayerSide == "attacker" ? pending.PrimaryTactic : pending.DefenderPrimaryTactic,
+            DecisionSummary = pending.DecisionSummary,
             Narrative = pending.Summary, Timeline = pending.Timeline, PhaseResults = pending.PhaseResults,
         });
         State.CampaignTimeline.Add($"第{State.Turn}回合 · {city.Name}攻防 · {Faction(army.FactionId)?.ShortName}{(pending.Result == "victory" ? "胜" : pending.Result == "stalemate" ? "围" : "败")}{Faction(formerOwner)?.ShortName}");
@@ -640,6 +845,7 @@ public sealed partial class GameRuntime
         var defenderGroups = pending.Groups.Where(item => item.Side == "defender").ToList();
         UpdateArmyAfterFieldBattle(attacker, attackerGroups, pending.AttackerAfter, pending.Result == "defeat");
         UpdateArmyAfterFieldBattle(defender, defenderGroups, pending.DefenderAfter, pending.Result == "victory");
+        ApplyBattleLoyalty(pending);
 
         foreach (var officerId in pending.AttackerOfficerIds.Concat(pending.DefenderOfficerIds))
         {
@@ -665,8 +871,10 @@ public sealed partial class GameRuntime
             AttackerLosses = pending.AttackerLosses, DefenderLosses = pending.DefenderLosses,
             Result = pending.Result, CityCaptured = false, Terrain = pending.Terrain,
             FormationId = (pending.PlayerSide == "attacker" ? pending.AttackerFormation : pending.DefenderFormation).FormationId,
-            Tactic = pending.PrimaryTactic, Stance = pending.Stance, PrimaryTactic = pending.PrimaryTactic, BackupTactic = pending.BackupTactic,
-            EffectiveTactic = pending.EffectiveTactic, BackupTriggered = pending.BackupTriggered, DecisionSummary = pending.DecisionSummary,
+            Tactic = pending.PlayerSide == "attacker" ? pending.PrimaryTactic : pending.DefenderPrimaryTactic,
+            Stance = pending.PlayerSide == "attacker" ? pending.Stance : pending.DefenderStance,
+            PrimaryTactic = pending.PlayerSide == "attacker" ? pending.PrimaryTactic : pending.DefenderPrimaryTactic,
+            DecisionSummary = pending.DecisionSummary,
             Narrative = pending.Summary, Timeline = pending.Timeline, PhaseResults = pending.PhaseResults,
         });
         State.CampaignTimeline.Add($"第{State.Turn}回合 · {battlefield.Name}近郊军团战 · {Faction(attacker.FactionId)?.ShortName}{(pending.Result == "victory" ? "胜" : "败")}{Faction(defender.FactionId)?.ShortName}");
@@ -679,6 +887,23 @@ public sealed partial class GameRuntime
             if (State.PendingBattle is null) FinishTurnResolution();
         }
         return summary;
+    }
+
+    private void ApplyBattleLoyalty(PendingBattleData pending)
+    {
+        var attackerDelta = pending.Result switch { "victory" => 1, "defeat" => -1, _ => 0 };
+        if (attackerDelta == 0) return;
+        foreach (var officerId in pending.AttackerOfficerIds.Distinct())
+        {
+            var officer = Officer(officerId);
+            if (officer is not null) officer.InitialState.Loyalty = Math.Clamp(officer.InitialState.Loyalty + attackerDelta, 0, 100);
+        }
+        foreach (var officerId in pending.DefenderOfficerIds.Distinct())
+        {
+            var officer = Officer(officerId);
+            if (officer is not null) officer.InitialState.Loyalty = Math.Clamp(officer.InitialState.Loyalty - attackerDelta, 0, 100);
+        }
+        pending.Summary = $"{pending.Summary.TrimEnd('。')}；战后胜方参战武将忠诚+1，败方-1。";
     }
 
     private static void UpdateArmyAfterFieldBattle(ArmyData army, List<BattleUnitGroupData> groups, int soldiers, bool routed)
@@ -694,6 +919,7 @@ public sealed partial class GameRuntime
             if (army.SpecialTroops[specialId] < 1) army.SpecialTroops.Remove(specialId);
         }
         army.Soldiers = soldiers;
+        army.Morale = BattleMorale(groups);
         army.WoundedByTroop = SplitLossesByTroop(groups, .55);
         army.RoutedByTroop = SplitLossesByTroop(groups, routed ? .28 : .12);
     }
@@ -716,6 +942,12 @@ public sealed partial class GameRuntime
     private static Dictionary<string, int> SplitLossesByTroop(List<BattleUnitGroupData> groups, double share) => groups
         .GroupBy(item => item.TroopType)
         .ToDictionary(group => group.Key, group => (int)Math.Round(group.Sum(item => item.InitialSoldiers - item.FinalSoldiers) * share));
+
+    private static int BattleMorale(List<BattleUnitGroupData> groups)
+    {
+        var soldiers = groups.Sum(item => item.FinalSoldiers);
+        return soldiers <= 0 ? 0 : Math.Clamp((int)Math.Round(groups.Sum(item => item.Morale * item.FinalSoldiers) / soldiers), 0, 100);
+    }
 
     private void ReleaseArmyOfficers(ArmyData army, string cityId)
     {
@@ -853,6 +1085,112 @@ public sealed partial class GameRuntime
         return [];
     }
 
+    private List<string> FindOfficerRoute(string sourceId, string targetId, string factionId)
+    {
+        if (sourceId == targetId) return [];
+        var distance = new Dictionary<string, int> { [sourceId] = 0 };
+        var previous = new Dictionary<string, (string CityId, string RoadId)>();
+        var queue = new PriorityQueue<string, int>();
+        queue.Enqueue(sourceId, 0);
+        while (queue.TryDequeue(out var current, out var currentDistance))
+        {
+            if (current == targetId) break;
+            if (currentDistance != distance.GetValueOrDefault(current, int.MaxValue)) continue;
+            foreach (var road in State.Roads.Where(item => item.FromCityId == current || item.ToCityId == current))
+            {
+                var next = road.FromCityId == current ? road.ToCityId : road.FromCityId;
+                if (City(next)?.OwnerFactionId != factionId) continue;
+                var candidateDistance = currentDistance + Math.Max(1, road.TravelDays);
+                if (candidateDistance >= distance.GetValueOrDefault(next, int.MaxValue)) continue;
+                distance[next] = candidateDistance;
+                previous[next] = (current, road.Id);
+                queue.Enqueue(next, candidateDistance);
+            }
+        }
+        if (!previous.ContainsKey(targetId)) return [];
+        var route = new List<string>();
+        for (var cityId = targetId; cityId != sourceId;)
+        {
+            var step = previous[cityId];
+            route.Add(step.RoadId);
+            cityId = step.CityId;
+        }
+        route.Reverse();
+        return route;
+    }
+
+    private HashSet<string> RemainingRoadIds(ArmyData army)
+    {
+        if (army.RouteRoadIds.Count == 0) return [];
+        var elapsed = Math.Clamp(army.TotalDays - army.RemainingDays, 0, army.TotalDays);
+        var accumulated = 0;
+        var result = new HashSet<string>();
+        foreach (var roadId in army.RouteRoadIds)
+        {
+            var road = State.Roads.FirstOrDefault(item => item.Id == roadId);
+            if (road is null) continue;
+            if (accumulated + road.TravelDays >= elapsed) result.Add(road.Id);
+            accumulated += road.TravelDays;
+        }
+        return result;
+    }
+
+    private List<RoadInterval> RoadIntervals(ArmyData army, int beforeRemainingDays, int afterRemainingDays)
+    {
+        var startElapsed = Math.Clamp(army.TotalDays - beforeRemainingDays, 0, army.TotalDays);
+        var endElapsed = Math.Clamp(army.TotalDays - afterRemainingDays, startElapsed, army.TotalDays);
+        var currentCityId = army.SourceCityId;
+        var accumulated = 0;
+        var result = new List<RoadInterval>();
+        foreach (var roadId in army.RouteRoadIds)
+        {
+            var road = State.Roads.FirstOrDefault(item => item.Id == roadId);
+            if (road is null) continue;
+            var roadStart = accumulated;
+            var roadEnd = accumulated + road.TravelDays;
+            var forward = road.FromCityId == currentCityId;
+            var nextCityId = forward ? road.ToCityId : road.FromCityId;
+            if (endElapsed >= roadStart && startElapsed <= roadEnd)
+            {
+                var localStart = Math.Clamp(startElapsed - roadStart, 0, road.TravelDays);
+                var localEnd = Math.Clamp(endElapsed - roadStart, 0, road.TravelDays);
+                var canonicalStart = forward ? localStart : road.TravelDays - localStart;
+                var canonicalEnd = forward ? localEnd : road.TravelDays - localEnd;
+                result.Add(new RoadInterval(road.Id, Math.Min(canonicalStart, canonicalEnd), Math.Max(canonicalStart, canonicalEnd)));
+            }
+            accumulated = roadEnd;
+            currentCityId = nextCityId;
+        }
+        return result;
+    }
+
+    private bool TryRoadPosition(ArmyData army, out RoadPosition position)
+    {
+        var elapsed = Math.Clamp(army.TotalDays - army.RemainingDays, 0, army.TotalDays);
+        var currentCityId = army.SourceCityId;
+        var accumulated = 0;
+        foreach (var roadId in army.RouteRoadIds)
+        {
+            var road = State.Roads.FirstOrDefault(item => item.Id == roadId);
+            if (road is null) continue;
+            var forward = road.FromCityId == currentCityId;
+            var nextCityId = forward ? road.ToCityId : road.FromCityId;
+            if (elapsed <= accumulated + road.TravelDays)
+            {
+                var local = Math.Clamp(elapsed - accumulated, 0, road.TravelDays);
+                position = new RoadPosition(road.Id, forward ? local : road.TravelDays - local);
+                return true;
+            }
+            accumulated += road.TravelDays;
+            currentCityId = nextCityId;
+        }
+        position = default;
+        return false;
+    }
+
+    private readonly record struct RoadPosition(string RoadId, double OffsetDays);
+    private readonly record struct RoadInterval(string RoadId, double StartOffsetDays, double EndOffsetDays);
+
     private bool CanAct(CityData? city, ScenarioOfficerData? officer, out string error)
     {
         return CanCityAct(city, officer, State.PlayerFactionId, false, out error);
@@ -915,7 +1253,7 @@ public sealed record FacilityDefinition(string Name, int Gold, int Food, int Mon
 
 public sealed class GameSession
 {
-    public const int CurrentSchemaVersion = 6;
+    public const int CurrentSchemaVersion = 7;
     public const int StrategicVictoryCityCount = 9;
     public const int StrategicVictoryRequiredMonths = 3;
 
@@ -1066,11 +1404,11 @@ public sealed class PayrollLedgerEntryData
 
 public sealed class ArmyData
 {
-    public string Id { get; set; } = string.Empty; public string FactionId { get; set; } = string.Empty; public string SourceCityId { get; set; } = string.Empty; public string TargetCityId { get; set; } = string.Empty; public string TargetArmyId { get; set; } = string.Empty; public string CommanderId { get; set; } = string.Empty; public List<string> DeputyIds { get; set; } = []; public Dictionary<string, int> Composition { get; set; } = []; public Dictionary<string, int> SpecialTroops { get; set; } = []; public Dictionary<string, string> OfficerRoles { get; set; } = []; public Dictionary<string, int> WoundedByTroop { get; set; } = []; public Dictionary<string, int> RoutedByTroop { get; set; } = []; public int Soldiers { get; set; } public int Food { get; set; } public int Training { get; set; } = 65; public int Morale { get; set; } = 70; public int Fatigue { get; set; } public string FormationId { get; set; } = "goose"; public string Stance { get; set; } = "standard"; public string Tactic { get; set; } = "steady-advance"; public string BackupTactic { get; set; } = "fortify-camp"; public List<string> RouteRoadIds { get; set; } = []; public int TotalDays { get; set; } public int RemainingDays { get; set; } public int LastMarchTurn { get; set; } public string Status { get; set; } = "marching";
+    public string Id { get; set; } = string.Empty; public string FactionId { get; set; } = string.Empty; public string SourceCityId { get; set; } = string.Empty; public string TargetCityId { get; set; } = string.Empty; public string TargetArmyId { get; set; } = string.Empty; public string CommanderId { get; set; } = string.Empty; public List<string> DeputyIds { get; set; } = []; public Dictionary<string, int> Composition { get; set; } = []; public Dictionary<string, int> SpecialTroops { get; set; } = []; public Dictionary<string, string> OfficerRoles { get; set; } = []; public Dictionary<string, int> WoundedByTroop { get; set; } = []; public Dictionary<string, int> RoutedByTroop { get; set; } = []; public int Soldiers { get; set; } public int Food { get; set; } public int Training { get; set; } = 65; public int Morale { get; set; } = 70; public int Fatigue { get; set; } public string FormationId { get; set; } = "goose"; public string Stance { get; set; } = "standard"; public string Tactic { get; set; } = "steady-advance"; public List<string> RouteRoadIds { get; set; } = []; public int TotalDays { get; set; } public int RemainingDays { get; set; } public int LastMarchTurn { get; set; } public string Status { get; set; } = "marching";
 }
 public sealed class BattleReportData
 {
-    public string Id { get; set; } = string.Empty; public int Turn { get; set; } public string CityId { get; set; } = string.Empty; public string CityName { get; set; } = string.Empty; public string BattleType { get; set; } = "siege"; public string AttackerFactionId { get; set; } = string.Empty; public string DefenderFactionId { get; set; } = string.Empty; public string PlayerSide { get; set; } = "attacker"; public string AttackerCommanderId { get; set; } = string.Empty; public List<string> AttackerOfficerIds { get; set; } = []; public List<string> DefenderOfficerIds { get; set; } = []; public Dictionary<string, string> OfficerContributions { get; set; } = []; public Dictionary<string, int> AttackerComposition { get; set; } = []; public Dictionary<string, int> DefenderComposition { get; set; } = []; public int AttackerBefore { get; set; } public int AttackerAfter { get; set; } public int DefenderBefore { get; set; } public int DefenderAfter { get; set; } public int AttackerLosses { get; set; } public int DefenderLosses { get; set; } public int WallBefore { get; set; } public int WallAfter { get; set; } public int GateBefore { get; set; } public int GateAfter { get; set; } public int InnerBefore { get; set; } public int InnerAfter { get; set; } public string Result { get; set; } = string.Empty; public bool CityCaptured { get; set; } public string Terrain { get; set; } = "plain"; public string FormationId { get; set; } = string.Empty; public string Tactic { get; set; } = string.Empty; public string Stance { get; set; } = "standard"; public string PrimaryTactic { get; set; } = string.Empty; public string BackupTactic { get; set; } = string.Empty; public string EffectiveTactic { get; set; } = string.Empty; public bool BackupTriggered { get; set; } public string DecisionSummary { get; set; } = string.Empty; public string Narrative { get; set; } = string.Empty; public List<BattleTimelineEventData> Timeline { get; set; } = []; public List<BattlePhaseResultData> PhaseResults { get; set; } = [];
+    public string Id { get; set; } = string.Empty; public int Turn { get; set; } public string CityId { get; set; } = string.Empty; public string CityName { get; set; } = string.Empty; public string BattleType { get; set; } = "siege"; public string AttackerFactionId { get; set; } = string.Empty; public string DefenderFactionId { get; set; } = string.Empty; public string PlayerSide { get; set; } = "attacker"; public string AttackerCommanderId { get; set; } = string.Empty; public List<string> AttackerOfficerIds { get; set; } = []; public List<string> DefenderOfficerIds { get; set; } = []; public Dictionary<string, string> OfficerContributions { get; set; } = []; public Dictionary<string, int> AttackerComposition { get; set; } = []; public Dictionary<string, int> DefenderComposition { get; set; } = []; public int AttackerBefore { get; set; } public int AttackerAfter { get; set; } public int DefenderBefore { get; set; } public int DefenderAfter { get; set; } public int AttackerLosses { get; set; } public int DefenderLosses { get; set; } public int WallBefore { get; set; } public int WallAfter { get; set; } public int GateBefore { get; set; } public int GateAfter { get; set; } public int InnerBefore { get; set; } public int InnerAfter { get; set; } public string Result { get; set; } = string.Empty; public bool CityCaptured { get; set; } public string Terrain { get; set; } = "plain"; public string FormationId { get; set; } = string.Empty; public string Tactic { get; set; } = string.Empty; public string Stance { get; set; } = "standard"; public string PrimaryTactic { get; set; } = string.Empty; public string DecisionSummary { get; set; } = string.Empty; public string Narrative { get; set; } = string.Empty; public List<BattleTimelineEventData> Timeline { get; set; } = []; public List<BattlePhaseResultData> PhaseResults { get; set; } = [];
 }
 public sealed class DiplomacyRelationData
 {

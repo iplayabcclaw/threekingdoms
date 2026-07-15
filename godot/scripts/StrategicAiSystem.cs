@@ -24,10 +24,17 @@ public sealed partial class GameRuntime
                 var target = City(targetId);
                 if (target is null || target.OwnerFactionId == factionId) continue;
 
-                var commander = State.Officers
+                var availableOfficers = State.Officers
                     .Where(officer => officer.InitialState.FactionId == factionId && officer.InitialState.CityId == source.Id && officer.InitialState.Status == "serving" && officer.InitialState.Alive)
-                    .OrderByDescending(officer => EffectiveAbility(officer, "leadership", "military") + OfficerProgressionRules.AllTraits(officer).Count * 2 - officer.InitialState.Fatigue / 4)
-                    .FirstOrDefault();
+                    .OrderByDescending(AiCommandScore)
+                    .ToList();
+                var commander = availableOfficers.FirstOrDefault();
+                var deputyIds = availableOfficers
+                    .Skip(2) // 第二强的武将留城指挥防守，避免出征后只剩文弱或无人守城。
+                    .OrderByDescending(officer => EffectiveAbility(officer, "might", "military") + EffectiveAbility(officer, "intelligence", "military"))
+                    .Take(2)
+                    .Select(officer => officer.Profile.Id)
+                    .ToList();
                 var enemyNeighbors = State.Roads
                     .Where(candidateRoad => candidateRoad.FromCityId == source.Id || candidateRoad.ToCityId == source.Id)
                     .Select(candidateRoad => City(candidateRoad.FromCityId == source.Id ? candidateRoad.ToCityId : candidateRoad.FromCityId))
@@ -44,6 +51,10 @@ public sealed partial class GameRuntime
                 var food = Math.Max(1200, soldiers * (road.TravelDays + 30) / 120);
                 var foodCoverage = (treasury.Food - food) / (double)Math.Max(1, factionFoodUpkeep);
                 var forceRatio = soldiers / (double)Math.Max(1, target.Garrison + target.Defense * 22);
+                var minimumForceRatio = target.Status == "integrating" ? .62 : .72;
+                var composition = BuildAiArmyComposition(soldiers, target, road, commander);
+                var stance = SelectAiArmyStance(forceRatio);
+                var tactic = SelectAiArmyTactic(composition, target, commander);
                 var targetRoads = State.Roads.Count(candidateRoad => candidateRoad.FromCityId == target.Id || candidateRoad.ToCityId == target.Id);
                 var targetValue = Math.Min(15, target.Population / 9000d) + (target.Agriculture + target.Commerce) / 11d + Math.Min(8, targetRoads * 2);
                 var terrainPenalty = road.Terrain switch { "mountain" => 12, "river" => 9, "hill" => 6, _ => 2 };
@@ -60,14 +71,16 @@ public sealed partial class GameRuntime
                     - road.TravelDays / 5d
                     - terrainPenalty
                     - Math.Clamp(incomingPressure / 700d, 0, 20)
-                    - (target.Status == "integrating" ? -6 : 0);
+                    + (target.Status == "integrating" ? 6 : 0);
 
                 var reason = string.Empty;
                 if (AreUnderTruce(factionId, target.OwnerFactionId)) reason = "双方仍在停战期";
                 else if (activeArmyCount >= activeArmyLimit) reason = $"已有{activeArmyCount}支在外军团，达到当前上限{activeArmyLimit}";
                 else if (State.Armies.Any(army => army.FactionId == factionId && army.TargetCityId == target.Id && army.Status is "marching" or "besieging" or "awaiting-battle")) reason = "已有军团进攻该目标";
                 else if (commander is null) reason = "出发城没有可用主将";
+                else if (availableOfficers.Count < 2) reason = "出发城至少需要保留一名可用守将";
                 else if (soldiers < 2500) reason = $"留足{reserve:N0}守军后可用兵力不足";
+                else if (forceRatio < minimumForceRatio) reason = $"攻守兵力比{forceRatio:0.00}低于{minimumForceRatio:0.00}安全线";
                 else if (treasury.Food - food < foodReserve) reason = $"携粮后势力粮草将低于{foodReserve:N0}安全储备";
                 else if (goldCoverage < 1.5) reason = "势力财政不足以支撑新战线";
 
@@ -79,15 +92,21 @@ public sealed partial class GameRuntime
                     TargetFactionId = target.OwnerFactionId,
                     RoadId = road.Id,
                     CommanderId = commander?.Profile.Id ?? string.Empty,
+                    DeputyIds = deputyIds,
+                    Composition = composition,
                     Soldiers = soldiers,
                     Food = food,
                     ReserveGarrison = reserve,
                     TravelDays = road.TravelDays,
                     Terrain = road.Terrain,
+                    ForceRatio = forceRatio,
+                    MinimumForceRatio = minimumForceRatio,
+                    Stance = stance,
+                    Tactic = tactic,
                     Score = Math.Round(score, 1),
                     Eligible = string.IsNullOrEmpty(reason),
                     BlockReason = reason,
-                    Factors = $"兵力比{forceRatio:0.00}、留守{reserve:N0}、粮期{foodCoverage:0.0}月、财期{goldCoverage:0.0}月、目标值{targetValue:0.0}、{road.TravelDays}日/{road.Terrain}",
+                    Factors = $"兵力比{forceRatio:0.00}/{minimumForceRatio:0.00}、留守{reserve:N0}兵/{Math.Max(0, availableOfficers.Count - 1 - deputyIds.Count)}将、粮期{foodCoverage:0.0}月、财期{goldCoverage:0.0}月、目标值{targetValue:0.0}、{road.TravelDays}日/{road.Terrain}",
                 });
             }
         }
@@ -239,41 +258,116 @@ public sealed partial class GameRuntime
         var source = City(candidate.SourceCityId);
         var target = City(candidate.TargetCityId);
         var commander = Officer(candidate.CommanderId);
+        var deputies = candidate.DeputyIds.Select(Officer).Where(officer => officer is not null).Cast<ScenarioOfficerData>().ToList();
         var road = State.Roads.FirstOrDefault(item => item.Id == candidate.RoadId);
         if (source?.OwnerFactionId != candidate.FactionId || target?.OwnerFactionId != candidate.TargetFactionId || commander?.InitialState.Status != "serving" || commander.InitialState.CityId != source.Id || road is null) return false;
         var treasury = Treasury(candidate.FactionId);
-        if (AreUnderTruce(candidate.FactionId, candidate.TargetFactionId) || source.Garrison - candidate.Soldiers < candidate.ReserveGarrison || treasury.Food < candidate.Food) return false;
+        var remainingOfficers = State.Officers.Count(officer => officer.InitialState.FactionId == candidate.FactionId
+            && officer.InitialState.CityId == source.Id
+            && officer.InitialState.Status == "serving"
+            && officer.InitialState.Alive
+            && officer.Profile.Id != commander.Profile.Id
+            && !candidate.DeputyIds.Contains(officer.Profile.Id));
+        var currentForceRatio = candidate.Soldiers / (double)Math.Max(1, target.Garrison + target.Defense * 22);
+        if (deputies.Count != candidate.DeputyIds.Count
+            || deputies.Any(officer => officer.InitialState.Status != "serving" || officer.InitialState.CityId != source.Id || officer.InitialState.FactionId != candidate.FactionId)
+            || remainingOfficers < 1
+            || AreUnderTruce(candidate.FactionId, candidate.TargetFactionId)
+            || currentForceRatio < candidate.MinimumForceRatio
+            || source.Garrison - candidate.Soldiers < candidate.ReserveGarrison
+            || treasury.Food < candidate.Food)
+            return false;
 
         source.Garrison -= candidate.Soldiers;
         treasury.Food -= candidate.Food;
         commander.InitialState.Status = "deployed";
         var armyId = $"army-ai-{State.Turn}-{State.Armies.Count + 1}";
         commander.InitialState.ArmyId = armyId;
-        var cavalry = EffectiveAbility(commander, "might", "military") >= 78 ? candidate.Soldiers / 5 : 0;
-        var archers = EffectiveAbility(commander, "intelligence", "military") >= 72 ? candidate.Soldiers / 5 : 0;
-        var infantry = candidate.Soldiers - cavalry - archers;
-        var composition = new Dictionary<string, int> { ["infantry"] = infantry };
-        if (cavalry > 0) composition["cavalry"] = cavalry;
-        if (archers > 0) composition["archers"] = archers;
+        foreach (var deputy in deputies)
+        {
+            deputy.InitialState.Status = "deployed";
+            deputy.InitialState.ArmyId = armyId;
+        }
+        var roles = new Dictionary<string, string> { [commander.Profile.Id] = "commander" };
+        if (deputies.Count > 0) roles[deputies[0].Profile.Id] = "vanguard";
+        if (deputies.Count > 1) roles[deputies[1].Profile.Id] = "strategist";
         var specialTroops = new Dictionary<string, int>();
-        var special = OfficerProgressionRules.SpecialTroops.Values.FirstOrDefault(item => item.FactionIds.Contains(candidate.FactionId) && OfficerProgressionRules.AllTraits(commander).Contains(item.CompatibleTrait));
+        var expeditionOfficers = new[] { commander }.Concat(deputies).ToList();
+        var special = OfficerProgressionRules.SpecialTroops.Values.FirstOrDefault(item => item.FactionIds.Contains(candidate.FactionId)
+            && expeditionOfficers.Any(officer => OfficerProgressionRules.AllTraits(officer).Contains(item.CompatibleTrait)));
         if (special is not null)
         {
-            var count = Math.Min(composition.GetValueOrDefault(special.BaseTroopType), candidate.Soldiers / 4) / 500 * 500;
+            var count = Math.Min(candidate.Composition.GetValueOrDefault(special.BaseTroopType), candidate.Soldiers / 4) / 500 * 500;
             var equipmentCost = count / 500 * special.EquipmentPerFiveHundred;
             if (count >= 500 && treasury.Equipment >= equipmentCost) { specialTroops[special.Id] = count; treasury.Equipment -= equipmentCost; }
         }
+        var commandCapacity = Math.Clamp(3000 + EffectiveAbility(commander, "leadership", "military") * 120
+            + deputies.Sum(officer => EffectiveAbility(officer, "leadership", "military") * 30), 5000, 25000);
+        var commandPenalty = Math.Max(0, candidate.Soldiers - commandCapacity) / Math.Max(1, commandCapacity / 10);
         State.Armies.Add(new ArmyData
         {
             Id = armyId, FactionId = candidate.FactionId, SourceCityId = source.Id, TargetCityId = target.Id, CommanderId = commander.Profile.Id,
-            OfficerRoles = new Dictionary<string, string> { [commander.Profile.Id] = "commander" }, Composition = composition, SpecialTroops = specialTroops,
-            Soldiers = candidate.Soldiers, Food = candidate.Food, Training = source.Training, Morale = 68,
-            Stance = commander.Profile.Traits.Contains("豪勇") ? "aggressive" : "standard",
-            Tactic = EffectiveAbility(commander, "intelligence", "military") >= 75 ? "feigned-retreat" : "steady-advance",
+            DeputyIds = candidate.DeputyIds.ToList(), OfficerRoles = roles, Composition = new Dictionary<string, int>(candidate.Composition), SpecialTroops = specialTroops,
+            Soldiers = candidate.Soldiers, Food = candidate.Food, Training = source.Training, Morale = Math.Max(50, 70 - commandPenalty),
+            FormationId = SelectAiFormation(candidate.Composition), Stance = candidate.Stance, Tactic = candidate.Tactic,
             RouteRoadIds = [road.Id], RemainingDays = road.TravelDays, TotalDays = road.TravelDays,
         });
-        State.Log.Add(new LogEntryData { Turn = State.Turn, Category = "ai", Message = $"{Faction(candidate.FactionId)?.Name}命{commander.Profile.Name}从{source.Name}进军{target.Name}，实拨兵{candidate.Soldiers:N0}、粮{candidate.Food:N0}。" });
+        var deputyText = deputies.Count == 0 ? "无副将" : $"副将{string.Join('、', deputies.Select(officer => officer.Profile.Name))}";
+        State.Log.Add(new LogEntryData { Turn = State.Turn, Category = "ai", Message = $"{Faction(candidate.FactionId)?.Name}命{commander.Profile.Name}从{source.Name}进军{target.Name}，{deputyText}，{BattleCatalog.TacticName(candidate.Tactic)}，实拨兵{candidate.Soldiers:N0}、粮{candidate.Food:N0}。" });
         return true;
+    }
+
+    private double AiCommandScore(ScenarioOfficerData officer) =>
+        EffectiveAbility(officer, "leadership", "military") * 1.4
+        + EffectiveAbility(officer, "might", "military") * .35
+        + EffectiveAbility(officer, "intelligence", "military") * .25
+        + OfficerProgressionRules.AllTraits(officer).Count * 2
+        - officer.InitialState.Fatigue / 4d;
+
+    private Dictionary<string, int> BuildAiArmyComposition(int soldiers, CityData target, RoadData road, ScenarioOfficerData? commander)
+    {
+        if (soldiers <= 0) return [];
+        var preferredSupports = new List<string>();
+        if (soldiers >= 5000 && (target.Defense >= 55 || target.WallDurability >= 70)) preferredSupports.Add("siege");
+        if (commander is not null && EffectiveAbility(commander, "intelligence", "military") >= 65) preferredSupports.Add("archers");
+        preferredSupports.Add(road.Terrain == "plain" && commander is not null && EffectiveAbility(commander, "might", "military") >= 72 ? "cavalry" : "spears");
+
+        var composition = new Dictionary<string, int>();
+        var remaining = soldiers;
+        foreach (var troop in preferredSupports.Distinct().Take(2))
+        {
+            var desired = troop == "siege" ? soldiers / 10 : soldiers / 5;
+            var count = Math.Max(500, desired / 500 * 500);
+            count = Math.Min(count, Math.Max(0, remaining - 1000));
+            if (count < 500) continue;
+            composition[troop] = count;
+            remaining -= count;
+        }
+        composition["infantry"] = remaining;
+        return composition;
+    }
+
+    private string SelectAiArmyTactic(Dictionary<string, int> composition, CityData target, ScenarioOfficerData? commander)
+    {
+        var total = Math.Max(1, composition.Values.Sum());
+        var intelligence = commander is null ? 50 : EffectiveAbility(commander, "intelligence", "military");
+        var might = commander is null ? 50 : EffectiveAbility(commander, "might", "military");
+        if (composition.GetValueOrDefault("siege") >= total * .06) return intelligence >= 78 && target.Defense >= 65 ? "undermine-walls" : "siege-ladders";
+        if (composition.GetValueOrDefault("archers") >= total * .12) return intelligence >= 75 && target.Defense >= 55 ? "fire-attack" : "arrow-volley";
+        if (composition.GetValueOrDefault("cavalry") >= total * .12 && might >= 75) return "cavalry-charge";
+        if (intelligence >= 78) return "feigned-retreat";
+        return "steady-advance";
+    }
+
+    private static string SelectAiArmyStance(double forceRatio) => forceRatio >= 1.35 ? "aggressive" : forceRatio < .9 ? "cautious" : "standard";
+
+    private static string SelectAiFormation(Dictionary<string, int> composition)
+    {
+        var total = Math.Max(1, composition.Values.Sum());
+        if (composition.GetValueOrDefault("siege") > 0) return "siege-array";
+        if (composition.GetValueOrDefault("cavalry") >= total * .25) return "wedge";
+        if (composition.GetValueOrDefault("archers") >= total * .25) return "goose";
+        return composition.Count >= 3 ? "crane" : "shield";
     }
 
     private void ResolveStrategicTreaties()
@@ -417,11 +511,17 @@ public sealed class StrategicMilitaryCandidate
     public string TargetFactionId { get; set; } = string.Empty;
     public string RoadId { get; set; } = string.Empty;
     public string CommanderId { get; set; } = string.Empty;
+    public List<string> DeputyIds { get; set; } = [];
+    public Dictionary<string, int> Composition { get; set; } = [];
     public int Soldiers { get; set; }
     public int Food { get; set; }
     public int ReserveGarrison { get; set; }
     public int TravelDays { get; set; }
     public string Terrain { get; set; } = "plain";
+    public double ForceRatio { get; set; }
+    public double MinimumForceRatio { get; set; } = .72;
+    public string Stance { get; set; } = "standard";
+    public string Tactic { get; set; } = "steady-advance";
     public double Score { get; set; }
     public bool Eligible { get; set; }
     public string BlockReason { get; set; } = string.Empty;

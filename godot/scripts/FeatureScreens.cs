@@ -14,6 +14,7 @@ public abstract partial class FeatureScreen : Control
         Runtime = runtime;
         var background = new ColorRect { Color = GameTheme.Backdrop }; background.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); AddChild(background);
         var header = new PanelContainer { MouseFilter = MouseFilterEnum.Stop }; header.SetAnchorsPreset(LayoutPreset.TopWide); header.OffsetBottom = 86; header.AddThemeStyleboxOverride("panel", GameTheme.HeaderBox()); AddChild(header);
+        UiOrnaments.AttachInkCorners(header, 185, .055f);
         var headerMargin = new MarginContainer(); headerMargin.AddThemeConstantOverride("margin_left", 26); headerMargin.AddThemeConstantOverride("margin_right", 26); headerMargin.AddThemeConstantOverride("margin_top", 10); headerMargin.AddThemeConstantOverride("margin_bottom", 10); header.AddChild(headerMargin);
         var headerRow = new HBoxContainer(); headerRow.AddThemeConstantOverride("separation", 14); headerMargin.AddChild(headerRow);
         var accent = new ColorRect { Color = GameTheme.Gold, CustomMinimumSize = new Vector2(3, 0), MouseFilter = MouseFilterEnum.Ignore }; headerRow.AddChild(accent);
@@ -55,9 +56,10 @@ public abstract partial class FeatureScreen : Control
 
 public partial class TalentView : FeatureScreen
 {
-    private OptionButton _candidate = null!, _actor = null!, _appointment = null!, _method = null!, _transferOfficer = null!, _targetCity = null!, _scoutCity = null!, _promotionOfficer = null!, _officeTrack = null!;
-    private Label _overviewSummary = null!, _progression = null!, _transferSource = null!, _recruitmentSummary = null!;
-    private VBoxContainer _overviewTable = null!, _transferTable = null!, _officeTree = null!;
+    private OptionButton _candidate = null!, _actor = null!, _appointment = null!, _marchOfficer = null!, _marchTargetCity = null!, _promotionOfficer = null!, _officeTrack = null!;
+    private Label _overviewSummary = null!, _progression = null!, _marchSource = null!, _marchPreview = null!, _recruitmentMethod = null!, _recruitmentPreview = null!, _recruitmentSummary = null!;
+    private Button _recruitButton = null!, _marchButton = null!;
+    private VBoxContainer _overviewTable = null!, _marchTable = null!, _officeTree = null!;
     private GridContainer _portraitGrid = null!;
     private readonly Dictionary<string, VBoxContainer> _talentPages = [];
     private readonly Dictionary<string, Button> _talentTabs = [];
@@ -68,7 +70,7 @@ public partial class TalentView : FeatureScreen
         BuildTalentTabs();
         BuildOverviewPage(CreateTalentPage("overview"));
         BuildRecruitmentPage(CreateTalentPage("recruitment"));
-        BuildTransferPage(CreateTalentPage("transfer"));
+        BuildMarchPage(CreateTalentPage("march"));
         BuildOfficePage(CreateTalentPage("office"));
         ShowTalentTab("overview");
     }
@@ -76,7 +78,7 @@ public partial class TalentView : FeatureScreen
     private void BuildTalentTabs()
     {
         var tabs = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; tabs.AddThemeConstantOverride("separation", 10);
-        foreach (var item in new[] { ("overview", "总览"), ("recruitment", "招募"), ("transfer", "调动"), ("office", "官职") })
+        foreach (var item in new[] { ("overview", "总览"), ("recruitment", "招募"), ("march", "调动"), ("office", "官职") })
         {
             var button = GameTheme.Button(item.Item2); button.CustomMinimumSize = new Vector2(150, 44); button.Pressed += () => ShowTalentTab(item.Item1); tabs.AddChild(button); _talentTabs[item.Item1] = button;
         }
@@ -96,23 +98,24 @@ public partial class TalentView : FeatureScreen
 
     private void BuildRecruitmentPage(VBoxContainer page)
     {
-        var recruit = Row(); recruit.AddChild(Text("人才招募", 100)); _candidate = Choice(300); _actor = Choice(280); _method = Choice(150); _appointment = Choice(150);
-        AddChoice(_method, "直接招募", "direct"); AddChoice(_method, "关系举荐", "recommendation"); AddChoice(_method, "劝降俘虏", "captive"); AddChoice(_method, "敌将策反", "subversion");
+        var recruit = Row(); recruit.AddChild(Text("人才招募", 100)); _candidate = Choice(300); _actor = Choice(280); _recruitmentMethod = Text("", 180); _appointment = Choice(150);
         foreach (var item in new[] { ("strategist", "军师"), ("civil", "文官"), ("general", "武将"), ("reserve", "待命") }) AddChoice(_appointment, item.Item2, item.Item1);
-        recruit.AddChild(_candidate); recruit.AddChild(_actor); recruit.AddChild(_method); recruit.AddChild(_appointment);
-        var run = GameTheme.Button("执行招募"); run.Pressed += () => Runtime.RecruitOfficer(Selected(_candidate), Selected(_actor), Selected(_appointment), Selected(_method)); recruit.AddChild(run); page.AddChild(Panel(recruit));
+        recruit.AddChild(_candidate); recruit.AddChild(_actor); recruit.AddChild(_recruitmentMethod); recruit.AddChild(_appointment);
+        _recruitButton = GameTheme.Button("执行招募"); _recruitButton.Pressed += () => Runtime.RecruitOfficer(Selected(_candidate), Selected(_actor), Selected(_appointment)); recruit.AddChild(_recruitButton); page.AddChild(Panel(recruit));
+        _candidate.ItemSelected += _ => RefreshRecruitmentPreview(); _actor.ItemSelected += _ => RefreshRecruitmentPreview();
+        _recruitmentPreview = Text("", 1200); _recruitmentPreview.CustomMinimumSize = new Vector2(0, 58); _recruitmentPreview.AddThemeColorOverride("font_color", GameTheme.Gold); page.AddChild(Panel(_recruitmentPreview));
         _recruitmentSummary = Text("", 1200); _recruitmentSummary.AddThemeColorOverride("font_color", GameTheme.Muted); page.AddChild(Panel(_recruitmentSummary));
         var heading = new Label { Text = "已发现的在野武将", CustomMinimumSize = new Vector2(0, 38), VerticalAlignment = VerticalAlignment.Center }; heading.AddThemeFontSizeOverride("font_size", 21); heading.AddThemeColorOverride("font_color", GameTheme.Paper); page.AddChild(heading);
         _portraitGrid = new GridContainer { Columns = 7, CustomMinimumSize = new Vector2(0, 350) }; _portraitGrid.AddThemeConstantOverride("h_separation", 10); _portraitGrid.AddThemeConstantOverride("v_separation", 12); page.AddChild(_portraitGrid);
     }
 
-    private void BuildTransferPage(VBoxContainer page)
+    private void BuildMarchPage(VBoxContainer page)
     {
-        var transfer = Row(); transfer.AddChild(Text("武将调动", 100)); _transferOfficer = Choice(220); transfer.AddChild(_transferOfficer); transfer.AddChild(Text("从", 30)); _transferSource = Text("—", 100); transfer.AddChild(_transferSource); transfer.AddChild(Text("至", 30)); _targetCity = Choice(200); transfer.AddChild(_targetCity);
-        var move = GameTheme.Button("调往目标城"); move.Pressed += () => Runtime.TransferOfficer(Selected(_transferOfficer), Selected(_targetCity)); transfer.AddChild(move); page.AddChild(Panel(transfer));
-        _transferOfficer.ItemSelected += _ => RefreshTransferRoute();
-        var scoutRow = Row(); scoutRow.AddChild(Text("情报侦察", 100)); _scoutCity = Choice(300); scoutRow.AddChild(_scoutCity); var scout = GameTheme.Button("侦察目标城"); scout.Pressed += () => Runtime.Scout(Runtime.Officer(Selected(_transferOfficer))?.InitialState.CityId ?? "", Selected(_scoutCity), Selected(_transferOfficer)); scoutRow.AddChild(scout); scoutRow.AddChild(Text("侦察武将沿用上方调动人选，并从其当前所在城出发。", 620)); page.AddChild(Panel(scoutRow));
-        _transferTable = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; _transferTable.AddThemeConstantOverride("separation", 3); page.AddChild(_transferTable);
+        var march = Row(); march.AddChild(Text("武将调动", 100)); _marchOfficer = Choice(220); march.AddChild(_marchOfficer); march.AddChild(Text("从", 30)); _marchSource = Text("—", 100); march.AddChild(_marchSource); march.AddChild(Text("至", 30)); _marchTargetCity = Choice(230); march.AddChild(_marchTargetCity);
+        _marchButton = GameTheme.Button("确认调动"); _marchButton.Pressed += () => Runtime.TransferOfficer(Selected(_marchOfficer), Selected(_marchTargetCity)); march.AddChild(_marchButton); page.AddChild(Panel(march));
+        _marchOfficer.ItemSelected += _ => RefreshMarchRoute(); _marchTargetCity.ItemSelected += _ => RefreshMarchPreview();
+        _marchPreview = Text("", 1200); _marchPreview.CustomMinimumSize = new Vector2(0, 58); _marchPreview.AddThemeColorOverride("font_color", GameTheme.Muted); page.AddChild(Panel(_marchPreview));
+        _marchTable = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; _marchTable.AddThemeConstantOverride("separation", 3); page.AddChild(_marchTable);
     }
 
     private void BuildOfficePage(VBoxContainer page)
@@ -134,16 +137,16 @@ public partial class TalentView : FeatureScreen
     {
         if (_candidate is null) return;
         FillOfficerChoice(_actor, Runtime.PlayerOfficers().Where(item => item.InitialState.Status == "serving"), item => $"{item.Profile.Name} · 魅{Runtime.EffectiveAbility(item, "charisma", "civil")} 智{Runtime.EffectiveAbility(item, "intelligence", "civil")}");
-        FillOfficerChoice(_transferOfficer, Runtime.PlayerOfficers().Where(item => item.InitialState.Status == "serving" && item.InitialState.Appointment != "ruler"), item => item.Profile.Name);
+        FillOfficerChoice(_marchOfficer, Runtime.PlayerOfficers().Where(item => item.InitialState.Status == "serving" && string.IsNullOrEmpty(item.InitialState.ArmyId) && item.InitialState.Appointment != "ruler" && Runtime.City(item.InitialState.CityId)?.OwnerFactionId == Runtime.State.PlayerFactionId), item => item.Profile.Name);
         FillOfficerChoice(_promotionOfficer, Runtime.PlayerOfficers().Where(item => item.InitialState.Appointment != "ruler"), item => $"等级{item.InitialState.Level} {item.Profile.Name} · {OfficerProgressionRules.OfficeName(item.InitialState.OfficeTrack, item.InitialState.OfficeRank)} · 俸{OfficerProgressionRules.Salary(item)}");
         var candidateList = RecruitmentCandidates().ToList();
-        FillOfficerChoice(_candidate, candidateList, item => $"{item.Profile.Name} · {OfficerStatusLabel(item.InitialState.Status)} 忠{item.InitialState.Loyalty}");
-        Fill(_scoutCity, Runtime.State.Cities.Where(item => item.OwnerFactionId != Runtime.State.PlayerFactionId), item => $"{item.Name} · 情报{item.IntelligenceAge}月前", item => item.Id);
-        RefreshTransferRoute();
+        FillOfficerChoice(_candidate, candidateList, item => $"{item.Profile.Name} · {OfficerStatusLabel(item.InitialState.Status)} · {Runtime.Faction(item.InitialState.FactionId)?.ShortName ?? Runtime.City(item.InitialState.CityId)?.Name ?? "在野"} · 忠{item.InitialState.Loyalty}");
+        RefreshRecruitmentPreview();
+        RefreshMarchRoute();
         RefreshProgression();
         RefreshOverview();
         RebuildCandidateGrid(candidateList);
-        RefreshTransferTable();
+        RefreshMarchTable();
         RebuildOfficeTree();
     }
 
@@ -167,16 +170,17 @@ public partial class TalentView : FeatureScreen
         ClearChildren(_overviewTable);
         var officers = Runtime.PlayerOfficers().OrderBy(item => item.InitialState.Appointment == "ruler" ? 0 : 1).ThenBy(item => item.InitialState.CityId).ThenByDescending(item => item.InitialState.OfficeRank).ToList();
         var courtCount = officers.Count(item => !string.IsNullOrEmpty(item.InitialState.CourtOfficeId));
-        _overviewSummary.Text = $"本势力武将 {officers.Count} 人　·　在任 {officers.Count(item => item.InitialState.Status == "serving")}　·　出征 {officers.Count(item => item.InitialState.Status == "deployed")}　·　朝堂任职 {courtCount}/12　·　本月俸禄 {Runtime.State.MonthlySalaryPaid}/{Runtime.State.MonthlySalaryDue}";
-        var widths = new float[] { 100, 85, 80, 90, 195, 100, 255, 70, 90 };
-        _overviewTable.AddChild(TableRow(["武将", "所在", "状态", "职责", "官阶 / 朝堂", "等级 / 功勋", "五维", "忠诚", "月俸"], widths, true, 0));
+        _overviewSummary.Text = $"本势力武将 {officers.Count} 人　·　在任 {officers.Count(item => item.InitialState.Status == "serving")}　·　调动中 {officers.Count(item => item.InitialState.Status == "marching")}　·　出征 {officers.Count(item => item.InitialState.Status == "deployed")}　·　朝堂任职 {courtCount}/12　·　已发 {Runtime.State.MonthlySalaryPaid} / 应发 {Runtime.State.MonthlySalaryDue}";
+        var widths = new float[] { 100, 130, 80, 90, 175, 100, 230, 70, 90 };
+        _overviewTable.AddChild(TableRow(["武将", "所在 / 行程", "状态", "职责", "官阶 / 朝堂", "等级 / 功勋", "五维", "忠诚", "月俸"], widths, true, 0));
         for (var index = 0; index < officers.Count; index++)
         {
             var officer = officers[index];
             var court = officer.InitialState.Appointment == "ruler" ? "主公" : OfficerProgressionRules.CourtOfficeName(officer.InitialState.CourtOfficeId);
             var office = officer.InitialState.Appointment == "ruler" ? court : $"{OfficerProgressionRules.OfficeName(officer.InitialState.OfficeTrack, officer.InitialState.OfficeRank)} / {court}";
             var stats = $"统{Runtime.PermanentAbility(officer, "leadership")} 武{Runtime.PermanentAbility(officer, "might")} 智{Runtime.PermanentAbility(officer, "intelligence")} 政{Runtime.PermanentAbility(officer, "politics")} 魅{Runtime.PermanentAbility(officer, "charisma")}";
-            _overviewTable.AddChild(TableRow([officer.Profile.Name, Runtime.City(officer.InitialState.CityId)?.Name ?? "—", OfficerStatusLabel(officer.InitialState.Status), GameRuntime.AppointmentLabel(officer.InitialState.Appointment), office, $"{officer.InitialState.Level} / {officer.InitialState.Merit}", stats, officer.InitialState.Loyalty.ToString(), OfficerProgressionRules.Salary(officer).ToString()], widths, false, index));
+            var location = officer.InitialState.Status == "marching" ? $"{Runtime.City(officer.InitialState.CityId)?.Name}→{Runtime.City(officer.InitialState.TravelTargetCityId)?.Name}" : Runtime.City(officer.InitialState.CityId)?.Name ?? "—";
+            _overviewTable.AddChild(TableRow([officer.Profile.Name, location, OfficerStatusLabel(officer.InitialState.Status), GameRuntime.AppointmentLabel(officer.InitialState.Appointment), office, $"{officer.InitialState.Level} / {officer.InitialState.Merit}", stats, officer.InitialState.Loyalty.ToString(), OfficerProgressionRules.Salary(officer).ToString()], widths, false, index));
         }
     }
 
@@ -184,7 +188,9 @@ public partial class TalentView : FeatureScreen
     {
         ClearChildren(_portraitGrid);
         var free = candidates.Where(item => item.InitialState.Status == "free").OrderByDescending(item => Runtime.PermanentAbility(item, "charisma")).ThenByDescending(item => Runtime.PermanentAbility(item, "intelligence")).ToList();
-        _recruitmentSummary.Text = $"已发现的在野武将 {free.Count} 人；另有俘虏或低忠敌将 {candidates.Count - free.Count} 人可在上方选择。招募结果使用隐藏概率判定。";
+        var captiveCount = candidates.Count(item => item.InitialState.Status == "captive");
+        var subversionCount = candidates.Count(item => Runtime.RecruitmentMethod(item.Profile.Id) == "subversion");
+        _recruitmentSummary.Text = $"已发现的在野武将 {free.Count} 人　·　可劝降俘虏 {captiveCount} 人　·　可策反敌将 {subversionCount} 人（忠诚<{GameRuntime.SubversionLoyaltyLimit}）。选择目标或执行者即可查看预计成功率；策反消耗1000金。";
         _portraitGrid.CustomMinimumSize = new Vector2(0, 350);
         if (free.Count == 0)
         {
@@ -202,20 +208,22 @@ public partial class TalentView : FeatureScreen
         var portrait = new TextureRect { Texture = GD.Load<Texture2D>(AssetPaths.OfficerPortrait(officer.Profile.Id)), CustomMinimumSize = new Vector2(168, 228), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered, MouseFilter = MouseFilterEnum.Ignore }; layout.AddChild(portrait);
         var name = new Label { Text = $"等级{officer.InitialState.Level} · {officer.Profile.Name} · {officer.Profile.CourtesyName}", HorizontalAlignment = HorizontalAlignment.Center }; name.AddThemeFontSizeOverride("font_size", 17); name.AddThemeColorOverride("font_color", GameTheme.Paper); layout.AddChild(name);
         var stats = new Label { Text = $"统{Runtime.PermanentAbility(officer, "leadership")} 武{Runtime.PermanentAbility(officer, "might")} 智{Runtime.PermanentAbility(officer, "intelligence")}\n政{Runtime.PermanentAbility(officer, "politics")} 魅{Runtime.PermanentAbility(officer, "charisma")} · {OfficerProgressionRules.OfficeName(officer.InitialState.OfficeTrack, officer.InitialState.OfficeRank)}", HorizontalAlignment = HorizontalAlignment.Center }; stats.AddThemeFontSizeOverride("font_size", 11); stats.AddThemeColorOverride("font_color", GameTheme.Muted); layout.AddChild(stats);
-        var select = GameTheme.Button("选为招募目标"); select.CustomMinimumSize = new Vector2(0, 32); select.Pressed += () => SelectByMetadata(_candidate, officer.Profile.Id); layout.AddChild(select);
+        var select = GameTheme.Button("选为招募目标"); select.CustomMinimumSize = new Vector2(0, 32); select.Pressed += () => { SelectByMetadata(_candidate, officer.Profile.Id); RefreshRecruitmentPreview(); }; layout.AddChild(select);
         return card;
     }
 
-    private void RefreshTransferTable()
+    private void RefreshMarchTable()
     {
-        ClearChildren(_transferTable);
-        var widths = new float[] { 120, 120, 160, 180, 110, 120 };
-        _transferTable.AddChild(TableRow(["武将", "当前城池", "职责", "官阶", "状态", "疲劳"], widths, true, 0));
+        ClearChildren(_marchTable);
+        var widths = new float[] { 120, 220, 150, 180, 110, 150, 80 };
+        _marchTable.AddChild(TableRow(["武将", "所在 / 路线", "职责", "官阶", "状态", "行程", "疲劳"], widths, true, 0));
         var officers = Runtime.PlayerOfficers().Where(item => item.InitialState.Appointment != "ruler").OrderBy(item => item.InitialState.CityId).ThenBy(item => item.Profile.Name).ToList();
         for (var index = 0; index < officers.Count; index++)
         {
             var officer = officers[index];
-            _transferTable.AddChild(TableRow([officer.Profile.Name, Runtime.City(officer.InitialState.CityId)?.Name ?? "—", GameRuntime.AppointmentLabel(officer.InitialState.Appointment), OfficerProgressionRules.OfficeName(officer.InitialState.OfficeTrack, officer.InitialState.OfficeRank), OfficerStatusLabel(officer.InitialState.Status), officer.InitialState.Fatigue.ToString()], widths, false, index));
+            var route = officer.InitialState.Status == "marching" ? $"{Runtime.City(officer.InitialState.CityId)?.Name} → {Runtime.City(officer.InitialState.TravelTargetCityId)?.Name}" : Runtime.City(officer.InitialState.CityId)?.Name ?? "—";
+            var progress = officer.InitialState.Status == "marching" ? $"已行{officer.InitialState.TravelTotalDays - officer.InitialState.TravelRemainingDays} / 共{officer.InitialState.TravelTotalDays}日" : "—";
+            _marchTable.AddChild(TableRow([officer.Profile.Name, route, GameRuntime.AppointmentLabel(officer.InitialState.Appointment), OfficerProgressionRules.OfficeName(officer.InitialState.OfficeTrack, officer.InitialState.OfficeRank), OfficerStatusLabel(officer.InitialState.Status), progress, officer.InitialState.Fatigue.ToString()], widths, false, index));
         }
     }
 
@@ -281,28 +289,65 @@ public partial class TalentView : FeatureScreen
     {
         foreach (var child in node.GetChildren()) { node.RemoveChild(child); child.QueueFree(); }
     }
-    private IEnumerable<ScenarioOfficerData> RecruitmentCandidates() => Runtime.State.Officers.Where(item => item.InitialState.Status == "captive" || item.InitialState.Status == "free" && Runtime.State.DiscoveredOfficerIds.Contains(item.Profile.Id) || item.InitialState.FactionId != null && item.InitialState.FactionId != Runtime.State.PlayerFactionId && item.InitialState.Loyalty <= 79);
+    private IEnumerable<ScenarioOfficerData> RecruitmentCandidates() => Runtime.State.Officers.Where(item => Runtime.IsRecruitmentCandidate(item.Profile.Id));
     private static string OfficerStatusLabel(string status) => status switch
     {
         "serving" => "任职",
         "free" => "在野",
         "captive" => "俘虏",
         "deployed" => "出征",
+        "marching" => "调动中",
         "wounded" => "负伤",
         _ => "未知",
     };
+    private void RefreshRecruitmentPreview()
+    {
+        if (_recruitmentPreview is null) return;
+        var candidate = Runtime.Officer(Selected(_candidate));
+        var actor = Runtime.Officer(Selected(_actor));
+        var method = candidate is null ? string.Empty : Runtime.RecruitmentMethod(candidate.Profile.Id);
+        _recruitmentMethod.Text = $"方式：{GameRuntime.RecruitmentMethodLabel(method)}";
+        if (candidate is null || actor is null || string.IsNullOrEmpty(method))
+        {
+            _recruitmentPreview.Text = "当前没有可执行的招募组合。";
+            _recruitButton.Disabled = true;
+            return;
+        }
+        var chance = Runtime.RecruitmentChance(candidate.Profile.Id, actor.Profile.Id);
+        var cost = method == "subversion" ? "；消耗1000金" : "；无额外花费";
+        var blocked = method == "subversion" && Runtime.State.Resources.Gold < 1000;
+        _recruitmentPreview.Text = $"{actor.Profile.Name}将以「{GameRuntime.RecruitmentMethodLabel(method)}」尝试招募{candidate.Profile.Name}　·　预计成功率 {chance}%{cost}" + (blocked ? "\n当前不可执行：势力府库不足1000金。" : "");
+        _recruitButton.Disabled = blocked;
+    }
     private void RefreshProgression()
     {
         if (_progression is null) return;
         var officer = Runtime.Officer(Selected(_promotionOfficer));
         _progression.Text = officer is null ? "请选择一名己方武将查看成长、官职和俸禄。" : Runtime.OfficerProgressionSummary(officer);
     }
-    private void RefreshTransferRoute()
+    private void RefreshMarchRoute()
     {
-        if (_transferSource is null) return;
-        var officer = Runtime.Officer(Selected(_transferOfficer));
-        _transferSource.Text = officer is null ? "—" : Runtime.City(officer.InitialState.CityId)?.Name ?? "未知";
-        Fill(_targetCity, Runtime.State.Cities.Where(item => item.OwnerFactionId == Runtime.State.PlayerFactionId && item.Id != officer?.InitialState.CityId), item => item.Name, item => item.Id);
+        if (_marchSource is null) return;
+        var officer = Runtime.Officer(Selected(_marchOfficer));
+        _marchSource.Text = officer is null ? "—" : Runtime.City(officer.InitialState.CityId)?.Name ?? "未知";
+        var targets = Runtime.State.Cities
+            .Where(item => item.OwnerFactionId == Runtime.State.PlayerFactionId && item.Id != officer?.InitialState.CityId)
+            .Select(item => (City: item, Days: officer is null ? 0 : Runtime.OfficerTransferDays(officer.Profile.Id, item.Id)))
+            .Where(item => item.Days > 0)
+            .ToList();
+        Fill(_marchTargetCity, targets, item => $"{item.City.Name} · {item.Days}日", item => item.City.Id);
+        RefreshMarchPreview();
+    }
+    private void RefreshMarchPreview()
+    {
+        if (_marchPreview is null) return;
+        var officer = Runtime.Officer(Selected(_marchOfficer));
+        var target = Runtime.City(Selected(_marchTargetCity));
+        var days = officer is null || target is null ? 0 : Runtime.OfficerTransferDays(officer.Profile.Id, target.Id);
+        _marchButton.Disabled = officer is null || target is null || days <= 0;
+        _marchPreview.Text = days <= 0
+            ? "当前武将没有可以调往的己方目标城。"
+            : $"{officer!.Profile.Name}将从{Runtime.City(officer.InitialState.CityId)?.Name}调往{target!.Name}，路程{days}日；确认后进入调动状态，每次月结推进30日，预计{(int)Math.Ceiling(days / 30d)}个月到达。";
     }
     private static void FillOfficerChoice(OptionButton option, IEnumerable<ScenarioOfficerData> items, Func<ScenarioOfficerData, string> label)
     {
@@ -354,7 +399,7 @@ public partial class ExpeditionView : FeatureScreen
 {
     public event Action<string, int>? ArmyMovementRequested;
 
-    private OptionButton _source = null!, _target = null!, _commander = null!, _deputy1 = null!, _deputy2 = null!, _stance = null!, _tactic = null!, _backup = null!, _specialTroop = null!; private SpinBox _food = null!, _infantry = null!, _spears = null!, _archers = null!, _cavalry = null!, _siege = null!, _specialCount = null!; private VBoxContainer _armyList = null!; private Label _capacity = null!, _compositionTotal = null!; private string _presetTargetId = string.Empty, _presetArmyTargetId = string.Empty; private bool _refreshingOfficerChoices;
+    private OptionButton _source = null!, _target = null!, _commander = null!, _deputy1 = null!, _deputy2 = null!, _stance = null!, _tactic = null!, _specialTroop = null!; private SpinBox _food = null!, _infantry = null!, _spears = null!, _archers = null!, _cavalry = null!, _siege = null!, _specialCount = null!; private VBoxContainer _armyList = null!; private Label _capacity = null!, _compositionTotal = null!; private string _presetTargetId = string.Empty, _presetArmyTargetId = string.Empty; private bool _refreshingOfficerChoices;
     protected override void Build()
     {
         ContentScroll.OffsetBottom = -154;
@@ -363,12 +408,11 @@ public partial class ExpeditionView : FeatureScreen
         foreach (var item in new[] { ("steady-advance", "稳步推进"), ("shield-wall", "盾墙固守"), ("feigned-retreat", "佯退诱敌"), ("night-raid", "夜袭"), ("fire-attack", "火攻"), ("encirclement", "合围"), ("arrow-volley", "箭雨"), ("cavalry-charge", "骑兵突击"), ("fortify-camp", "坚营"), ("cut-supply", "断粮道"), ("siege-ladders", "云梯攻城"), ("undermine-walls", "掘地坏墙") }) AddChoice(_tactic, item.Item2, item.Item1);
         foreach (var control in new Control[] { _source, _target, _commander, _food, _stance, _tactic }) row.AddChild(control);
         Body.AddChild(Panel(row));
-        var officers = Row(); officers.AddChild(Text("出战武将", 100)); _deputy1 = Choice(260); _deputy2 = Choice(260); _backup = Choice(210); officers.AddChild(_deputy1); officers.AddChild(_deputy2); officers.AddChild(_backup); _capacity = Text("统兵容量", 430); officers.AddChild(_capacity);
-        foreach (var item in new[] { ("fortify-camp", "坚营（备用）"), ("cut-supply", "断粮道（备用）"), ("shield-wall", "盾墙（备用）"), ("night-raid", "夜袭（备用）") }) AddChoice(_backup, item.Item2, item.Item1);
+        var officers = Row(); officers.AddChild(Text("出战武将", 100)); _deputy1 = Choice(260); _deputy2 = Choice(260); officers.AddChild(_deputy1); officers.AddChild(_deputy2); _capacity = Text("统兵容量", 650); officers.AddChild(_capacity);
         Body.AddChild(Panel(officers));
         var composition = Row(); composition.AddChild(Text("实际阵型", 92)); _infantry = Number("步", 0, 1000000, 500, 2500); _spears = Number("枪", 0, 1000000, 500, 1000); _archers = Number("弓", 0, 1000000, 500, 500); _cavalry = Number("骑", 0, 1000000, 500, 0); _siege = Number("器械", 0, 1000000, 500, 0); foreach (var control in CompositionControls()) { control.CustomMinimumSize = new Vector2(132, 40); control.ValueChanged += _ => RefreshCapacity(); composition.AddChild(control); } var full = GameTheme.Button("全城出击"); full.Pressed += FillWholeGarrison; composition.AddChild(full); var recommended = GameTheme.Button("推荐编制"); recommended.Pressed += ApplyRecommendedComposition; composition.AddChild(recommended); _compositionTotal = Text("合计 4,000", 210); composition.AddChild(_compositionTotal); Body.AddChild(Panel(composition));
         var elite = Row(); elite.AddChild(Text("特殊部队", 92)); _specialTroop = Choice(260); _specialCount = Number("精锐人数", 0, 100000, 500, 0); elite.AddChild(_specialTroop); elite.AddChild(_specialCount); elite.AddChild(Text("特殊部队计入对应基础兵种，并额外消耗中央军备；达到军团20%时可触发专属特性。", 850)); Body.AddChild(Panel(elite));
-        _specialTroop.ItemSelected += _ => RefreshCapacity(); _specialCount.ValueChanged += _ => RefreshCapacity();
+        _specialTroop.ItemSelected += _ => RefreshCapacity(); _specialCount.ValueChanged += _ => RefreshCapacity(); _tactic.ItemSelected += _ => RefreshCapacity();
         _source.ItemSelected += _ => RefreshSource();
         _commander.ItemSelected += _ => RefreshCommanders(); _deputy1.ItemSelected += _ => RefreshCommanders(); _deputy2.ItemSelected += _ => RefreshCommanders();
         _armyList = new VBoxContainer { CustomMinimumSize = new Vector2(0, 540) }; _armyList.AddThemeConstantOverride("separation", 10); Body.AddChild(Panel(_armyList));
@@ -414,7 +458,7 @@ public partial class ExpeditionView : FeatureScreen
         var soldiers = composition.Values.Sum();
         var targetArmy = Runtime.State.Armies.FirstOrDefault(item => item.Id == _presetArmyTargetId);
         var targetCityId = targetArmy?.TargetCityId ?? Selected(_target);
-        if (!Runtime.CreateExpedition(Selected(_source), targetCityId, Selected(_commander), soldiers, (int)_food.Value, Selected(_stance), Selected(_tactic), deputies, composition, Selected(_backup), specialTroops, targetArmy?.Id ?? string.Empty)) return;
+        if (!Runtime.CreateExpedition(Selected(_source), targetCityId, Selected(_commander), soldiers, (int)_food.Value, Selected(_stance), Selected(_tactic), deputies, composition, specialTroops, targetArmy?.Id ?? string.Empty)) return;
         var army = Runtime.State.Armies.Skip(before).First();
         _presetArmyTargetId = string.Empty;
         ArmyMovementRequested?.Invoke(army.Id, army.TotalDays);
@@ -510,7 +554,12 @@ public partial class ExpeditionView : FeatureScreen
     {
         if (_capacity is null || _compositionTotal is null) return; var commander = Runtime.Officer(Selected(_commander)); var deputies = new[] { Runtime.Officer(Selected(_deputy1)), Runtime.Officer(Selected(_deputy2)) }.Where(item => item is not null); var capacity = commander is null ? 0 : Math.Clamp(3000 + Runtime.EffectiveAbility(commander, "leadership", "military") * 120 + deputies.Sum(item => Runtime.EffectiveAbility(item!, "leadership", "military") * 30), 5000, 25000); var total = CompositionTotal(); var source = Runtime.City(Selected(_source));
         var special = OfficerProgressionRules.SpecialTroops.GetValueOrDefault(Selected(_specialTroop)); if (special is not null) { var baseCount = special.BaseTroopType switch { "cavalry" => (int)_cavalry.Value, "infantry" => (int)_infantry.Value, "spears" => (int)_spears.Value, "archers" => (int)_archers.Value, _ => (int)_siege.Value }; _specialCount.MaxValue = baseCount; if (_specialCount.Value > baseCount) _specialCount.Value = baseCount / 500 * 500; }
-        var equipment = special is null ? 0 : (int)_specialCount.Value / 500 * special.EquipmentPerFiveHundred; _capacity.Text = $"建议统兵 {capacity:N0} · 特殊军备{equipment:N0} · 中央现有{Runtime.State.Resources.Equipment:N0}"; _compositionTotal.Text = $"合计 {total:N0} / 城中 {source?.Garrison ?? 0:N0}"; _compositionTotal.AddThemeColorOverride("font_color", source is not null && total > source.Garrison ? GameTheme.Danger : total > capacity ? GameTheme.Bronze : GameTheme.Paper);
+        var equipment = special is null ? 0 : (int)_specialCount.Value / 500 * special.EquipmentPerFiveHundred;
+        var composition = new Dictionary<string, int> { ["infantry"] = (int)_infantry.Value, ["spears"] = (int)_spears.Value, ["archers"] = (int)_archers.Value, ["cavalry"] = (int)_cavalry.Value, ["siege"] = (int)_siege.Value };
+        var requirement = BattleCalculator.TacticRequirement(Selected(_tactic), composition);
+        _capacity.Text = $"建议统兵 {capacity:N0} · 特殊军备{equipment:N0} · 中央现有{Runtime.State.Resources.Equipment:N0}" + (string.IsNullOrEmpty(requirement) ? " · 主战术条件满足" : $"\n{requirement}");
+        _capacity.AddThemeColorOverride("font_color", string.IsNullOrEmpty(requirement) ? GameTheme.Muted : GameTheme.Danger);
+        _compositionTotal.Text = $"合计 {total:N0} / 城中 {source?.Garrison ?? 0:N0}"; _compositionTotal.AddThemeColorOverride("font_color", source is not null && total > source.Garrison ? GameTheme.Danger : total > capacity ? GameTheme.Bronze : GameTheme.Paper);
     }
     private void RefreshCommanders()
     {
@@ -577,11 +626,11 @@ public partial class BattleView : FeatureScreen
 {
     private BattlefieldCanvas _battlefield = null!;
     private HBoxContainer _officers = null!;
-    private PanelContainer _planningPanel = null!, _battlefieldPanel = null!, _commandPanel = null!, _resultPanel = null!;
-    private OptionButton _formation = null!, _infantryOrder = null!, _spearOrder = null!, _archerOrder = null!, _cavalryOrder = null!, _siegeOrder = null!, _speed = null!;
-    private Label _eventText = null!, _reports = null!, _resultTitle = null!, _resultSubtitle = null!, _resultStats = null!, _resultNarrative = null!;
+    private PanelContainer _planningPanel = null!, _battlefieldPanel = null!, _commandPanel = null!, _resultPanel = null!, _doctrinePanel = null!, _briefPanel = null!;
+    private OptionButton _formation = null!, _infantryOrder = null!, _spearOrder = null!, _archerOrder = null!, _cavalryOrder = null!, _siegeOrder = null!, _speed = null!, _battleStance = null!, _battleTactic = null!;
+    private Label _eventText = null!, _reports = null!, _resultTitle = null!, _resultSubtitle = null!, _resultStats = null!, _resultNarrative = null!, _battleBrief = null!, _tacticBrief = null!;
     private Label _commandStatus = null!;
-    private Button _start = null!, _skip = null!, _attackTarget = null!;
+    private Button _start = null!, _skip = null!, _attackTarget = null!, _defendGate = null!, _innerCity = null!, _sortie = null!, _reserveLine = null!;
     private string _battleId = string.Empty;
     private double _playback;
     private double _playbackSpeed = 1;
@@ -600,6 +649,15 @@ public partial class BattleView : FeatureScreen
         _speed = Choice(90); AddChoice(_speed, "×1", "1"); AddChoice(_speed, "×2", "2"); _speed.ItemSelected += _ => _playbackSpeed = double.TryParse(Selected(_speed), out var speed) ? speed : 1; planning.AddChild(_speed);
         _skip = GameTheme.Button("跳过演算"); _skip.Pressed += SkipBattle; planning.AddChild(_skip);
         _planningPanel = Panel(planning); Body.AddChild(_planningPanel);
+
+        var doctrine = Row(); doctrine.AddChild(Text("临战军略", 82));
+        _battleStance = Choice(130); AddChoice(_battleStance, "稳健", "cautious"); AddChoice(_battleStance, "标准", "standard"); AddChoice(_battleStance, "激进", "aggressive"); doctrine.AddChild(_battleStance);
+        _battleTactic = Choice(180); FillTactics(_battleTactic); doctrine.AddChild(_battleTactic);
+        _tacticBrief = Text("选择主战术查看正式收益、风险和兵种条件。", 900); doctrine.AddChild(_tacticBrief);
+        _battleStance.ItemSelected += _ => RefreshTacticBrief(); _battleTactic.ItemSelected += _ => RefreshTacticBrief();
+        _doctrinePanel = Panel(doctrine); Body.AddChild(_doctrinePanel);
+        _battleBrief = new Label { CustomMinimumSize = new Vector2(0, 82), AutowrapMode = TextServer.AutowrapMode.WordSmart, VerticalAlignment = VerticalAlignment.Center };
+        _battleBrief.AddThemeColorOverride("font_color", GameTheme.Muted); _briefPanel = Panel(_battleBrief); Body.AddChild(_briefPanel);
 
         _officers = new HBoxContainer { CustomMinimumSize = new Vector2(0, 134), Alignment = BoxContainer.AlignmentMode.Center }; _officers.AddThemeConstantOverride("separation", 12); Body.AddChild(Panel(_officers));
         _battlefield = new BattlefieldCanvas();
@@ -626,6 +684,10 @@ public partial class BattleView : FeatureScreen
         _attackTarget = GameTheme.Button("攻击目标"); _attackTarget.Pressed += _battlefield.IssueAttackOnSelectedEnemy; commands.AddChild(_attackTarget);
         var auto = GameTheme.Button("自由进攻"); auto.Pressed += () => IssueSelectedCommand("auto"); commands.AddChild(auto);
         var hold = GameTheme.Button("原地固守"); hold.Pressed += () => IssueSelectedCommand("hold"); commands.AddChild(hold);
+        _defendGate = GameTheme.Button("增援城门"); _defendGate.Pressed += () => IssueSelectedCommand("defend-gate"); commands.AddChild(_defendGate);
+        _innerCity = GameTheme.Button("退守内城"); _innerCity.Pressed += () => IssueSelectedCommand("inner-city"); commands.AddChild(_innerCity);
+        _sortie = GameTheme.Button("出城突袭"); _sortie.Pressed += () => IssueSelectedCommand("sortie"); commands.AddChild(_sortie);
+        _reserveLine = GameTheme.Button("保存预备队"); _reserveLine.Pressed += () => IssueSelectedCommand("reserve-line"); commands.AddChild(_reserveLine);
         commands.AddChild(Text("滚轮缩放　中键拖动战场　左键点选/拖框　右键移动/集火", 500));
         _commandPanel = Panel(commands); _commandPanel.Visible = false; Body.AddChild(_commandPanel);
     }
@@ -659,6 +721,7 @@ public partial class BattleView : FeatureScreen
     {
         _resultPanel = new PanelContainer { CustomMinimumSize = new Vector2(0, 430), Visible = false };
         _resultPanel.AddThemeStyleboxOverride("panel", GameTheme.Box(new Color(GameTheme.PanelRaised, .98f), new Color(GameTheme.Bronze, .66f), 12, 2));
+        UiOrnaments.AttachInkCorners(_resultPanel, 300, .13f);
         var margin = new MarginContainer();
         margin.AddThemeConstantOverride("margin_left", 54); margin.AddThemeConstantOverride("margin_right", 54); margin.AddThemeConstantOverride("margin_top", 32); margin.AddThemeConstantOverride("margin_bottom", 32); _resultPanel.AddChild(margin);
         var layout = new VBoxContainer { Alignment = BoxContainer.AlignmentMode.Center }; layout.AddThemeConstantOverride("separation", 14); margin.AddChild(layout);
@@ -692,7 +755,7 @@ public partial class BattleView : FeatureScreen
             ? "野外交锋 · 双方军团正面接战"
             : $"外墙 {report.WallBefore}%→{report.WallAfter}%　城门 {report.GateBefore}%→{report.GateAfter}%　内城 {report.InnerBefore}%→{report.InnerAfter}%";
         _resultStats.Text = $"我军 {playerBefore:N0} → {playerAfter:N0}　损失 {playerLoss:N0}　　　　敌军 {enemyBefore:N0} → {enemyAfter:N0}　损失 {enemyLoss:N0}\n{defenseLine}";
-        var phases = report.PhaseResults.Count == 0 ? "" : "\n\n" + string.Join("　·　", report.PhaseResults.Select(item => $"{item.Stage} {item.AttackerLosses:N0}:{item.DefenderLosses:N0}"));
+        var phases = report.PhaseResults.Count == 0 ? "" : "\n\n" + string.Join("　·　", report.PhaseResults.Select(item => $"{item.Stage} {item.AttackerLosses:N0}:{item.DefenderLosses:N0}　士气{item.AttackerMorale:F0}:{item.DefenderMorale:F0}　溃散{item.AttackerRouted}:{item.DefenderRouted}"));
         _resultNarrative.Text = report.Narrative + phases + "\n\n向下滚动查看本场完整战报、阶段结算与武将贡献。";
     }
 
@@ -702,6 +765,8 @@ public partial class BattleView : FeatureScreen
         var pending = Runtime.State.PendingBattle;
         var latestReport = Runtime.State.BattleReports.LastOrDefault();
         _planningPanel.Visible = pending?.Status == "planning";
+        _doctrinePanel.Visible = pending?.Status == "planning";
+        _briefPanel.Visible = pending?.Status == "planning";
         _commandPanel.Visible = pending?.Status == "running";
         _officers.Visible = pending?.Status == "planning";
         _eventText.Visible = pending is not null;
@@ -721,14 +786,23 @@ public partial class BattleView : FeatureScreen
                 Select(_archerOrder, playerPlan.TroopOrders.GetValueOrDefault("archers")?.OrderId ?? "rear-double");
                 Select(_cavalryOrder, playerPlan.TroopOrders.GetValueOrDefault("cavalry")?.OrderId ?? "wing-column");
                 Select(_siegeOrder, playerPlan.TroopOrders.GetValueOrDefault("siege")?.OrderId ?? "protected-siege");
+                Select(_battleStance, pending.PlayerSide == "attacker" ? pending.Stance : pending.DefenderStance);
+                Select(_battleTactic, pending.PlayerSide == "attacker" ? pending.PrimaryTactic : pending.DefenderPrimaryTactic);
+                RefreshTacticBrief();
             }
             _skip.Disabled = pending.Status != "running";
+            var defenderCommands = pending.PlayerSide == "defender" && pending.BattleType == "siege" && pending.Status == "running";
+            foreach (var button in new[] { _defendGate, _innerCity, _sortie, _reserveLine }) button.Visible = defenderCommands;
             _battlefield.SetBattle(pending); _battlefield.SetPlaybackTime(_playback);
             UpdateCommandStatus();
+            UpdateBattleBrief(pending);
             RebuildOfficers(pending);
-            _start.Disabled = pending.Status != "planning";
+            RefreshTacticBrief();
             var battleName = pending.BattleType == "field" ? $"{Runtime.City(pending.CityId)?.Name}近郊军团战" : $"{Runtime.City(pending.CityId)?.Name}攻防";
-            _eventText.Text = pending.Status == "planning" ? $"{battleName} · 请配置兵种队形后下令。当前展开：我军{pending.Groups.Count(item => item.Side == pending.PlayerSide)}队，敌军{pending.Groups.Count(item => item.Side != pending.PlayerSide)}队。" : "实时指挥已启用：框选我军后，可右键移动或指定敌军集火。";
+            var enemyGroupText = HasPreciseBattleIntel(pending)
+                ? $"敌军{pending.Groups.Count(item => item.Side != pending.PlayerSide)}队"
+                : "敌军队形未明";
+            _eventText.Text = pending.Status == "planning" ? $"{battleName} · 请配置兵种队形后下令。当前展开：我军{pending.Groups.Count(item => item.Side == pending.PlayerSide)}队，{enemyGroupText}。" : "实时指挥已启用：框选我军后，可右键移动或指定敌军集火。";
         }
         else
         {
@@ -751,28 +825,46 @@ public partial class BattleView : FeatureScreen
         Runtime.AdvancePendingBattle(delta * _playbackSpeed);
         _playback = Math.Min(pending.Duration, pending.Elapsed + pending.SimulationAccumulator);
         _battlefield.SetPlaybackTime(_playback);
-        var active = pending.Timeline.Where(item => item.Start <= _playback && item.Start + Math.Max(.2, item.Duration) >= _playback).OrderByDescending(item => item.Start).FirstOrDefault();
+        var active = LatestActiveEvent(pending, item => true);
         if (active is not null) _eventText.Text = $"{active.Stage} · {active.Text}";
-        var officerEvent = pending.Timeline.Where(item => !string.IsNullOrEmpty(item.OfficerId) && item.Start <= _playback && item.Start + Math.Max(.2, item.Duration) >= _playback).OrderByDescending(item => item.Start).FirstOrDefault();
+        var officerEvent = LatestActiveEvent(pending, item => !string.IsNullOrEmpty(item.OfficerId));
         foreach (var child in _officers.GetChildren().OfType<Control>()) child.Modulate = child.HasMeta("officer_id") && child.GetMeta("officer_id").AsString() == officerEvent?.OfficerId ? new Color(1.18f, 1.08f, .72f) : Colors.White;
         if (pending.Status != "resolved") return;
         _finishing = true;
         Runtime.CompletePendingBattle();
     }
 
+    private BattleTimelineEventData? LatestActiveEvent(PendingBattleData pending, Func<BattleTimelineEventData, bool> predicate)
+    {
+        BattleTimelineEventData? latest = null;
+        for (var index = pending.Timeline.Count - 1; index >= 0; index--)
+        {
+            var item = pending.Timeline[index];
+            if (item.Start < _playback - 1.5) break;
+            if (!predicate(item) || item.Start > _playback || item.Start + Math.Max(.2, item.Duration) < _playback) continue;
+            if (latest is null || item.Start > latest.Start) latest = item;
+        }
+        return latest;
+    }
+
     public void SetPlaybackForVisualTest(double value)
     {
         SetProcess(false);
         var pending = Runtime?.State.PendingBattle;
-        if (pending?.Status == "running" && value > pending.Elapsed) Runtime.AdvancePendingBattle(value - pending.Elapsed);
+        if (pending?.Status == "running" && value > pending.Elapsed) Runtime!.AdvancePendingBattle(value - pending.Elapsed);
         _playback = pending is null ? value : Math.Min(value, pending.Elapsed + pending.SimulationAccumulator);
         if (_battlefield is not null) _battlefield.SetPlaybackTime(_playback);
+    }
+
+    public void SetReducedMotion(bool value)
+    {
+        if (_battlefield is not null) _battlefield.SetReducedMotion(value);
     }
 
     private void StartBattle()
     {
         var orders = new Dictionary<string, string> { ["infantry"] = Selected(_infantryOrder), ["spears"] = Selected(_spearOrder), ["archers"] = Selected(_archerOrder), ["cavalry"] = Selected(_cavalryOrder), ["siege"] = Selected(_siegeOrder) };
-        if (!Runtime.ConfigurePendingBattle(Selected(_formation), orders)) return;
+        if (!Runtime.ConfigurePendingBattle(Selected(_formation), orders, Selected(_battleStance), Selected(_battleTactic))) return;
         Runtime.StartPendingBattle();
     }
 
@@ -810,8 +902,9 @@ public partial class BattleView : FeatureScreen
     {
         var officer = Runtime.Officer(officerId); var box = new VBoxContainer { CustomMinimumSize = new Vector2(108, 122) };
         box.SetMeta("officer_id", officerId);
-        var portrait = new TextureRect { Texture = GD.Load<Texture2D>(AssetPaths.OfficerPortrait(officerId)), CustomMinimumSize = new Vector2(100, 84), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered, MouseFilter = MouseFilterEnum.Ignore }; box.AddChild(portrait);
-        var role = pending.OfficerRoles.GetValueOrDefault(officerId, "武将"); var label = new Label { Text = $"{officer?.Profile.Name}\n{role}", HorizontalAlignment = HorizontalAlignment.Center }; label.AddThemeFontSizeOverride("font_size", 11); label.AddThemeColorOverride("font_color", player ? GameTheme.Success : GameTheme.Danger); box.AddChild(label); return box;
+        var concealed = !player && pending.Status == "planning" && !HasPreciseBattleIntel(pending);
+        var portrait = new TextureRect { Texture = concealed ? null : GD.Load<Texture2D>(AssetPaths.OfficerPortrait(officerId)), CustomMinimumSize = new Vector2(100, 84), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered, MouseFilter = MouseFilterEnum.Ignore }; box.AddChild(portrait);
+        var role = pending.OfficerRoles.GetValueOrDefault(officerId, "武将"); var label = new Label { Text = concealed ? "敌将未明\n情报不足" : $"{officer?.Profile.Name}\n{role}", HorizontalAlignment = HorizontalAlignment.Center }; label.AddThemeFontSizeOverride("font_size", 11); label.AddThemeColorOverride("font_color", player ? GameTheme.Success : GameTheme.Danger); box.AddChild(label); return box;
     }
 
     private string ReportText(BattleReportData report)
@@ -823,14 +916,59 @@ public partial class BattleView : FeatureScreen
         var playerBefore = report.PlayerSide == "attacker" ? report.AttackerBefore : report.DefenderBefore; var playerAfter = report.PlayerSide == "attacker" ? report.AttackerAfter : report.DefenderAfter; var playerLoss = report.PlayerSide == "attacker" ? report.AttackerLosses : report.DefenderLosses;
         var enemyBefore = report.PlayerSide == "attacker" ? report.DefenderBefore : report.AttackerBefore; var enemyAfter = report.PlayerSide == "attacker" ? report.DefenderAfter : report.AttackerAfter; var enemyLoss = report.PlayerSide == "attacker" ? report.DefenderLosses : report.AttackerLosses;
         var primaryTactic = string.IsNullOrEmpty(report.PrimaryTactic) ? report.Tactic : report.PrimaryTactic;
-        var effectiveTactic = string.IsNullOrEmpty(report.EffectiveTactic) ? primaryTactic : report.EffectiveTactic;
-        var tacticText = report.BackupTriggered ? $"{BattleCatalog.TacticName(primaryTactic)} → {BattleCatalog.TacticName(effectiveTactic)}（备用接管）" : BattleCatalog.TacticName(primaryTactic);
-        var phases = report.PhaseResults.Count == 0 ? "" : "\n阶段结算：\n" + string.Join('\n', report.PhaseResults.Select(phase => $"· {phase.Stage}：我军损失{(report.PlayerSide == "attacker" ? phase.AttackerLosses : phase.DefenderLosses):N0}，敌军损失{(report.PlayerSide == "attacker" ? phase.DefenderLosses : phase.AttackerLosses):N0}，战力比{phase.PowerRatio:F2}"));
+        var tacticText = BattleCatalog.TacticName(primaryTactic);
+        var phases = report.PhaseResults.Count == 0 ? "" : "\n阶段结算：\n" + string.Join('\n', report.PhaseResults.Select(phase => $"· {phase.Stage}：我军损失{(report.PlayerSide == "attacker" ? phase.AttackerLosses : phase.DefenderLosses):N0}，敌军损失{(report.PlayerSide == "attacker" ? phase.DefenderLosses : phase.AttackerLosses):N0}，士气{(report.PlayerSide == "attacker" ? phase.AttackerMorale : phase.DefenderMorale):F0}:{(report.PlayerSide == "attacker" ? phase.DefenderMorale : phase.AttackerMorale):F0}，溃散{(report.PlayerSide == "attacker" ? phase.AttackerRouted : phase.DefenderRouted)}:{(report.PlayerSide == "attacker" ? phase.DefenderRouted : phase.AttackerRouted)}，实时战力比{phase.PowerRatio:F2}"));
         var title = report.BattleType == "field" ? "军团野战" : "攻防战";
         var battlefield = report.BattleType == "field"
             ? "战场：野外接敌，无城墙与城门加成"
             : $"城防：外墙 {report.WallBefore}%→{report.WallAfter}%　城门 {report.GateBefore}%→{report.GateAfter}%　内城 {report.InnerBefore}%→{report.InnerAfter}%";
         return $"第{report.Turn}回合 · {report.CityName}{title} · {result}\n我军编成：{composition}\n我军 {playerBefore:N0} → {playerAfter:N0}（损失{playerLoss:N0}）　敌军 {enemyBefore:N0} → {enemyAfter:N0}（损失{enemyLoss:N0}）\n{battlefield}\n阵型：{BattleCatalog.FormationName(report.FormationId)}　姿态：{report.Stance}　战术：{tacticText}　城池易手：{(report.CityCaptured ? "是" : "否")}\n{report.Narrative}{phases}{contributions}";
+    }
+
+    private void RefreshTacticBrief()
+    {
+        if (_tacticBrief is null) return;
+        var pending = Runtime.State.PendingBattle;
+        var composition = pending?.Groups
+            .Where(item => item.Side == pending.PlayerSide)
+            .GroupBy(item => item.TroopType)
+            .ToDictionary(group => group.Key, group => group.Sum(item => item.InitialSoldiers)) ?? [];
+        var requirement = BattleCalculator.TacticRequirement(Selected(_battleTactic), composition);
+        _tacticBrief.Text = $"{BattleCalculator.StanceEffectSummary(Selected(_battleStance))}　·　主战术：{BattleCalculator.TacticEffectSummary(Selected(_battleTactic))}\n" + (string.IsNullOrEmpty(requirement) ? "兵种条件满足，可以下令开战。" : requirement);
+        _tacticBrief.AddThemeColorOverride("font_color", string.IsNullOrEmpty(requirement) ? GameTheme.Muted : GameTheme.Danger);
+        if (_start is not null) _start.Disabled = pending?.Status != "planning" || !string.IsNullOrEmpty(requirement);
+    }
+
+    private void UpdateBattleBrief(PendingBattleData pending)
+    {
+        if (_battleBrief is null) return;
+        var playerGroups = pending.Groups.Where(item => item.Side == pending.PlayerSide).ToList();
+        var enemyGroups = pending.Groups.Where(item => item.Side != pending.PlayerSide).ToList();
+        var playerBefore = pending.PlayerSide == "attacker" ? pending.AttackerBefore : pending.DefenderBefore;
+        var enemyBefore = pending.PlayerSide == "attacker" ? pending.DefenderBefore : pending.AttackerBefore;
+        var composition = string.Join('、', playerGroups.GroupBy(item => item.TroopType).Select(group => $"{BattleCatalog.TroopName(group.Key)}{group.Sum(item => item.InitialSoldiers):N0}"));
+        var playerMorale = playerGroups.Count == 0 ? 0 : playerGroups.Average(item => item.InitialMorale);
+        var army = Runtime.State.Armies.FirstOrDefault(item => item.Id == pending.ArmyId);
+        var defenderArmy = Runtime.State.Armies.FirstOrDefault(item => item.Id == pending.DefenderArmyId);
+        var playerTraining = pending.PlayerSide == "attacker" ? army?.Training ?? 0 : defenderArmy?.Training ?? Runtime.City(pending.CityId)?.Training ?? 0;
+        var playerFatigue = pending.PlayerSide == "attacker" ? army?.Fatigue ?? 0 : defenderArmy?.Fatigue ?? Runtime.City(pending.CityId)?.Fatigue ?? 0;
+        var intelligence = HasPreciseBattleIntel(pending);
+        var enemyText = intelligence ? $"{enemyBefore:N0}" : $"约{Math.Max(1, (int)Math.Round(enemyBefore * .85)):N0}–{(int)Math.Round(enemyBefore * 1.15):N0}";
+        var ratio = playerBefore / (double)Math.Max(1, enemyBefore);
+        var risk = ratio < .8 ? "主要风险：兵力明显劣势" : playerGroups.Any(item => item.TroopType == "archers") && playerGroups.All(item => item.TroopType == "archers" || item.Depth > 0) ? "主要风险：前线掩护不足" : "主要风险：局部集火与士气崩溃";
+        _battleBrief.Text = $"我军 {playerBefore:N0}（{composition}）· {playerGroups.Count}队 · 初始士气{playerMorale:F0} · 训练{playerTraining} · 疲劳{playerFatigue}　｜　敌军 {enemyText} · {(intelligence ? enemyGroups.Count + "队" : "队形未明")}\n地形：{BattleCalculator.TerrainEffectSummary(pending.Terrain)}　｜　兵力比 {ratio:F2}　｜　{risk}　｜　攻城时须先击破外墙或城门。";
+    }
+
+    private bool HasPreciseBattleIntel(PendingBattleData pending)
+    {
+        var city = Runtime.City(pending.CityId);
+        return pending.PlayerSide == "defender" || pending.BattleType == "field" || (city?.IntelligenceAge ?? 99) <= 1;
+    }
+
+    private static void FillTactics(OptionButton option)
+    {
+        foreach (var id in new[] { "steady-advance", "shield-wall", "feigned-retreat", "night-raid", "fire-attack", "encirclement", "arrow-volley", "cavalry-charge", "fortify-camp", "cut-supply", "siege-ladders", "undermine-walls" })
+            AddChoice(option, BattleCatalog.TacticName(id), id);
     }
 
     private static void FillOrder(OptionButton option, string prefix, (string Id, string Label)[] values) { foreach (var item in values) AddChoice(option, $"{prefix}·{item.Label}", item.Id); }

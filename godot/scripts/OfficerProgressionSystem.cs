@@ -379,6 +379,7 @@ public sealed partial class GameRuntime
     {
         var officer = Officer(officerId);
         if (officer?.InitialState.FactionId != State.PlayerFactionId || officer.InitialState.Appointment == "ruler") return Fail("该武将不能降职。");
+        if (officer.InitialState.Status == "marching") return Fail("武将调动途中不能升降官阶。");
         if (officer.InitialState.OfficeRank <= 0) return Fail("该武将当前已是白身。");
         officer.InitialState.OfficeRank--;
         var courtOffice = OfficerProgressionRules.CourtOffice(officer.InitialState.CourtOfficeId);
@@ -443,6 +444,7 @@ public sealed partial class GameRuntime
     private bool PromoteOfficerInternal(ScenarioOfficerData officer, string track, bool manual)
     {
         if (officer.InitialState.Appointment == "ruler" || track is not ("civil" or "military")) return manual ? Fail("君主或官职序列无效。") : false;
+        if (officer.InitialState.Status == "marching") return manual ? Fail("武将调动途中不能升降官阶。") : false;
         if (officer.InitialState.Status is "captive" or "free" || !officer.InitialState.Alive) return manual ? Fail("该武将当前不能晋升。") : false;
         if (officer.InitialState.OfficeTrack != track && officer.InitialState.OfficeRank > 0)
         {
@@ -486,7 +488,7 @@ public sealed partial class GameRuntime
         State.MonthlySalaryPaid = 0;
         foreach (var faction in State.Factions)
         {
-            var officers = State.Officers.Where(item => item.InitialState.FactionId == faction.Id && item.InitialState.Status is "serving" or "deployed" && item.InitialState.Appointment != "ruler" && OfficerProgressionRules.Salary(item) > 0).ToList();
+            var officers = State.Officers.Where(item => item.InitialState.FactionId == faction.Id && item.InitialState.Status is "serving" or "deployed" or "marching" && item.InitialState.Appointment != "ruler" && OfficerProgressionRules.Salary(item) > 0).ToList();
             if (officers.Count == 0) continue;
             var treasury = Treasury(faction.Id);
             var (_, paid) = PayPayrollGroup(officers, faction.Id, "faction-treasury", treasury.Gold);

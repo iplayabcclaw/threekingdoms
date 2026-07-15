@@ -71,7 +71,7 @@ public partial class Main : Control
         _expedition = new ExpeditionView();
         AddFeature(sceneHost, "expedition", _expedition, "军事出征", "配置混合兵种与出战武将；军团抵达后进入战前布阵和正式战斗画面。");
         AddFeature(sceneHost, "diplomacy", new DiplomacyView(), "纵横捭阖", "通商带来持续收益，停战约束双方出征，俘虏交换需要双方均有可释放武将。");
-        AddFeature(sceneHost, "talent", new TalentView(), "人才府", "招募、举荐、劝降、策反、任命、调动与侦察共用完整武将状态。");
+        AddFeature(sceneHost, "talent", new TalentView(), "人才府", "登庸、劝降、策反、任命与武将调动共用完整武将状态。");
         AddFeature(sceneHost, "ai", new AiCouncilView(), "军师府 · AI 托管", "分别控制内政、人才、外交和军事代理，也可启动全势力自动演进。");
         _battleView = new BattleView();
         AddFeature(sceneHost, "battle", _battleView, "沙场演武", "布置前中后军与左右翼，实时点选或框选战斗队，下达移动、集火和固守军令。");
@@ -130,7 +130,7 @@ public partial class Main : Control
         }
         var endTurn = GameTheme.Button("结束本月"); endTurn.CustomMinimumSize = new Vector2(130, 40); endTurn.AddThemeColorOverride("font_color", GameTheme.OnAccent); endTurn.AddThemeColorOverride("font_hover_color", GameTheme.OnAccent); endTurn.AddThemeColorOverride("font_pressed_color", GameTheme.OnAccent); endTurn.AddThemeColorOverride("font_focus_color", GameTheme.OnAccent); endTurn.AddThemeStyleboxOverride("normal", GameTheme.Box(GameTheme.Cinnabar, new Color(GameTheme.Bronze, .82f), 6, 1, 14, 8)); endTurn.AddThemeStyleboxOverride("hover", GameTheme.Box(Color.FromHtml("#b95b4a"), GameTheme.Cinnabar, 6, 2, 13, 7)); endTurn.Pressed += () => _runtime.EndTurn(); row.AddChild(endTurn);
         var sound = GameTheme.Button("声音开"); sound.CustomMinimumSize = new Vector2(80, 40); sound.Pressed += () => { _soundEnabled = !_soundEnabled; sound.Text = _soundEnabled ? "声音开" : "声音关"; if (_music is not null) { if (_soundEnabled) _music.Play(); else _music.Stop(); } }; row.AddChild(sound);
-        var motion = GameTheme.Button("动效开"); motion.CustomMinimumSize = new Vector2(80, 40); motion.Pressed += () => { _reduceMotion = !_reduceMotion; motion.Text = _reduceMotion ? "动效关" : "动效开"; }; row.AddChild(motion);
+        var motion = GameTheme.Button("动效开"); motion.CustomMinimumSize = new Vector2(80, 40); motion.Pressed += () => { _reduceMotion = !_reduceMotion; motion.Text = _reduceMotion ? "动效关" : "动效开"; _battleView?.SetReducedMotion(_reduceMotion); }; row.AddChild(motion);
         var quit = GameTheme.Button("退出"); quit.CustomMinimumSize = new Vector2(65, 40); quit.Pressed += () => GetTree().Quit(); row.AddChild(quit);
         UpdateNavigationState();
     }
@@ -192,7 +192,7 @@ public partial class Main : Control
         var enemyArmy = new ArmyData { Id = "visual-enemy-army", FactionId = enemyCity.OwnerFactionId!, SourceCityId = enemyCity.Id, TargetCityId = fieldSource.Id, CommanderId = enemyCommander.Profile.Id, Soldiers = 3700, Food = 6000, Training = 70, Morale = 72, Composition = new Dictionary<string, int> { ["infantry"] = 2200, ["archers"] = 1000, ["cavalry"] = 500 }, Status = "marching", RemainingDays = 12, TotalDays = 60 };
         enemyCommander.InitialState.Status = "deployed"; enemyCommander.InitialState.ArmyId = enemyArmy.Id; _runtime.State.Armies.Add(enemyArmy);
         var fieldCommander = _runtime.PlayerOfficers().Where(item => item.InitialState.CityId == fieldSource.Id && item.InitialState.Status == "serving").OrderByDescending(item => _runtime.EffectiveAbility(item, "leadership", "military")).First();
-        _runtime.CreateExpedition(fieldSource.Id, fieldSource.Id, fieldCommander.Profile.Id, 4000, 6000, "standard", "encirclement", [], new Dictionary<string, int> { ["infantry"] = 2500, ["spears"] = 750, ["archers"] = 750 }, "shield-wall", [], enemyArmy.Id);
+        _runtime.CreateExpedition(fieldSource.Id, fieldSource.Id, fieldCommander.Profile.Id, 4000, 6000, "standard", "encirclement", [], new Dictionary<string, int> { ["infantry"] = 2500, ["spears"] = 750, ["archers"] = 750 }, [], enemyArmy.Id);
         Navigate("battle");
         await ToSignal(GetTree().CreateTimer(.7), SceneTreeTimer.SignalName.Timeout);
         _runtime.ConfigurePendingBattle("goose", new Dictionary<string, string> { ["infantry"] = "shield-line", ["spears"] = "spear-wall", ["archers"] = "rear-double" });
@@ -215,7 +215,7 @@ public partial class Main : Control
         var road = _runtime.State.Roads.First(item => (item.FromCityId == source.Id && _runtime.City(item.ToCityId)?.OwnerFactionId != _runtime.State.PlayerFactionId) || (item.ToCityId == source.Id && _runtime.City(item.FromCityId)?.OwnerFactionId != _runtime.State.PlayerFactionId));
         var targetId = road.FromCityId == source.Id ? road.ToCityId : road.FromCityId;
         var commander = _runtime.PlayerOfficers().Where(item => item.InitialState.CityId == source.Id && item.InitialState.Status == "serving").OrderByDescending(item => _runtime.EffectiveAbility(item, "leadership", "military")).First();
-        _runtime.CreateExpedition(source.Id, targetId, commander.Profile.Id, 3000, 5000, "standard", "arrow-volley", [], new Dictionary<string, int> { ["infantry"] = 2000, ["spears"] = 500, ["archers"] = 500 }, "fortify-camp");
+        _runtime.CreateExpedition(source.Id, targetId, commander.Profile.Id, 3000, 5000, "standard", "arrow-volley", [], new Dictionary<string, int> { ["infantry"] = 2000, ["spears"] = 500, ["archers"] = 500 });
         var army = _runtime.State.Armies.Last();
         while (_runtime.State.PendingBattle is null && army.Status == "marching") { _runtime.State.Turn++; _runtime.MarchArmy(army.Id); }
         Navigate("battle");
@@ -247,7 +247,7 @@ public partial class Main : Control
         var armyRoad = _runtime.State.Roads.First(road => road.TravelDays > 30 && ((road.FromCityId == armySource.Id && _runtime.City(road.ToCityId)?.OwnerFactionId != _runtime.State.PlayerFactionId) || (road.ToCityId == armySource.Id && _runtime.City(road.FromCityId)?.OwnerFactionId != _runtime.State.PlayerFactionId)));
         var armyTargetId = armyRoad.FromCityId == armySource.Id ? armyRoad.ToCityId : armyRoad.FromCityId;
         var armyCommander = _runtime.PlayerOfficers().First(item => item.InitialState.CityId == armySource.Id && item.InitialState.Status == "serving");
-        _runtime.CreateExpedition(armySource.Id, armyTargetId, armyCommander.Profile.Id, 3000, 5000, "standard", "steady-advance", [], new Dictionary<string, int> { ["infantry"] = 2500, ["archers"] = 500 }, "fortify-camp");
+        _runtime.CreateExpedition(armySource.Id, armyTargetId, armyCommander.Profile.Id, 3000, 5000, "standard", "steady-advance", [], new Dictionary<string, int> { ["infantry"] = 2500, ["archers"] = 500 });
         _worldMap.SelectArmyForVisualTest(_runtime.State.Armies.Last().Id);
         await SaveUiFrame("army-control");
 
@@ -277,7 +277,7 @@ public partial class Main : Control
 
         Navigate("talent");
         var talent = (TalentView)_screens["talent"];
-        foreach (var tab in new[] { "overview", "recruitment", "transfer", "office" })
+        foreach (var tab in new[] { "overview", "recruitment", "march", "office" })
         {
             talent.ShowTabForVisualTest(tab);
             await SaveUiFrame($"talent-{tab}");
@@ -365,6 +365,7 @@ public partial class Main : Control
         var pending = _runtime.State.PendingEvent!; var definition = _runtime.State.Events.FirstOrDefault(item => item.Id == pending.DefinitionId); if (definition is null) return;
         _eventPanel = new PanelContainer { AnchorLeft = .5f, AnchorTop = .5f, AnchorRight = .5f, AnchorBottom = .5f, OffsetLeft = -330, OffsetTop = -210, OffsetRight = 330, OffsetBottom = 210, ZIndex = 95, MouseFilter = MouseFilterEnum.Stop };
         _eventPanel.AddThemeStyleboxOverride("panel", GameTheme.RaisedBox(12)); AddChild(_eventPanel);
+        UiOrnaments.AttachInkCorners(_eventPanel, 260, .11f);
         var layout = new VBoxContainer(); layout.AddThemeConstantOverride("separation", 16); _eventPanel.AddChild(layout);
         var title = new Label { Text = $"{definition.Title} · {RuntimeCityName(pending.CityId)}", CustomMinimumSize = new Vector2(0, 54) }; title.AddThemeFontSizeOverride("font_size", 27); title.AddThemeColorOverride("font_color", GameTheme.Paper); layout.AddChild(title);
         var description = new Label { Text = definition.Description, CustomMinimumSize = new Vector2(0, 95), AutowrapMode = TextServer.AutowrapMode.WordSmart }; description.AddThemeColorOverride("font_color", GameTheme.Muted); layout.AddChild(description);

@@ -5,5 +5,6 @@ godot/.mono/
 godot/bin/
 godot/obj/
 godot/assets/generated/
+build/
 __pycache__/
 *.py[cod]

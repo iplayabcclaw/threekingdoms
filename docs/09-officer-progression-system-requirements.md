@@ -5,7 +5,7 @@
 > 状态：首版核心功能已实现（等级、成长、特性、特殊部队、官职、俸禄与 AI）  
 > 适用工程：`godot/` 下的 Godot 4.7 .NET / C# 正式版本
 
-> 实现基线：存档 schema v6；核心规则位于 `godot/scripts/OfficerProgressionSystem.cs`，并已接入内政、战斗、战略 AI、人才页和出征页。后续若扩展志向、承诺、派系与完整后天专长，继续按 `docs/01-requirements.md` 的 M17 后续切片实施。
+> 实现基线：存档 schema v7；核心规则位于 `godot/scripts/OfficerProgressionSystem.cs`，并已接入内政、战斗、战略 AI、人才页和出征页。后续若扩展志向、承诺、派系与完整后天专长，继续按 `docs/01-requirements.md` 的 M17 后续切片实施。
 
 ## 1. 文档目的
 

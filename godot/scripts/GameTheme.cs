@@ -30,9 +30,16 @@ public static class GameTheme
 
     public static Theme Create()
     {
-        var font = GD.Load<Font>(EmbeddedFontPath);
-        if (font is null) throw new InvalidOperationException($"内置中文字体加载失败：{EmbeddedFontPath}");
-        var theme = new Theme { DefaultFont = font, DefaultFontSize = 16 };
+        var fallbackFont = GD.Load<Font>(EmbeddedFontPath);
+        if (fallbackFont is null) throw new InvalidOperationException($"内置中文字体加载失败：{EmbeddedFontPath}");
+        var font = new SystemFont
+        {
+            FontNames = ["Kaiti SC", "STKaiti", "KaiTi", "楷体"],
+            FontWeight = 700,
+            AllowSystemFallback = true,
+            Fallbacks = new global::Godot.Collections.Array<Font> { fallbackFont },
+        };
+        var theme = new Theme { DefaultFont = font, DefaultFontSize = 17 };
 
         theme.SetColor("font_color", "Label", Paper);
         theme.SetColor("font_shadow_color", "Label", Colors.Transparent);

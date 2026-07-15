@@ -165,6 +165,9 @@ public sealed class OfficerStateData
     public string CourtOfficeId { get; set; } = string.Empty;
     public int LastPromotionTurn { get; set; } = -99;
     public int TrackTransitionMonths { get; set; }
+    public string TravelTargetCityId { get; set; } = string.Empty;
+    public int TravelTotalDays { get; set; }
+    public int TravelRemainingDays { get; set; }
     public int SalaryArrears { get; set; }
     public int SalaryArrearsMonths { get; set; }
 }
