@@ -1,0 +1,7684 @@
+{
+  "id": "first-rivalry-194",
+  "name": "初平群雄",
+  "year": 194,
+  "month": 3,
+  "playerFactionId": "faction-liu-bei",
+  "resources": {
+    "gold": 8460,
+    "food": 31280,
+    "prestige": 126,
+    "equipment": 1200
+  },
+  "factions": [
+    {
+      "id": "faction-liu-bei",
+      "name": "刘备军",
+      "shortName": "刘",
+      "rulerName": "刘备",
+      "color": "#B69A58",
+      "pattern": "feather"
+    },
+    {
+      "id": "faction-cao-cao",
+      "name": "曹操军",
+      "shortName": "曹",
+      "rulerName": "曹操",
+      "color": "#446B78",
+      "pattern": "wave"
+    },
+    {
+      "id": "faction-yuan-shao",
+      "name": "袁绍军",
+      "shortName": "袁",
+      "rulerName": "袁绍",
+      "color": "#8A5B3D",
+      "pattern": "mountain"
+    },
+    {
+      "id": "faction-sun-ce",
+      "name": "孙策军",
+      "shortName": "孙",
+      "rulerName": "孙策",
+      "color": "#A64232",
+      "pattern": "sun"
+    },
+    {
+      "id": "faction-liu-biao",
+      "name": "刘表军",
+      "shortName": "荆",
+      "rulerName": "刘表",
+      "color": "#557A68",
+      "pattern": "cloud"
+    },
+    {
+      "id": "faction-lu-bu",
+      "name": "吕布军",
+      "shortName": "吕",
+      "rulerName": "吕布",
+      "color": "#7C4651",
+      "pattern": "flame"
+    },
+    {
+      "id": "faction-ma-teng",
+      "name": "马腾军",
+      "shortName": "凉",
+      "rulerName": "马腾",
+      "color": "#8C7045",
+      "pattern": "mountain"
+    },
+    {
+      "id": "faction-gongsun-zan",
+      "name": "公孙瓒军",
+      "shortName": "瓒",
+      "rulerName": "公孙瓒",
+      "color": "#6E7496",
+      "pattern": "wave"
+    },
+    {
+      "id": "faction-li-jue",
+      "name": "李傕军",
+      "shortName": "李",
+      "rulerName": "李傕",
+      "color": "#78613E",
+      "pattern": "flame"
+    },
+    {
+      "id": "faction-yuan-shu",
+      "name": "袁术军",
+      "shortName": "术",
+      "rulerName": "袁术",
+      "color": "#90703F",
+      "pattern": "sun"
+    },
+    {
+      "id": "faction-zhang-xiu",
+      "name": "张绣军",
+      "shortName": "绣",
+      "rulerName": "张绣",
+      "color": "#695E7E",
+      "pattern": "feather"
+    },
+    {
+      "id": "faction-liu-zhang",
+      "name": "刘璋军",
+      "shortName": "益",
+      "rulerName": "刘璋",
+      "color": "#68764A",
+      "pattern": "cloud"
+    },
+    {
+      "id": "faction-zhang-lu",
+      "name": "张鲁军",
+      "shortName": "鲁",
+      "rulerName": "张鲁",
+      "color": "#6D8A7E",
+      "pattern": "wave"
+    },
+    {
+      "id": "faction-kong-rong",
+      "name": "孔融军",
+      "shortName": "孔",
+      "rulerName": "孔融",
+      "color": "#8B6D65",
+      "pattern": "cloud"
+    },
+    {
+      "id": "faction-shi-xie",
+      "name": "士燮军",
+      "shortName": "士",
+      "rulerName": "士燮",
+      "color": "#47796D",
+      "pattern": "feather"
+    },
+    {
+      "id": "faction-gongsun-du",
+      "name": "公孙度军",
+      "shortName": "度",
+      "rulerName": "公孙度",
+      "color": "#566C8A",
+      "pattern": "mountain"
+    }
+  ],
+  "cities": [
+    {
+      "id": "city-wuwei",
+      "name": "武威",
+      "region": "凉州",
+      "ownerFactionId": "faction-ma-teng",
+      "governorId": "officer-ma-dai",
+      "governorName": "马岱",
+      "position": {
+        "x": 24,
+        "y": 30
+      },
+      "population": 47000,
+      "agriculture": 54,
+      "commerce": 48,
+      "publicOrder": 77,
+      "publicSupport": 72,
+      "defense": 78,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 6900,
+      "food": 32800,
+      "garrison": 10700,
+      "actionSlots": 2,
+      "intelligenceAge": 5,
+      "status": "stable",
+      "disaster": null
+    },
+    {
+      "id": "city-tianshui",
+      "name": "天水",
+      "region": "凉州",
+      "ownerFactionId": "faction-ma-teng",
+      "governorId": "officer-han-sui",
+      "governorName": "韩遂",
+      "position": {
+        "x": 31,
+        "y": 42
+      },
+      "population": 59000,
+      "agriculture": 65,
+      "commerce": 55,
+      "publicOrder": 68,
+      "publicSupport": 66,
+      "defense": 73,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 8100,
+      "food": 39600,
+      "garrison": 11200,
+      "actionSlots": 2,
+      "intelligenceAge": 4,
+      "status": "watch",
+      "disaster": null
+    },
+    {
+      "id": "city-changan",
+      "name": "长安",
+      "region": "雍州",
+      "ownerFactionId": "faction-ma-teng",
+      "governorId": "officer-pang-de",
+      "governorName": "庞德",
+      "position": {
+        "x": 40,
+        "y": 43
+      },
+      "population": 99000,
+      "agriculture": 69,
+      "commerce": 74,
+      "publicOrder": 63,
+      "publicSupport": 58,
+      "defense": 86,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 12900,
+      "food": 46700,
+      "garrison": 13600,
+      "actionSlots": 2,
+      "intelligenceAge": 3,
+      "status": "watch",
+      "disaster": null
+    },
+    {
+      "id": "city-jinyang",
+      "name": "晋阳",
+      "region": "并州",
+      "ownerFactionId": "faction-yuan-shao",
+      "governorId": "officer-xin-ping",
+      "governorName": "辛评",
+      "position": {
+        "x": 48,
+        "y": 29
+      },
+      "population": 68000,
+      "agriculture": 67,
+      "commerce": 58,
+      "publicOrder": 79,
+      "publicSupport": 68,
+      "defense": 80,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 8700,
+      "food": 40500,
+      "garrison": 11000,
+      "actionSlots": 2,
+      "intelligenceAge": 3,
+      "status": "stable",
+      "disaster": null
+    },
+    {
+      "id": "city-ye",
+      "name": "邺",
+      "region": "冀州",
+      "ownerFactionId": "faction-yuan-shao",
+      "governorId": "officer-shen-pei",
+      "governorName": "审配",
+      "position": {
+        "x": 57,
+        "y": 34
+      },
+      "population": 107000,
+      "agriculture": 78,
+      "commerce": 72,
+      "publicOrder": 83,
+      "publicSupport": 71,
+      "defense": 76,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 12400,
+      "food": 51000,
+      "garrison": 13300,
+      "actionSlots": 2,
+      "intelligenceAge": 2,
+      "status": "stable",
+      "disaster": null
+    },
+    {
+      "id": "city-nanpi",
+      "name": "南皮",
+      "region": "冀州",
+      "ownerFactionId": "faction-yuan-shao",
+      "governorId": "officer-lv-kuang",
+      "governorName": "吕旷",
+      "position": {
+        "x": 65,
+        "y": 34
+      },
+      "population": 63000,
+      "agriculture": 72,
+      "commerce": 61,
+      "publicOrder": 75,
+      "publicSupport": 64,
+      "defense": 69,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 8400,
+      "food": 38200,
+      "garrison": 10400,
+      "actionSlots": 2,
+      "intelligenceAge": 3,
+      "status": "stable",
+      "disaster": null
+    },
+    {
+      "id": "city-yijing",
+      "name": "易京",
+      "region": "幽州",
+      "ownerFactionId": "faction-gongsun-zan",
+      "governorId": "officer-tian-kai",
+      "governorName": "田楷",
+      "position": {
+        "x": 65,
+        "y": 25
+      },
+      "population": 53000,
+      "agriculture": 59,
+      "commerce": 49,
+      "publicOrder": 72,
+      "publicSupport": 69,
+      "defense": 88,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 7200,
+      "food": 34900,
+      "garrison": 12200,
+      "actionSlots": 2,
+      "intelligenceAge": 4,
+      "status": "stable",
+      "disaster": null
+    },
+    {
+      "id": "city-beiping",
+      "name": "北平",
+      "region": "幽州",
+      "ownerFactionId": "faction-yuan-shao",
+      "governorId": "officer-tian-yu",
+      "governorName": "田豫",
+      "position": {
+        "x": 77,
+        "y": 18
+      },
+      "population": 66000,
+      "agriculture": 60,
+      "commerce": 52,
+      "publicOrder": 74,
+      "publicSupport": 63,
+      "defense": 71,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 7800,
+      "food": 35600,
+      "garrison": 9500,
+      "actionSlots": 2,
+      "intelligenceAge": 3,
+      "status": "watch",
+      "disaster": null
+    },
+    {
+      "id": "city-ji",
+      "name": "蓟",
+      "region": "幽州",
+      "ownerFactionId": "faction-gongsun-zan",
+      "governorId": "officer-gongsun-yue",
+      "governorName": "公孙越",
+      "position": {
+        "x": 72,
+        "y": 24
+      },
+      "population": 74000,
+      "agriculture": 64,
+      "commerce": 63,
+      "publicOrder": 76,
+      "publicSupport": 74,
+      "defense": 74,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 9600,
+      "food": 39800,
+      "garrison": 10900,
+      "actionSlots": 2,
+      "intelligenceAge": 4,
+      "status": "stable",
+      "disaster": null
+    },
+    {
+      "id": "city-chenliu",
+      "name": "陈留",
+      "region": "兖州",
+      "ownerFactionId": "faction-cao-cao",
+      "governorId": "officer-xun-yu",
+      "governorName": "荀彧",
+      "position": {
+        "x": 56,
+        "y": 47
+      },
+      "population": 97000,
+      "agriculture": 72,
+      "commerce": 77,
+      "publicOrder": 88,
+      "publicSupport": 79,
+      "defense": 68,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 14300,
+      "food": 44200,
+      "garrison": 12100,
+      "actionSlots": 2,
+      "intelligenceAge": 1,
+      "status": "stable",
+      "disaster": null
+    },
+    {
+      "id": "city-xuchang",
+      "name": "许昌",
+      "region": "豫州",
+      "ownerFactionId": "faction-cao-cao",
+      "governorId": "officer-cheng-yu",
+      "governorName": "程昱",
+      "position": {
+        "x": 56,
+        "y": 54
+      },
+      "population": 87000,
+      "agriculture": 75,
+      "commerce": 69,
+      "publicOrder": 82,
+      "publicSupport": 74,
+      "defense": 73,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 11600,
+      "food": 48500,
+      "garrison": 10900,
+      "actionSlots": 2,
+      "intelligenceAge": 1,
+      "status": "stable",
+      "disaster": null
+    },
+    {
+      "id": "city-puyang",
+      "name": "濮阳",
+      "region": "兖州",
+      "ownerFactionId": "faction-lu-bu",
+      "governorId": "officer-chen-gong",
+      "governorName": "陈宫",
+      "position": {
+        "x": 63,
+        "y": 43
+      },
+      "population": 58000,
+      "agriculture": 61,
+      "commerce": 58,
+      "publicOrder": 55,
+      "publicSupport": 49,
+      "defense": 64,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 6700,
+      "food": 24100,
+      "garrison": 9300,
+      "actionSlots": 2,
+      "intelligenceAge": 0,
+      "status": "danger",
+      "disaster": null
+    },
+    {
+      "id": "city-xiaopei",
+      "name": "小沛",
+      "region": "徐州",
+      "ownerFactionId": "faction-liu-bei",
+      "governorId": "officer-guan-yu",
+      "governorName": "关羽",
+      "position": {
+        "x": 68,
+        "y": 51
+      },
+      "population": 51000,
+      "agriculture": 66,
+      "commerce": 51,
+      "publicOrder": 76,
+      "publicSupport": 86,
+      "defense": 59,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 4260,
+      "food": 18780,
+      "garrison": 6900,
+      "actionSlots": 2,
+      "intelligenceAge": 0,
+      "status": "watch",
+      "disaster": null
+    },
+    {
+      "id": "city-xiapi",
+      "name": "下邳",
+      "region": "徐州",
+      "ownerFactionId": "faction-liu-bei",
+      "governorId": "officer-mi-zhu",
+      "governorName": "糜竺",
+      "position": {
+        "x": 76,
+        "y": 54
+      },
+      "population": 83000,
+      "agriculture": 73,
+      "commerce": 68,
+      "publicOrder": 79,
+      "publicSupport": 83,
+      "defense": 66,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 8930,
+      "food": 33400,
+      "garrison": 8200,
+      "actionSlots": 2,
+      "intelligenceAge": 0,
+      "status": "stable",
+      "disaster": null
+    },
+    {
+      "id": "city-shouchun",
+      "name": "寿春",
+      "region": "扬州",
+      "ownerFactionId": "faction-sun-ce",
+      "governorId": "officer-zhou-yu",
+      "governorName": "周瑜",
+      "position": {
+        "x": 70,
+        "y": 59
+      },
+      "population": 91000,
+      "agriculture": 79,
+      "commerce": 75,
+      "publicOrder": 80,
+      "publicSupport": 77,
+      "defense": 72,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 13200,
+      "food": 47800,
+      "garrison": 11400,
+      "actionSlots": 2,
+      "intelligenceAge": 4,
+      "status": "stable",
+      "disaster": null
+    },
+    {
+      "id": "city-jianye",
+      "name": "建业",
+      "region": "扬州",
+      "ownerFactionId": "faction-sun-ce",
+      "governorId": "officer-zhang-zhao",
+      "governorName": "张昭",
+      "position": {
+        "x": 79,
+        "y": 66
+      },
+      "population": 102000,
+      "agriculture": 70,
+      "commerce": 84,
+      "publicOrder": 85,
+      "publicSupport": 81,
+      "defense": 69,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 16800,
+      "food": 42000,
+      "garrison": 10500,
+      "actionSlots": 2,
+      "intelligenceAge": 5,
+      "status": "stable",
+      "disaster": null
+    },
+    {
+      "id": "city-xiangyang",
+      "name": "襄阳",
+      "region": "荆州",
+      "ownerFactionId": "faction-liu-biao",
+      "governorId": "officer-kuai-yue",
+      "governorName": "蒯越",
+      "position": {
+        "x": 48,
+        "y": 65
+      },
+      "population": 113000,
+      "agriculture": 81,
+      "commerce": 80,
+      "publicOrder": 89,
+      "publicSupport": 75,
+      "defense": 82,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 18100,
+      "food": 58300,
+      "garrison": 14500,
+      "actionSlots": 2,
+      "intelligenceAge": 3,
+      "status": "stable",
+      "disaster": null
+    },
+    {
+      "id": "city-jiangling",
+      "name": "江陵",
+      "region": "荆州",
+      "ownerFactionId": "faction-liu-biao",
+      "governorId": "officer-cai-mao",
+      "governorName": "蔡瑁",
+      "position": {
+        "x": 49,
+        "y": 74
+      },
+      "population": 85000,
+      "agriculture": 82,
+      "commerce": 65,
+      "publicOrder": 73,
+      "publicSupport": 67,
+      "defense": 74,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 10500,
+      "food": 54600,
+      "garrison": 10700,
+      "actionSlots": 2,
+      "intelligenceAge": 4,
+      "status": "watch",
+      "disaster": null
+    },
+    {
+      "id": "city-luoyang",
+      "name": "洛阳",
+      "region": "司隶",
+      "ownerFactionId": "faction-cao-cao",
+      "governorId": "officer-xiahou-dun",
+      "governorName": "夏侯惇",
+      "position": {
+        "x": 49,
+        "y": 46
+      },
+      "population": 75000,
+      "agriculture": 57,
+      "commerce": 64,
+      "publicOrder": 62,
+      "publicSupport": 55,
+      "defense": 84,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 9200,
+      "food": 28700,
+      "garrison": 12500,
+      "actionSlots": 2,
+      "intelligenceAge": 2,
+      "status": "watch",
+      "disaster": null
+    },
+    {
+      "id": "city-anding",
+      "name": "安定",
+      "region": "凉州",
+      "ownerFactionId": "faction-li-jue",
+      "governorId": "officer-guo-si",
+      "governorName": "郭汜",
+      "position": {
+        "x": 33,
+        "y": 34
+      },
+      "population": 43000,
+      "agriculture": 49,
+      "commerce": 44,
+      "publicOrder": 48,
+      "publicSupport": 42,
+      "defense": 76,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 5800,
+      "food": 25600,
+      "garrison": 9900,
+      "actionSlots": 2,
+      "intelligenceAge": 5,
+      "status": "danger",
+      "disaster": null
+    },
+    {
+      "id": "city-hongnong",
+      "name": "弘农",
+      "region": "司隶",
+      "ownerFactionId": "faction-li-jue",
+      "governorId": "officer-zhang-ji",
+      "governorName": "张济",
+      "position": {
+        "x": 43,
+        "y": 49
+      },
+      "population": 64000,
+      "agriculture": 61,
+      "commerce": 66,
+      "publicOrder": 51,
+      "publicSupport": 45,
+      "defense": 82,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 8600,
+      "food": 30500,
+      "garrison": 11300,
+      "actionSlots": 2,
+      "intelligenceAge": 4,
+      "status": "watch",
+      "disaster": null
+    },
+    {
+      "id": "city-runan",
+      "name": "汝南",
+      "region": "豫州",
+      "ownerFactionId": "faction-yuan-shu",
+      "governorId": "officer-ji-ling",
+      "governorName": "纪灵",
+      "position": {
+        "x": 59,
+        "y": 61
+      },
+      "population": 102000,
+      "agriculture": 77,
+      "commerce": 72,
+      "publicOrder": 60,
+      "publicSupport": 52,
+      "defense": 67,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 12100,
+      "food": 45800,
+      "garrison": 12100,
+      "actionSlots": 2,
+      "intelligenceAge": 3,
+      "status": "watch",
+      "disaster": null
+    },
+    {
+      "id": "city-hefei",
+      "name": "合肥",
+      "region": "扬州",
+      "ownerFactionId": "faction-yuan-shu",
+      "governorId": "officer-yang-hong",
+      "governorName": "杨弘",
+      "position": {
+        "x": 66,
+        "y": 65
+      },
+      "population": 75000,
+      "agriculture": 72,
+      "commerce": 76,
+      "publicOrder": 64,
+      "publicSupport": 58,
+      "defense": 78,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 10400,
+      "food": 39700,
+      "garrison": 10900,
+      "actionSlots": 2,
+      "intelligenceAge": 4,
+      "status": "stable",
+      "disaster": null
+    },
+    {
+      "id": "city-wan",
+      "name": "宛",
+      "region": "荆州",
+      "ownerFactionId": "faction-zhang-xiu",
+      "governorId": "officer-hu-che-er",
+      "governorName": "胡车儿",
+      "position": {
+        "x": 47,
+        "y": 57
+      },
+      "population": 71000,
+      "agriculture": 68,
+      "commerce": 65,
+      "publicOrder": 71,
+      "publicSupport": 67,
+      "defense": 79,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 8900,
+      "food": 35400,
+      "garrison": 11200,
+      "actionSlots": 2,
+      "intelligenceAge": 2,
+      "status": "watch",
+      "disaster": null
+    },
+    {
+      "id": "city-chengdu",
+      "name": "成都",
+      "region": "益州",
+      "ownerFactionId": "faction-liu-zhang",
+      "governorId": "officer-zhang-ren",
+      "governorName": "张任",
+      "position": {
+        "x": 27,
+        "y": 67
+      },
+      "population": 128000,
+      "agriculture": 88,
+      "commerce": 82,
+      "publicOrder": 87,
+      "publicSupport": 82,
+      "defense": 81,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 18600,
+      "food": 65800,
+      "garrison": 14700,
+      "actionSlots": 2,
+      "intelligenceAge": 5,
+      "status": "stable",
+      "disaster": null
+    },
+    {
+      "id": "city-zitong",
+      "name": "梓潼",
+      "region": "益州",
+      "ownerFactionId": "faction-liu-zhang",
+      "governorId": "officer-huang-quan",
+      "governorName": "黄权",
+      "position": {
+        "x": 32,
+        "y": 59
+      },
+      "population": 63000,
+      "agriculture": 76,
+      "commerce": 58,
+      "publicOrder": 82,
+      "publicSupport": 77,
+      "defense": 77,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 7900,
+      "food": 42600,
+      "garrison": 10000,
+      "actionSlots": 2,
+      "intelligenceAge": 5,
+      "status": "stable",
+      "disaster": null
+    },
+    {
+      "id": "city-jiangzhou",
+      "name": "江州",
+      "region": "益州",
+      "ownerFactionId": "faction-liu-zhang",
+      "governorId": "officer-yan-yan",
+      "governorName": "严颜",
+      "position": {
+        "x": 37,
+        "y": 70
+      },
+      "population": 78000,
+      "agriculture": 79,
+      "commerce": 67,
+      "publicOrder": 84,
+      "publicSupport": 79,
+      "defense": 73,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 9700,
+      "food": 48900,
+      "garrison": 10500,
+      "actionSlots": 2,
+      "intelligenceAge": 5,
+      "status": "stable",
+      "disaster": null
+    },
+    {
+      "id": "city-yongan",
+      "name": "永安",
+      "region": "益州",
+      "ownerFactionId": "faction-liu-zhang",
+      "governorId": "officer-fa-zheng",
+      "governorName": "法正",
+      "position": {
+        "x": 43,
+        "y": 70
+      },
+      "population": 53000,
+      "agriculture": 69,
+      "commerce": 54,
+      "publicOrder": 78,
+      "publicSupport": 71,
+      "defense": 85,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 6600,
+      "food": 36500,
+      "garrison": 9500,
+      "actionSlots": 2,
+      "intelligenceAge": 5,
+      "status": "watch",
+      "disaster": null
+    },
+    {
+      "id": "city-hanzhong",
+      "name": "汉中",
+      "region": "汉中",
+      "ownerFactionId": "faction-zhang-lu",
+      "governorId": "officer-yan-pu",
+      "governorName": "阎圃",
+      "position": {
+        "x": 38,
+        "y": 53
+      },
+      "population": 76000,
+      "agriculture": 82,
+      "commerce": 61,
+      "publicOrder": 91,
+      "publicSupport": 88,
+      "defense": 89,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 9300,
+      "food": 52400,
+      "garrison": 11900,
+      "actionSlots": 2,
+      "intelligenceAge": 5,
+      "status": "stable",
+      "disaster": null
+    },
+    {
+      "id": "city-beihai",
+      "name": "北海",
+      "region": "青州",
+      "ownerFactionId": "faction-kong-rong",
+      "governorId": "officer-wang-xiu",
+      "governorName": "王修",
+      "position": {
+        "x": 76,
+        "y": 41
+      },
+      "population": 69000,
+      "agriculture": 71,
+      "commerce": 68,
+      "publicOrder": 73,
+      "publicSupport": 79,
+      "defense": 61,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 8700,
+      "food": 37800,
+      "garrison": 8600,
+      "actionSlots": 2,
+      "intelligenceAge": 4,
+      "status": "watch",
+      "disaster": null
+    },
+    {
+      "id": "city-jiaozhi",
+      "name": "交趾",
+      "region": "交州",
+      "ownerFactionId": "faction-shi-xie",
+      "governorId": "officer-shi-yi",
+      "governorName": "士壹",
+      "position": {
+        "x": 52,
+        "y": 88
+      },
+      "population": 83000,
+      "agriculture": 84,
+      "commerce": 74,
+      "publicOrder": 92,
+      "publicSupport": 90,
+      "defense": 62,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 11500,
+      "food": 51600,
+      "garrison": 9100,
+      "actionSlots": 2,
+      "intelligenceAge": 6,
+      "status": "stable",
+      "disaster": null
+    },
+    {
+      "id": "city-cangwu",
+      "name": "苍梧",
+      "region": "交州",
+      "ownerFactionId": "faction-shi-xie",
+      "governorId": "officer-shi-wu",
+      "governorName": "士武",
+      "position": {
+        "x": 58,
+        "y": 82
+      },
+      "population": 62000,
+      "agriculture": 78,
+      "commerce": 63,
+      "publicOrder": 88,
+      "publicSupport": 84,
+      "defense": 59,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 8100,
+      "food": 43900,
+      "garrison": 7800,
+      "actionSlots": 2,
+      "intelligenceAge": 6,
+      "status": "stable",
+      "disaster": null
+    },
+    {
+      "id": "city-xiangping",
+      "name": "襄平",
+      "region": "辽东",
+      "ownerFactionId": "faction-gongsun-du",
+      "governorId": "officer-liu-yi",
+      "governorName": "柳毅",
+      "position": {
+        "x": 86,
+        "y": 20
+      },
+      "population": 57000,
+      "agriculture": 62,
+      "commerce": 56,
+      "publicOrder": 81,
+      "publicSupport": 76,
+      "defense": 83,
+      "culture": 50,
+      "fatigue": 0,
+      "training": 50,
+      "facilitySlots": 4,
+      "facilities": [],
+      "constructionQueue": null,
+      "gold": 7600,
+      "food": 36700,
+      "garrison": 10700,
+      "actionSlots": 2,
+      "intelligenceAge": 6,
+      "status": "stable",
+      "disaster": null
+    }
+  ],
+  "officers": [
+    {
+      "profile": {
+        "id": "officer-liu-bei",
+        "name": "刘备",
+        "courtesyName": "玄德",
+        "birthYear": 161,
+        "abilities": {
+          "leadership": 82,
+          "might": 78,
+          "intelligence": 76,
+          "politics": 80,
+          "charisma": 96
+        },
+        "traits": [
+          "爱民",
+          "忠义"
+        ],
+        "ideals": [
+          "仁政",
+          "忠义"
+        ]
+      },
+      "initialState": {
+        "id": "officer-liu-bei",
+        "factionId": "faction-liu-bei",
+        "cityId": "city-xiaopei",
+        "loyalty": 100,
+        "merit": 2800,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "ruler"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-guan-yu",
+        "name": "关羽",
+        "courtesyName": "云长",
+        "birthYear": 160,
+        "abilities": {
+          "leadership": 94,
+          "might": 97,
+          "intelligence": 75,
+          "politics": 63,
+          "charisma": 89
+        },
+        "traits": [
+          "忠义",
+          "豪勇"
+        ],
+        "ideals": [
+          "霸业",
+          "忠义"
+        ]
+      },
+      "initialState": {
+        "id": "officer-guan-yu",
+        "factionId": "faction-liu-bei",
+        "cityId": "city-xiaopei",
+        "loyalty": 100,
+        "merit": 3200,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-zhang-fei",
+        "name": "张飞",
+        "courtesyName": "益德",
+        "birthYear": 167,
+        "abilities": {
+          "leadership": 86,
+          "might": 98,
+          "intelligence": 38,
+          "politics": 28,
+          "charisma": 58
+        },
+        "traits": [
+          "豪勇",
+          "忠义"
+        ],
+        "ideals": [
+          "霸业",
+          "忠义"
+        ]
+      },
+      "initialState": {
+        "id": "officer-zhang-fei",
+        "factionId": "faction-liu-bei",
+        "cityId": "city-xiaopei",
+        "loyalty": 98,
+        "merit": 2500,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-zhao-yun",
+        "name": "赵云",
+        "courtesyName": "子龙",
+        "birthYear": 168,
+        "abilities": {
+          "leadership": 91,
+          "might": 96,
+          "intelligence": 76,
+          "politics": 65,
+          "charisma": 81
+        },
+        "traits": [
+          "忠义",
+          "谨慎"
+        ],
+        "ideals": [
+          "忠义",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-zhao-yun",
+        "factionId": "faction-liu-bei",
+        "cityId": "city-xiaopei",
+        "loyalty": 94,
+        "merit": 1700,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-mi-zhu",
+        "name": "糜竺",
+        "courtesyName": "子仲",
+        "birthYear": 165,
+        "abilities": {
+          "leadership": 42,
+          "might": 30,
+          "intelligence": 72,
+          "politics": 86,
+          "charisma": 78
+        },
+        "traits": [
+          "善政",
+          "忠义"
+        ],
+        "ideals": [
+          "仁政",
+          "忠义"
+        ]
+      },
+      "initialState": {
+        "id": "officer-mi-zhu",
+        "factionId": "faction-liu-bei",
+        "cityId": "city-xiapi",
+        "loyalty": 93,
+        "merit": 1300,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-sun-qian",
+        "name": "孙乾",
+        "courtesyName": "公祐",
+        "birthYear": 164,
+        "abilities": {
+          "leadership": 38,
+          "might": 31,
+          "intelligence": 75,
+          "politics": 80,
+          "charisma": 76
+        },
+        "traits": [
+          "善政",
+          "沉着"
+        ],
+        "ideals": [
+          "仁政",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-sun-qian",
+        "factionId": "faction-liu-bei",
+        "cityId": "city-xiapi",
+        "loyalty": 91,
+        "merit": 900,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "civil"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-jian-yong",
+        "name": "简雍",
+        "courtesyName": "宪和",
+        "birthYear": 163,
+        "abilities": {
+          "leadership": 35,
+          "might": 34,
+          "intelligence": 72,
+          "politics": 73,
+          "charisma": 84
+        },
+        "traits": [
+          "沉着",
+          "爱民"
+        ],
+        "ideals": [
+          "仁政",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-jian-yong",
+        "factionId": "faction-liu-bei",
+        "cityId": "city-xiaopei",
+        "loyalty": 95,
+        "merit": 850,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "civil"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-chen-deng",
+        "name": "陈登",
+        "courtesyName": "元龙",
+        "birthYear": 169,
+        "abilities": {
+          "leadership": 72,
+          "might": 63,
+          "intelligence": 85,
+          "politics": 87,
+          "charisma": 82
+        },
+        "traits": [
+          "善谋",
+          "善政"
+        ],
+        "ideals": [
+          "仁政",
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-chen-deng",
+        "factionId": "faction-liu-bei",
+        "cityId": "city-xiapi",
+        "loyalty": 78,
+        "merit": 1150,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "strategist"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-mi-fang",
+        "name": "糜芳",
+        "courtesyName": "子方",
+        "birthYear": 166,
+        "abilities": {
+          "leadership": 62,
+          "might": 66,
+          "intelligence": 45,
+          "politics": 48,
+          "charisma": 52
+        },
+        "traits": [
+          "谨慎",
+          "贪财"
+        ],
+        "ideals": [
+          "安定",
+          "财富"
+        ]
+      },
+      "initialState": {
+        "id": "officer-mi-fang",
+        "factionId": "faction-liu-bei",
+        "cityId": "city-xiapi",
+        "loyalty": 72,
+        "merit": 620,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "reserve"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-guan-ping",
+        "name": "关平",
+        "courtesyName": "坦之",
+        "birthYear": 178,
+        "abilities": {
+          "leadership": 75,
+          "might": 82,
+          "intelligence": 55,
+          "politics": 42,
+          "charisma": 68
+        },
+        "traits": [
+          "忠义",
+          "豪勇"
+        ],
+        "ideals": [
+          "霸业",
+          "忠义"
+        ]
+      },
+      "initialState": {
+        "id": "officer-guan-ping",
+        "factionId": "faction-liu-bei",
+        "cityId": "city-xiaopei",
+        "loyalty": 96,
+        "merit": 480,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-cao-cao",
+        "name": "曹操",
+        "courtesyName": "孟德",
+        "birthYear": 155,
+        "abilities": {
+          "leadership": 96,
+          "might": 72,
+          "intelligence": 92,
+          "politics": 94,
+          "charisma": 91
+        },
+        "traits": [
+          "野心",
+          "善谋"
+        ],
+        "ideals": [
+          "霸业",
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-cao-cao",
+        "factionId": "faction-cao-cao",
+        "cityId": "city-chenliu",
+        "loyalty": 100,
+        "merit": 4200,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "ruler"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-xiahou-dun",
+        "name": "夏侯惇",
+        "courtesyName": "元让",
+        "birthYear": 157,
+        "abilities": {
+          "leadership": 89,
+          "might": 91,
+          "intelligence": 64,
+          "politics": 70,
+          "charisma": 78
+        },
+        "traits": [
+          "忠义",
+          "豪勇"
+        ],
+        "ideals": [
+          "霸业",
+          "忠义"
+        ]
+      },
+      "initialState": {
+        "id": "officer-xiahou-dun",
+        "factionId": "faction-cao-cao",
+        "cityId": "city-luoyang",
+        "loyalty": 98,
+        "merit": 2900,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-xiahou-yuan",
+        "name": "夏侯渊",
+        "courtesyName": "妙才",
+        "birthYear": 160,
+        "abilities": {
+          "leadership": 92,
+          "might": 90,
+          "intelligence": 60,
+          "politics": 52,
+          "charisma": 65
+        },
+        "traits": [
+          "豪勇",
+          "沉着"
+        ],
+        "ideals": [
+          "霸业",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-xiahou-yuan",
+        "factionId": "faction-cao-cao",
+        "cityId": "city-chenliu",
+        "loyalty": 96,
+        "merit": 2400,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-cao-ren",
+        "name": "曹仁",
+        "courtesyName": "子孝",
+        "birthYear": 168,
+        "abilities": {
+          "leadership": 91,
+          "might": 86,
+          "intelligence": 68,
+          "politics": 61,
+          "charisma": 70
+        },
+        "traits": [
+          "谨慎",
+          "忠义"
+        ],
+        "ideals": [
+          "忠义",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-cao-ren",
+        "factionId": "faction-cao-cao",
+        "cityId": "city-xuchang",
+        "loyalty": 97,
+        "merit": 2200,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-xun-yu",
+        "name": "荀彧",
+        "courtesyName": "文若",
+        "birthYear": 163,
+        "abilities": {
+          "leadership": 51,
+          "might": 29,
+          "intelligence": 96,
+          "politics": 98,
+          "charisma": 93
+        },
+        "traits": [
+          "善谋",
+          "善政"
+        ],
+        "ideals": [
+          "仁政",
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-xun-yu",
+        "factionId": "faction-cao-cao",
+        "cityId": "city-chenliu",
+        "loyalty": 91,
+        "merit": 2600,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-cheng-yu",
+        "name": "程昱",
+        "courtesyName": "仲德",
+        "birthYear": 141,
+        "abilities": {
+          "leadership": 70,
+          "might": 56,
+          "intelligence": 91,
+          "politics": 86,
+          "charisma": 69
+        },
+        "traits": [
+          "善谋",
+          "沉着"
+        ],
+        "ideals": [
+          "安定",
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-cheng-yu",
+        "factionId": "faction-cao-cao",
+        "cityId": "city-xuchang",
+        "loyalty": 90,
+        "merit": 2100,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-guo-jia",
+        "name": "郭嘉",
+        "courtesyName": "奉孝",
+        "birthYear": 170,
+        "abilities": {
+          "leadership": 46,
+          "might": 21,
+          "intelligence": 98,
+          "politics": 86,
+          "charisma": 80
+        },
+        "traits": [
+          "善谋",
+          "野心"
+        ],
+        "ideals": [
+          "霸业",
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-guo-jia",
+        "factionId": "faction-cao-cao",
+        "cityId": "city-chenliu",
+        "loyalty": 88,
+        "merit": 1800,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "strategist"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-dian-wei",
+        "name": "典韦",
+        "courtesyName": "恶来",
+        "birthYear": 160,
+        "abilities": {
+          "leadership": 78,
+          "might": 99,
+          "intelligence": 34,
+          "politics": 23,
+          "charisma": 57
+        },
+        "traits": [
+          "豪勇",
+          "忠义"
+        ],
+        "ideals": [
+          "霸业",
+          "忠义"
+        ]
+      },
+      "initialState": {
+        "id": "officer-dian-wei",
+        "factionId": "faction-cao-cao",
+        "cityId": "city-xuchang",
+        "loyalty": 96,
+        "merit": 1650,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-xu-chu",
+        "name": "许褚",
+        "courtesyName": "仲康",
+        "birthYear": 169,
+        "abilities": {
+          "leadership": 76,
+          "might": 98,
+          "intelligence": 36,
+          "politics": 26,
+          "charisma": 55
+        },
+        "traits": [
+          "豪勇",
+          "忠义"
+        ],
+        "ideals": [
+          "霸业",
+          "忠义"
+        ]
+      },
+      "initialState": {
+        "id": "officer-xu-chu",
+        "factionId": "faction-cao-cao",
+        "cityId": "city-xuchang",
+        "loyalty": 95,
+        "merit": 1420,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-li-dian",
+        "name": "李典",
+        "courtesyName": "曼成",
+        "birthYear": 174,
+        "abilities": {
+          "leadership": 82,
+          "might": 77,
+          "intelligence": 79,
+          "politics": 71,
+          "charisma": 72
+        },
+        "traits": [
+          "谨慎",
+          "善谋"
+        ],
+        "ideals": [
+          "安定",
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-li-dian",
+        "factionId": "faction-cao-cao",
+        "cityId": "city-luoyang",
+        "loyalty": 90,
+        "merit": 1200,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-yuan-shao",
+        "name": "袁绍",
+        "courtesyName": "本初",
+        "birthYear": 154,
+        "abilities": {
+          "leadership": 84,
+          "might": 69,
+          "intelligence": 72,
+          "politics": 73,
+          "charisma": 91
+        },
+        "traits": [
+          "野心",
+          "多疑"
+        ],
+        "ideals": [
+          "霸业",
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-yuan-shao",
+        "factionId": "faction-yuan-shao",
+        "cityId": "city-ye",
+        "loyalty": 100,
+        "merit": 4000,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "ruler"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-yan-liang",
+        "name": "颜良",
+        "courtesyName": "公骥",
+        "birthYear": 160,
+        "abilities": {
+          "leadership": 83,
+          "might": 95,
+          "intelligence": 42,
+          "politics": 28,
+          "charisma": 61
+        },
+        "traits": [
+          "豪勇",
+          "野心"
+        ],
+        "ideals": [
+          "霸业"
+        ]
+      },
+      "initialState": {
+        "id": "officer-yan-liang",
+        "factionId": "faction-yuan-shao",
+        "cityId": "city-ye",
+        "loyalty": 89,
+        "merit": 1900,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-wen-chou",
+        "name": "文丑",
+        "courtesyName": "叔恶",
+        "birthYear": 161,
+        "abilities": {
+          "leadership": 81,
+          "might": 94,
+          "intelligence": 39,
+          "politics": 25,
+          "charisma": 58
+        },
+        "traits": [
+          "豪勇",
+          "多疑"
+        ],
+        "ideals": [
+          "霸业",
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-wen-chou",
+        "factionId": "faction-yuan-shao",
+        "cityId": "city-beiping",
+        "loyalty": 86,
+        "merit": 1800,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-tian-feng",
+        "name": "田丰",
+        "courtesyName": "元皓",
+        "birthYear": 150,
+        "abilities": {
+          "leadership": 54,
+          "might": 33,
+          "intelligence": 96,
+          "politics": 89,
+          "charisma": 68
+        },
+        "traits": [
+          "善谋",
+          "忠义"
+        ],
+        "ideals": [
+          "忠义",
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-tian-feng",
+        "factionId": "faction-yuan-shao",
+        "cityId": "city-ye",
+        "loyalty": 82,
+        "merit": 2000,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "strategist"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-ju-shou",
+        "name": "沮授",
+        "courtesyName": "公与",
+        "birthYear": 154,
+        "abilities": {
+          "leadership": 68,
+          "might": 42,
+          "intelligence": 94,
+          "politics": 91,
+          "charisma": 76
+        },
+        "traits": [
+          "善谋",
+          "谨慎"
+        ],
+        "ideals": [
+          "安定",
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-ju-shou",
+        "factionId": "faction-yuan-shao",
+        "cityId": "city-ye",
+        "loyalty": 88,
+        "merit": 2200,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "strategist"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-shen-pei",
+        "name": "审配",
+        "courtesyName": "正南",
+        "birthYear": 155,
+        "abilities": {
+          "leadership": 74,
+          "might": 50,
+          "intelligence": 82,
+          "politics": 88,
+          "charisma": 64
+        },
+        "traits": [
+          "忠义",
+          "多疑"
+        ],
+        "ideals": [
+          "忠义",
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-shen-pei",
+        "factionId": "faction-yuan-shao",
+        "cityId": "city-ye",
+        "loyalty": 94,
+        "merit": 1700,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-feng-ji",
+        "name": "逢纪",
+        "courtesyName": "元图",
+        "birthYear": 158,
+        "abilities": {
+          "leadership": 45,
+          "might": 31,
+          "intelligence": 84,
+          "politics": 78,
+          "charisma": 62
+        },
+        "traits": [
+          "善谋",
+          "野心"
+        ],
+        "ideals": [
+          "霸业",
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-feng-ji",
+        "factionId": "faction-yuan-shao",
+        "cityId": "city-ye",
+        "loyalty": 74,
+        "merit": 1100,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "civil"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-gao-lan",
+        "name": "高览",
+        "courtesyName": "元伯",
+        "birthYear": 165,
+        "abilities": {
+          "leadership": 82,
+          "might": 88,
+          "intelligence": 58,
+          "politics": 43,
+          "charisma": 60
+        },
+        "traits": [
+          "谨慎",
+          "豪勇"
+        ],
+        "ideals": [
+          "霸业",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-gao-lan",
+        "factionId": "faction-yuan-shao",
+        "cityId": "city-beiping",
+        "loyalty": 78,
+        "merit": 1250,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-zhang-he",
+        "name": "张郃",
+        "courtesyName": "儁乂",
+        "birthYear": 167,
+        "abilities": {
+          "leadership": 92,
+          "might": 89,
+          "intelligence": 79,
+          "politics": 63,
+          "charisma": 71
+        },
+        "traits": [
+          "谨慎",
+          "野心"
+        ],
+        "ideals": [
+          "霸业",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-zhang-he",
+        "factionId": "faction-yuan-shao",
+        "cityId": "city-beiping",
+        "loyalty": 76,
+        "merit": 1600,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-tian-yu",
+        "name": "田豫",
+        "courtesyName": "国让",
+        "birthYear": 171,
+        "abilities": {
+          "leadership": 84,
+          "might": 78,
+          "intelligence": 82,
+          "politics": 75,
+          "charisma": 73
+        },
+        "traits": [
+          "谨慎",
+          "善政"
+        ],
+        "ideals": [
+          "仁政",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-tian-yu",
+        "factionId": "faction-yuan-shao",
+        "cityId": "city-beiping",
+        "loyalty": 84,
+        "merit": 1100,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-sun-ce",
+        "name": "孙策",
+        "courtesyName": "伯符",
+        "birthYear": 175,
+        "abilities": {
+          "leadership": 94,
+          "might": 96,
+          "intelligence": 72,
+          "politics": 70,
+          "charisma": 92
+        },
+        "traits": [
+          "豪勇",
+          "野心"
+        ],
+        "ideals": [
+          "霸业"
+        ]
+      },
+      "initialState": {
+        "id": "officer-sun-ce",
+        "factionId": "faction-sun-ce",
+        "cityId": "city-shouchun",
+        "loyalty": 100,
+        "merit": 3500,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "ruler"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-zhou-yu",
+        "name": "周瑜",
+        "courtesyName": "公瑾",
+        "birthYear": 175,
+        "abilities": {
+          "leadership": 97,
+          "might": 71,
+          "intelligence": 96,
+          "politics": 86,
+          "charisma": 94
+        },
+        "traits": [
+          "善谋",
+          "沉着"
+        ],
+        "ideals": [
+          "安定",
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-zhou-yu",
+        "factionId": "faction-sun-ce",
+        "cityId": "city-shouchun",
+        "loyalty": 98,
+        "merit": 3200,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-cheng-pu",
+        "name": "程普",
+        "courtesyName": "德谋",
+        "birthYear": 153,
+        "abilities": {
+          "leadership": 86,
+          "might": 84,
+          "intelligence": 72,
+          "politics": 65,
+          "charisma": 74
+        },
+        "traits": [
+          "忠义",
+          "谨慎"
+        ],
+        "ideals": [
+          "忠义",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-cheng-pu",
+        "factionId": "faction-sun-ce",
+        "cityId": "city-shouchun",
+        "loyalty": 94,
+        "merit": 2300,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-huang-gai",
+        "name": "黄盖",
+        "courtesyName": "公覆",
+        "birthYear": 154,
+        "abilities": {
+          "leadership": 84,
+          "might": 86,
+          "intelligence": 68,
+          "politics": 61,
+          "charisma": 72
+        },
+        "traits": [
+          "忠义",
+          "豪勇"
+        ],
+        "ideals": [
+          "霸业",
+          "忠义"
+        ]
+      },
+      "initialState": {
+        "id": "officer-huang-gai",
+        "factionId": "faction-sun-ce",
+        "cityId": "city-jianye",
+        "loyalty": 95,
+        "merit": 2200,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-han-dang",
+        "name": "韩当",
+        "courtesyName": "义公",
+        "birthYear": 156,
+        "abilities": {
+          "leadership": 82,
+          "might": 85,
+          "intelligence": 57,
+          "politics": 48,
+          "charisma": 66
+        },
+        "traits": [
+          "忠义",
+          "谨慎"
+        ],
+        "ideals": [
+          "忠义",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-han-dang",
+        "factionId": "faction-sun-ce",
+        "cityId": "city-jianye",
+        "loyalty": 93,
+        "merit": 1850,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-zhu-zhi",
+        "name": "朱治",
+        "courtesyName": "君理",
+        "birthYear": 156,
+        "abilities": {
+          "leadership": 77,
+          "might": 65,
+          "intelligence": 74,
+          "politics": 82,
+          "charisma": 76
+        },
+        "traits": [
+          "善政",
+          "忠义"
+        ],
+        "ideals": [
+          "仁政",
+          "忠义"
+        ]
+      },
+      "initialState": {
+        "id": "officer-zhu-zhi",
+        "factionId": "faction-sun-ce",
+        "cityId": "city-jianye",
+        "loyalty": 92,
+        "merit": 1600,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "civil"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-zhang-zhao",
+        "name": "张昭",
+        "courtesyName": "子布",
+        "birthYear": 156,
+        "abilities": {
+          "leadership": 35,
+          "might": 19,
+          "intelligence": 90,
+          "politics": 97,
+          "charisma": 83
+        },
+        "traits": [
+          "善政",
+          "谨慎"
+        ],
+        "ideals": [
+          "仁政",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-zhang-zhao",
+        "factionId": "faction-sun-ce",
+        "cityId": "city-jianye",
+        "loyalty": 90,
+        "merit": 2400,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-zhang-hong",
+        "name": "张纮",
+        "courtesyName": "子纲",
+        "birthYear": 153,
+        "abilities": {
+          "leadership": 31,
+          "might": 22,
+          "intelligence": 88,
+          "politics": 94,
+          "charisma": 85
+        },
+        "traits": [
+          "善政",
+          "沉着"
+        ],
+        "ideals": [
+          "仁政",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-zhang-hong",
+        "factionId": "faction-sun-ce",
+        "cityId": "city-jianye",
+        "loyalty": 89,
+        "merit": 1900,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "strategist"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-jiang-qin",
+        "name": "蒋钦",
+        "courtesyName": "公奕",
+        "birthYear": 175,
+        "abilities": {
+          "leadership": 80,
+          "might": 86,
+          "intelligence": 61,
+          "politics": 49,
+          "charisma": 64
+        },
+        "traits": [
+          "豪勇",
+          "忠义"
+        ],
+        "ideals": [
+          "霸业",
+          "忠义"
+        ]
+      },
+      "initialState": {
+        "id": "officer-jiang-qin",
+        "factionId": "faction-sun-ce",
+        "cityId": "city-shouchun",
+        "loyalty": 88,
+        "merit": 1300,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-zhou-tai",
+        "name": "周泰",
+        "courtesyName": "幼平",
+        "birthYear": 174,
+        "abilities": {
+          "leadership": 84,
+          "might": 94,
+          "intelligence": 52,
+          "politics": 38,
+          "charisma": 67
+        },
+        "traits": [
+          "豪勇",
+          "忠义"
+        ],
+        "ideals": [
+          "霸业",
+          "忠义"
+        ]
+      },
+      "initialState": {
+        "id": "officer-zhou-tai",
+        "factionId": "faction-sun-ce",
+        "cityId": "city-jianye",
+        "loyalty": 96,
+        "merit": 1450,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-liu-biao",
+        "name": "刘表",
+        "courtesyName": "景升",
+        "birthYear": 142,
+        "abilities": {
+          "leadership": 70,
+          "might": 47,
+          "intelligence": 79,
+          "politics": 87,
+          "charisma": 86
+        },
+        "traits": [
+          "善政",
+          "谨慎"
+        ],
+        "ideals": [
+          "仁政",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-liu-biao",
+        "factionId": "faction-liu-biao",
+        "cityId": "city-xiangyang",
+        "loyalty": 100,
+        "merit": 3800,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "ruler"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-kuai-yue",
+        "name": "蒯越",
+        "courtesyName": "异度",
+        "birthYear": 155,
+        "abilities": {
+          "leadership": 52,
+          "might": 34,
+          "intelligence": 91,
+          "politics": 90,
+          "charisma": 79
+        },
+        "traits": [
+          "善谋",
+          "善政"
+        ],
+        "ideals": [
+          "仁政",
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-kuai-yue",
+        "factionId": "faction-liu-biao",
+        "cityId": "city-xiangyang",
+        "loyalty": 93,
+        "merit": 2100,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-kuai-liang",
+        "name": "蒯良",
+        "courtesyName": "子柔",
+        "birthYear": 152,
+        "abilities": {
+          "leadership": 43,
+          "might": 29,
+          "intelligence": 88,
+          "politics": 93,
+          "charisma": 82
+        },
+        "traits": [
+          "善政",
+          "沉着"
+        ],
+        "ideals": [
+          "仁政",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-kuai-liang",
+        "factionId": "faction-liu-biao",
+        "cityId": "city-xiangyang",
+        "loyalty": 92,
+        "merit": 1900,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "strategist"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-cai-mao",
+        "name": "蔡瑁",
+        "courtesyName": "德珪",
+        "birthYear": 156,
+        "abilities": {
+          "leadership": 76,
+          "might": 69,
+          "intelligence": 72,
+          "politics": 75,
+          "charisma": 61
+        },
+        "traits": [
+          "多疑",
+          "野心"
+        ],
+        "ideals": [
+          "霸业",
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-cai-mao",
+        "factionId": "faction-liu-biao",
+        "cityId": "city-jiangling",
+        "loyalty": 81,
+        "merit": 1700,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-wen-pin",
+        "name": "文聘",
+        "courtesyName": "仲业",
+        "birthYear": 164,
+        "abilities": {
+          "leadership": 88,
+          "might": 83,
+          "intelligence": 74,
+          "politics": 62,
+          "charisma": 69
+        },
+        "traits": [
+          "忠义",
+          "谨慎"
+        ],
+        "ideals": [
+          "忠义",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-wen-pin",
+        "factionId": "faction-liu-biao",
+        "cityId": "city-xiangyang",
+        "loyalty": 91,
+        "merit": 1900,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-huang-zu",
+        "name": "黄祖",
+        "courtesyName": "元阳",
+        "birthYear": 150,
+        "abilities": {
+          "leadership": 74,
+          "might": 76,
+          "intelligence": 55,
+          "politics": 52,
+          "charisma": 49
+        },
+        "traits": [
+          "多疑",
+          "豪勇"
+        ],
+        "ideals": [
+          "霸业",
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-huang-zu",
+        "factionId": "faction-liu-biao",
+        "cityId": "city-jiangling",
+        "loyalty": 84,
+        "merit": 1500,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-wang-can",
+        "name": "王粲",
+        "courtesyName": "仲宣",
+        "birthYear": 177,
+        "abilities": {
+          "leadership": 22,
+          "might": 18,
+          "intelligence": 86,
+          "politics": 91,
+          "charisma": 80
+        },
+        "traits": [
+          "善政",
+          "沉着"
+        ],
+        "ideals": [
+          "仁政",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-wang-can",
+        "factionId": "faction-liu-biao",
+        "cityId": "city-xiangyang",
+        "loyalty": 78,
+        "merit": 750,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "civil"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-yi-ji",
+        "name": "伊籍",
+        "courtesyName": "机伯",
+        "birthYear": 162,
+        "abilities": {
+          "leadership": 35,
+          "might": 27,
+          "intelligence": 78,
+          "politics": 85,
+          "charisma": 84
+        },
+        "traits": [
+          "善政",
+          "爱民"
+        ],
+        "ideals": [
+          "仁政"
+        ]
+      },
+      "initialState": {
+        "id": "officer-yi-ji",
+        "factionId": "faction-liu-biao",
+        "cityId": "city-xiangyang",
+        "loyalty": 88,
+        "merit": 1000,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "civil"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-huo-jun",
+        "name": "霍峻",
+        "courtesyName": "仲邈",
+        "birthYear": 177,
+        "abilities": {
+          "leadership": 83,
+          "might": 79,
+          "intelligence": 72,
+          "politics": 58,
+          "charisma": 68
+        },
+        "traits": [
+          "谨慎",
+          "忠义"
+        ],
+        "ideals": [
+          "忠义",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-huo-jun",
+        "factionId": "faction-liu-biao",
+        "cityId": "city-jiangling",
+        "loyalty": 93,
+        "merit": 1100,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-liu-qi",
+        "name": "刘琦",
+        "courtesyName": "伯玮",
+        "birthYear": 173,
+        "abilities": {
+          "leadership": 58,
+          "might": 46,
+          "intelligence": 67,
+          "politics": 70,
+          "charisma": 76
+        },
+        "traits": [
+          "谨慎",
+          "爱民"
+        ],
+        "ideals": [
+          "仁政",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-liu-qi",
+        "factionId": "faction-liu-biao",
+        "cityId": "city-jiangling",
+        "loyalty": 90,
+        "merit": 800,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "reserve"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-lu-bu",
+        "name": "吕布",
+        "courtesyName": "奉先",
+        "birthYear": 161,
+        "abilities": {
+          "leadership": 92,
+          "might": 100,
+          "intelligence": 42,
+          "politics": 28,
+          "charisma": 88
+        },
+        "traits": [
+          "豪勇",
+          "野心"
+        ],
+        "ideals": [
+          "霸业"
+        ]
+      },
+      "initialState": {
+        "id": "officer-lu-bu",
+        "factionId": "faction-lu-bu",
+        "cityId": "city-puyang",
+        "loyalty": 100,
+        "merit": 3600,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "ruler"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-chen-gong",
+        "name": "陈宫",
+        "courtesyName": "公台",
+        "birthYear": 160,
+        "abilities": {
+          "leadership": 70,
+          "might": 55,
+          "intelligence": 92,
+          "politics": 84,
+          "charisma": 71
+        },
+        "traits": [
+          "善谋",
+          "忠义"
+        ],
+        "ideals": [
+          "忠义",
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-chen-gong",
+        "factionId": "faction-lu-bu",
+        "cityId": "city-puyang",
+        "loyalty": 91,
+        "merit": 2200,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-gao-shun",
+        "name": "高顺",
+        "courtesyName": "伯平",
+        "birthYear": 158,
+        "abilities": {
+          "leadership": 90,
+          "might": 86,
+          "intelligence": 71,
+          "politics": 52,
+          "charisma": 68
+        },
+        "traits": [
+          "忠义",
+          "谨慎"
+        ],
+        "ideals": [
+          "忠义",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-gao-shun",
+        "factionId": "faction-lu-bu",
+        "cityId": "city-puyang",
+        "loyalty": 98,
+        "merit": 2000,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-zhang-liao",
+        "name": "张辽",
+        "courtesyName": "文远",
+        "birthYear": 169,
+        "abilities": {
+          "leadership": 94,
+          "might": 92,
+          "intelligence": 82,
+          "politics": 68,
+          "charisma": 78
+        },
+        "traits": [
+          "豪勇",
+          "沉着"
+        ],
+        "ideals": [
+          "霸业",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-zhang-liao",
+        "factionId": "faction-lu-bu",
+        "cityId": "city-puyang",
+        "loyalty": 86,
+        "merit": 1850,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-zang-ba",
+        "name": "臧霸",
+        "courtesyName": "宣高",
+        "birthYear": 165,
+        "abilities": {
+          "leadership": 84,
+          "might": 87,
+          "intelligence": 66,
+          "politics": 54,
+          "charisma": 65
+        },
+        "traits": [
+          "豪勇",
+          "野心"
+        ],
+        "ideals": [
+          "霸业"
+        ]
+      },
+      "initialState": {
+        "id": "officer-zang-ba",
+        "factionId": "faction-lu-bu",
+        "cityId": "city-puyang",
+        "loyalty": 75,
+        "merit": 1300,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-hou-cheng",
+        "name": "侯成",
+        "courtesyName": "叔武",
+        "birthYear": 164,
+        "abilities": {
+          "leadership": 69,
+          "might": 73,
+          "intelligence": 45,
+          "politics": 43,
+          "charisma": 48
+        },
+        "traits": [
+          "贪财",
+          "多疑"
+        ],
+        "ideals": [
+          "谋略",
+          "财富"
+        ]
+      },
+      "initialState": {
+        "id": "officer-hou-cheng",
+        "factionId": "faction-lu-bu",
+        "cityId": "city-puyang",
+        "loyalty": 68,
+        "merit": 820,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "reserve"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-song-xian",
+        "name": "宋宪",
+        "courtesyName": "仲威",
+        "birthYear": 166,
+        "abilities": {
+          "leadership": 66,
+          "might": 71,
+          "intelligence": 42,
+          "politics": 38,
+          "charisma": 46
+        },
+        "traits": [
+          "多疑",
+          "野心"
+        ],
+        "ideals": [
+          "霸业",
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-song-xian",
+        "factionId": "faction-lu-bu",
+        "cityId": "city-puyang",
+        "loyalty": 64,
+        "merit": 760,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "reserve"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-wei-xu",
+        "name": "魏续",
+        "courtesyName": "文长",
+        "birthYear": 165,
+        "abilities": {
+          "leadership": 65,
+          "might": 70,
+          "intelligence": 40,
+          "politics": 36,
+          "charisma": 44
+        },
+        "traits": [
+          "贪财",
+          "多疑"
+        ],
+        "ideals": [
+          "谋略",
+          "财富"
+        ]
+      },
+      "initialState": {
+        "id": "officer-wei-xu",
+        "factionId": "faction-lu-bu",
+        "cityId": "city-puyang",
+        "loyalty": 66,
+        "merit": 720,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "reserve"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-cao-xing",
+        "name": "曹性",
+        "courtesyName": "子明",
+        "birthYear": 168,
+        "abilities": {
+          "leadership": 71,
+          "might": 80,
+          "intelligence": 52,
+          "politics": 39,
+          "charisma": 45
+        },
+        "traits": [
+          "谨慎",
+          "豪勇"
+        ],
+        "ideals": [
+          "霸业",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-cao-xing",
+        "factionId": "faction-lu-bu",
+        "cityId": "city-puyang",
+        "loyalty": 79,
+        "merit": 900,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-cheng-lian",
+        "name": "成廉",
+        "courtesyName": "子勇",
+        "birthYear": 163,
+        "abilities": {
+          "leadership": 72,
+          "might": 82,
+          "intelligence": 43,
+          "politics": 35,
+          "charisma": 47
+        },
+        "traits": [
+          "豪勇",
+          "忠义"
+        ],
+        "ideals": [
+          "霸业",
+          "忠义"
+        ]
+      },
+      "initialState": {
+        "id": "officer-cheng-lian",
+        "factionId": "faction-lu-bu",
+        "cityId": "city-puyang",
+        "loyalty": 83,
+        "merit": 960,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-ma-teng",
+        "name": "马腾",
+        "courtesyName": "寿成",
+        "birthYear": 156,
+        "abilities": {
+          "leadership": 84,
+          "might": 88,
+          "intelligence": 62,
+          "politics": 58,
+          "charisma": 86
+        },
+        "traits": [
+          "豪勇",
+          "爱民"
+        ],
+        "ideals": [
+          "仁政",
+          "霸业"
+        ]
+      },
+      "initialState": {
+        "id": "officer-ma-teng",
+        "factionId": "faction-ma-teng",
+        "cityId": "city-wuwei",
+        "loyalty": 100,
+        "merit": 3300,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "ruler"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-ma-chao",
+        "name": "马超",
+        "courtesyName": "孟起",
+        "birthYear": 176,
+        "abilities": {
+          "leadership": 91,
+          "might": 97,
+          "intelligence": 54,
+          "politics": 38,
+          "charisma": 88
+        },
+        "traits": [
+          "豪勇",
+          "野心"
+        ],
+        "ideals": [
+          "霸业"
+        ]
+      },
+      "initialState": {
+        "id": "officer-ma-chao",
+        "factionId": "faction-ma-teng",
+        "cityId": "city-wuwei",
+        "loyalty": 98,
+        "merit": 2400,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-ma-dai",
+        "name": "马岱",
+        "courtesyName": "伯瞻",
+        "birthYear": 178,
+        "abilities": {
+          "leadership": 84,
+          "might": 88,
+          "intelligence": 69,
+          "politics": 61,
+          "charisma": 72
+        },
+        "traits": [
+          "忠义",
+          "谨慎"
+        ],
+        "ideals": [
+          "忠义",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-ma-dai",
+        "factionId": "faction-ma-teng",
+        "cityId": "city-wuwei",
+        "loyalty": 96,
+        "merit": 1500,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-han-sui",
+        "name": "韩遂",
+        "courtesyName": "文约",
+        "birthYear": 145,
+        "abilities": {
+          "leadership": 82,
+          "might": 76,
+          "intelligence": 82,
+          "politics": 77,
+          "charisma": 84
+        },
+        "traits": [
+          "多疑",
+          "善谋"
+        ],
+        "ideals": [
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-han-sui",
+        "factionId": "faction-ma-teng",
+        "cityId": "city-tianshui",
+        "loyalty": 82,
+        "merit": 2600,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-pang-de",
+        "name": "庞德",
+        "courtesyName": "令明",
+        "birthYear": 170,
+        "abilities": {
+          "leadership": 88,
+          "might": 94,
+          "intelligence": 71,
+          "politics": 55,
+          "charisma": 75
+        },
+        "traits": [
+          "豪勇",
+          "忠义"
+        ],
+        "ideals": [
+          "霸业",
+          "忠义"
+        ]
+      },
+      "initialState": {
+        "id": "officer-pang-de",
+        "factionId": "faction-ma-teng",
+        "cityId": "city-changan",
+        "loyalty": 91,
+        "merit": 1900,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-cheng-gongying",
+        "name": "成公英",
+        "courtesyName": "伯义",
+        "birthYear": 163,
+        "abilities": {
+          "leadership": 67,
+          "might": 55,
+          "intelligence": 88,
+          "politics": 82,
+          "charisma": 73
+        },
+        "traits": [
+          "善谋",
+          "沉着"
+        ],
+        "ideals": [
+          "安定",
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-cheng-gongying",
+        "factionId": "faction-ma-teng",
+        "cityId": "city-tianshui",
+        "loyalty": 89,
+        "merit": 1500,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "strategist"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-gongsun-zan",
+        "name": "公孙瓒",
+        "courtesyName": "伯圭",
+        "birthYear": 158,
+        "abilities": {
+          "leadership": 89,
+          "might": 91,
+          "intelligence": 66,
+          "politics": 52,
+          "charisma": 82
+        },
+        "traits": [
+          "豪勇",
+          "野心"
+        ],
+        "ideals": [
+          "霸业"
+        ]
+      },
+      "initialState": {
+        "id": "officer-gongsun-zan",
+        "factionId": "faction-gongsun-zan",
+        "cityId": "city-yijing",
+        "loyalty": 100,
+        "merit": 3400,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "ruler"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-tian-kai",
+        "name": "田楷",
+        "courtesyName": "元皓",
+        "birthYear": 161,
+        "abilities": {
+          "leadership": 78,
+          "might": 74,
+          "intelligence": 67,
+          "politics": 64,
+          "charisma": 69
+        },
+        "traits": [
+          "谨慎",
+          "忠义"
+        ],
+        "ideals": [
+          "忠义",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-tian-kai",
+        "factionId": "faction-gongsun-zan",
+        "cityId": "city-yijing",
+        "loyalty": 92,
+        "merit": 1500,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-gongsun-yue",
+        "name": "公孙越",
+        "courtesyName": "仲珪",
+        "birthYear": 164,
+        "abilities": {
+          "leadership": 77,
+          "might": 82,
+          "intelligence": 58,
+          "politics": 49,
+          "charisma": 70
+        },
+        "traits": [
+          "豪勇",
+          "忠义"
+        ],
+        "ideals": [
+          "霸业",
+          "忠义"
+        ]
+      },
+      "initialState": {
+        "id": "officer-gongsun-yue",
+        "factionId": "faction-gongsun-zan",
+        "cityId": "city-ji",
+        "loyalty": 94,
+        "merit": 1350,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-yan-gang",
+        "name": "严纲",
+        "courtesyName": "正卿",
+        "birthYear": 166,
+        "abilities": {
+          "leadership": 82,
+          "might": 87,
+          "intelligence": 53,
+          "politics": 42,
+          "charisma": 61
+        },
+        "traits": [
+          "豪勇",
+          "谨慎"
+        ],
+        "ideals": [
+          "霸业",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-yan-gang",
+        "factionId": "faction-gongsun-zan",
+        "cityId": "city-yijing",
+        "loyalty": 90,
+        "merit": 1300,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-shan-jing",
+        "name": "单经",
+        "courtesyName": "子行",
+        "birthYear": 164,
+        "abilities": {
+          "leadership": 78,
+          "might": 80,
+          "intelligence": 62,
+          "politics": 57,
+          "charisma": 65
+        },
+        "traits": [
+          "谨慎",
+          "忠义"
+        ],
+        "ideals": [
+          "忠义",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-shan-jing",
+        "factionId": "faction-gongsun-zan",
+        "cityId": "city-ji",
+        "loyalty": 88,
+        "merit": 1180,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-guan-jing",
+        "name": "关靖",
+        "courtesyName": "士起",
+        "birthYear": 155,
+        "abilities": {
+          "leadership": 48,
+          "might": 35,
+          "intelligence": 84,
+          "politics": 79,
+          "charisma": 68
+        },
+        "traits": [
+          "善谋",
+          "多疑"
+        ],
+        "ideals": [
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-guan-jing",
+        "factionId": "faction-gongsun-zan",
+        "cityId": "city-ji",
+        "loyalty": 87,
+        "merit": 1420,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "strategist"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-xin-ping",
+        "name": "辛评",
+        "courtesyName": "仲治",
+        "birthYear": 157,
+        "abilities": {
+          "leadership": 52,
+          "might": 38,
+          "intelligence": 82,
+          "politics": 86,
+          "charisma": 71
+        },
+        "traits": [
+          "善谋",
+          "善政"
+        ],
+        "ideals": [
+          "仁政",
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-xin-ping",
+        "factionId": "faction-yuan-shao",
+        "cityId": "city-jinyang",
+        "loyalty": 86,
+        "merit": 1400,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-lv-kuang",
+        "name": "吕旷",
+        "courtesyName": "子旷",
+        "birthYear": 164,
+        "abilities": {
+          "leadership": 74,
+          "might": 78,
+          "intelligence": 57,
+          "politics": 52,
+          "charisma": 60
+        },
+        "traits": [
+          "谨慎",
+          "豪勇"
+        ],
+        "ideals": [
+          "霸业",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-lv-kuang",
+        "factionId": "faction-yuan-shao",
+        "cityId": "city-nanpi",
+        "loyalty": 84,
+        "merit": 1100,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-li-jue",
+        "name": "李傕",
+        "courtesyName": "稚然",
+        "birthYear": 155,
+        "abilities": {
+          "leadership": 78,
+          "might": 84,
+          "intelligence": 62,
+          "politics": 48,
+          "charisma": 58
+        },
+        "traits": [
+          "野心",
+          "多疑"
+        ],
+        "ideals": [
+          "霸业",
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-li-jue",
+        "factionId": "faction-li-jue",
+        "cityId": "city-anding",
+        "loyalty": 100,
+        "merit": 3000,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "ruler"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-guo-si",
+        "name": "郭汜",
+        "courtesyName": "多闻",
+        "birthYear": 158,
+        "abilities": {
+          "leadership": 76,
+          "might": 82,
+          "intelligence": 55,
+          "politics": 43,
+          "charisma": 52
+        },
+        "traits": [
+          "野心",
+          "贪财"
+        ],
+        "ideals": [
+          "霸业",
+          "财富"
+        ]
+      },
+      "initialState": {
+        "id": "officer-guo-si",
+        "factionId": "faction-li-jue",
+        "cityId": "city-anding",
+        "loyalty": 82,
+        "merit": 1900,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-zhang-ji",
+        "name": "张济",
+        "courtesyName": "伯顺",
+        "birthYear": 155,
+        "abilities": {
+          "leadership": 80,
+          "might": 83,
+          "intelligence": 63,
+          "politics": 52,
+          "charisma": 67
+        },
+        "traits": [
+          "谨慎",
+          "豪勇"
+        ],
+        "ideals": [
+          "霸业",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-zhang-ji",
+        "factionId": "faction-li-jue",
+        "cityId": "city-hongnong",
+        "loyalty": 88,
+        "merit": 1750,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-fan-chou",
+        "name": "樊稠",
+        "courtesyName": "仲勇",
+        "birthYear": 160,
+        "abilities": {
+          "leadership": 77,
+          "might": 86,
+          "intelligence": 48,
+          "politics": 39,
+          "charisma": 55
+        },
+        "traits": [
+          "豪勇",
+          "野心"
+        ],
+        "ideals": [
+          "霸业"
+        ]
+      },
+      "initialState": {
+        "id": "officer-fan-chou",
+        "factionId": "faction-li-jue",
+        "cityId": "city-hongnong",
+        "loyalty": 80,
+        "merit": 1500,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-yuan-shu",
+        "name": "袁术",
+        "courtesyName": "公路",
+        "birthYear": 155,
+        "abilities": {
+          "leadership": 72,
+          "might": 65,
+          "intelligence": 68,
+          "politics": 69,
+          "charisma": 84
+        },
+        "traits": [
+          "野心",
+          "多疑"
+        ],
+        "ideals": [
+          "霸业",
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-yuan-shu",
+        "factionId": "faction-yuan-shu",
+        "cityId": "city-runan",
+        "loyalty": 100,
+        "merit": 3500,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "ruler"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-ji-ling",
+        "name": "纪灵",
+        "courtesyName": "伏义",
+        "birthYear": 160,
+        "abilities": {
+          "leadership": 82,
+          "might": 91,
+          "intelligence": 55,
+          "politics": 42,
+          "charisma": 63
+        },
+        "traits": [
+          "豪勇",
+          "忠义"
+        ],
+        "ideals": [
+          "霸业",
+          "忠义"
+        ]
+      },
+      "initialState": {
+        "id": "officer-ji-ling",
+        "factionId": "faction-yuan-shu",
+        "cityId": "city-runan",
+        "loyalty": 94,
+        "merit": 2000,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-yang-hong",
+        "name": "杨弘",
+        "courtesyName": "伯彦",
+        "birthYear": 157,
+        "abilities": {
+          "leadership": 43,
+          "might": 29,
+          "intelligence": 82,
+          "politics": 86,
+          "charisma": 71
+        },
+        "traits": [
+          "善政",
+          "谨慎"
+        ],
+        "ideals": [
+          "仁政",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-yang-hong",
+        "factionId": "faction-yuan-shu",
+        "cityId": "city-hefei",
+        "loyalty": 89,
+        "merit": 1650,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-liu-xun",
+        "name": "刘勋",
+        "courtesyName": "子台",
+        "birthYear": 159,
+        "abilities": {
+          "leadership": 76,
+          "might": 73,
+          "intelligence": 67,
+          "politics": 65,
+          "charisma": 64
+        },
+        "traits": [
+          "多疑",
+          "谨慎"
+        ],
+        "ideals": [
+          "安定",
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-liu-xun",
+        "factionId": "faction-yuan-shu",
+        "cityId": "city-hefei",
+        "loyalty": 80,
+        "merit": 1400,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-zhang-xiu",
+        "name": "张绣",
+        "courtesyName": "文锦",
+        "birthYear": 170,
+        "abilities": {
+          "leadership": 86,
+          "might": 91,
+          "intelligence": 68,
+          "politics": 48,
+          "charisma": 74
+        },
+        "traits": [
+          "豪勇",
+          "谨慎"
+        ],
+        "ideals": [
+          "霸业",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-zhang-xiu",
+        "factionId": "faction-zhang-xiu",
+        "cityId": "city-wan",
+        "loyalty": 100,
+        "merit": 2800,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "ruler"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-hu-che-er",
+        "name": "胡车儿",
+        "courtesyName": "伯力",
+        "birthYear": 170,
+        "abilities": {
+          "leadership": 74,
+          "might": 92,
+          "intelligence": 42,
+          "politics": 31,
+          "charisma": 51
+        },
+        "traits": [
+          "豪勇",
+          "忠义"
+        ],
+        "ideals": [
+          "霸业",
+          "忠义"
+        ]
+      },
+      "initialState": {
+        "id": "officer-hu-che-er",
+        "factionId": "faction-zhang-xiu",
+        "cityId": "city-wan",
+        "loyalty": 92,
+        "merit": 1400,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-lei-xu",
+        "name": "雷叙",
+        "courtesyName": "季明",
+        "birthYear": 168,
+        "abilities": {
+          "leadership": 73,
+          "might": 79,
+          "intelligence": 58,
+          "politics": 47,
+          "charisma": 56
+        },
+        "traits": [
+          "谨慎",
+          "豪勇"
+        ],
+        "ideals": [
+          "霸业",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-lei-xu",
+        "factionId": "faction-zhang-xiu",
+        "cityId": "city-wan",
+        "loyalty": 84,
+        "merit": 1050,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-liu-zhang",
+        "name": "刘璋",
+        "courtesyName": "季玉",
+        "birthYear": 162,
+        "abilities": {
+          "leadership": 65,
+          "might": 41,
+          "intelligence": 72,
+          "politics": 81,
+          "charisma": 78
+        },
+        "traits": [
+          "爱民",
+          "谨慎"
+        ],
+        "ideals": [
+          "仁政",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-liu-zhang",
+        "factionId": "faction-liu-zhang",
+        "cityId": "city-chengdu",
+        "loyalty": 100,
+        "merit": 3400,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "ruler"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-zhang-ren",
+        "name": "张任",
+        "courtesyName": "伯仁",
+        "birthYear": 160,
+        "abilities": {
+          "leadership": 89,
+          "might": 88,
+          "intelligence": 77,
+          "politics": 58,
+          "charisma": 72
+        },
+        "traits": [
+          "忠义",
+          "谨慎"
+        ],
+        "ideals": [
+          "忠义",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-zhang-ren",
+        "factionId": "faction-liu-zhang",
+        "cityId": "city-chengdu",
+        "loyalty": 97,
+        "merit": 2300,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-huang-quan",
+        "name": "黄权",
+        "courtesyName": "公衡",
+        "birthYear": 167,
+        "abilities": {
+          "leadership": 78,
+          "might": 61,
+          "intelligence": 91,
+          "politics": 88,
+          "charisma": 79
+        },
+        "traits": [
+          "善谋",
+          "忠义"
+        ],
+        "ideals": [
+          "忠义",
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-huang-quan",
+        "factionId": "faction-liu-zhang",
+        "cityId": "city-zitong",
+        "loyalty": 94,
+        "merit": 2000,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-yan-yan",
+        "name": "严颜",
+        "courtesyName": "希伯",
+        "birthYear": 150,
+        "abilities": {
+          "leadership": 86,
+          "might": 89,
+          "intelligence": 68,
+          "politics": 57,
+          "charisma": 73
+        },
+        "traits": [
+          "忠义",
+          "豪勇"
+        ],
+        "ideals": [
+          "霸业",
+          "忠义"
+        ]
+      },
+      "initialState": {
+        "id": "officer-yan-yan",
+        "factionId": "faction-liu-zhang",
+        "cityId": "city-jiangzhou",
+        "loyalty": 96,
+        "merit": 2100,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-fa-zheng",
+        "name": "法正",
+        "courtesyName": "孝直",
+        "birthYear": 176,
+        "abilities": {
+          "leadership": 74,
+          "might": 47,
+          "intelligence": 96,
+          "politics": 88,
+          "charisma": 83
+        },
+        "traits": [
+          "善谋",
+          "野心"
+        ],
+        "ideals": [
+          "霸业",
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-fa-zheng",
+        "factionId": "faction-liu-zhang",
+        "cityId": "city-yongan",
+        "loyalty": 79,
+        "merit": 1650,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-wu-yi",
+        "name": "吴懿",
+        "courtesyName": "子远",
+        "birthYear": 165,
+        "abilities": {
+          "leadership": 82,
+          "might": 79,
+          "intelligence": 72,
+          "politics": 66,
+          "charisma": 70
+        },
+        "traits": [
+          "谨慎",
+          "忠义"
+        ],
+        "ideals": [
+          "忠义",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-wu-yi",
+        "factionId": "faction-liu-zhang",
+        "cityId": "city-chengdu",
+        "loyalty": 91,
+        "merit": 1700,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-zhang-lu",
+        "name": "张鲁",
+        "courtesyName": "公祺",
+        "birthYear": 165,
+        "abilities": {
+          "leadership": 72,
+          "might": 51,
+          "intelligence": 78,
+          "politics": 84,
+          "charisma": 88
+        },
+        "traits": [
+          "爱民",
+          "善政"
+        ],
+        "ideals": [
+          "仁政"
+        ]
+      },
+      "initialState": {
+        "id": "officer-zhang-lu",
+        "factionId": "faction-zhang-lu",
+        "cityId": "city-hanzhong",
+        "loyalty": 100,
+        "merit": 2900,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "ruler"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-yan-pu",
+        "name": "阎圃",
+        "courtesyName": "子茂",
+        "birthYear": 163,
+        "abilities": {
+          "leadership": 55,
+          "might": 36,
+          "intelligence": 89,
+          "politics": 86,
+          "charisma": 76
+        },
+        "traits": [
+          "善谋",
+          "善政"
+        ],
+        "ideals": [
+          "仁政",
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-yan-pu",
+        "factionId": "faction-zhang-lu",
+        "cityId": "city-hanzhong",
+        "loyalty": 96,
+        "merit": 1800,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-yang-ren",
+        "name": "杨任",
+        "courtesyName": "子威",
+        "birthYear": 166,
+        "abilities": {
+          "leadership": 80,
+          "might": 86,
+          "intelligence": 61,
+          "politics": 47,
+          "charisma": 62
+        },
+        "traits": [
+          "豪勇",
+          "忠义"
+        ],
+        "ideals": [
+          "霸业",
+          "忠义"
+        ]
+      },
+      "initialState": {
+        "id": "officer-yang-ren",
+        "factionId": "faction-zhang-lu",
+        "cityId": "city-hanzhong",
+        "loyalty": 92,
+        "merit": 1450,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-kong-rong",
+        "name": "孔融",
+        "courtesyName": "文举",
+        "birthYear": 153,
+        "abilities": {
+          "leadership": 48,
+          "might": 29,
+          "intelligence": 82,
+          "politics": 87,
+          "charisma": 91
+        },
+        "traits": [
+          "爱民",
+          "忠义"
+        ],
+        "ideals": [
+          "仁政",
+          "忠义"
+        ]
+      },
+      "initialState": {
+        "id": "officer-kong-rong",
+        "factionId": "faction-kong-rong",
+        "cityId": "city-beihai",
+        "loyalty": 100,
+        "merit": 3100,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "ruler"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-wang-xiu",
+        "name": "王修",
+        "courtesyName": "叔治",
+        "birthYear": 158,
+        "abilities": {
+          "leadership": 60,
+          "might": 45,
+          "intelligence": 84,
+          "politics": 90,
+          "charisma": 78
+        },
+        "traits": [
+          "善政",
+          "忠义"
+        ],
+        "ideals": [
+          "仁政",
+          "忠义"
+        ]
+      },
+      "initialState": {
+        "id": "officer-wang-xiu",
+        "factionId": "faction-kong-rong",
+        "cityId": "city-beihai",
+        "loyalty": 96,
+        "merit": 1800,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-wu-anguo",
+        "name": "武安国",
+        "courtesyName": "兴邦",
+        "birthYear": 165,
+        "abilities": {
+          "leadership": 72,
+          "might": 89,
+          "intelligence": 43,
+          "politics": 33,
+          "charisma": 58
+        },
+        "traits": [
+          "豪勇",
+          "忠义"
+        ],
+        "ideals": [
+          "霸业",
+          "忠义"
+        ]
+      },
+      "initialState": {
+        "id": "officer-wu-anguo",
+        "factionId": "faction-kong-rong",
+        "cityId": "city-beihai",
+        "loyalty": 91,
+        "merit": 1300,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-shi-xie",
+        "name": "士燮",
+        "courtesyName": "威彦",
+        "birthYear": 137,
+        "abilities": {
+          "leadership": 68,
+          "might": 42,
+          "intelligence": 84,
+          "politics": 94,
+          "charisma": 92
+        },
+        "traits": [
+          "善政",
+          "爱民"
+        ],
+        "ideals": [
+          "仁政"
+        ]
+      },
+      "initialState": {
+        "id": "officer-shi-xie",
+        "factionId": "faction-shi-xie",
+        "cityId": "city-jiaozhi",
+        "loyalty": 100,
+        "merit": 3600,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "ruler"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-shi-yi",
+        "name": "士壹",
+        "courtesyName": "次彦",
+        "birthYear": 145,
+        "abilities": {
+          "leadership": 58,
+          "might": 43,
+          "intelligence": 76,
+          "politics": 85,
+          "charisma": 79
+        },
+        "traits": [
+          "善政",
+          "谨慎"
+        ],
+        "ideals": [
+          "仁政",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-shi-yi",
+        "factionId": "faction-shi-xie",
+        "cityId": "city-jiaozhi",
+        "loyalty": 97,
+        "merit": 1650,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-shi-wu",
+        "name": "士武",
+        "courtesyName": "季彦",
+        "birthYear": 150,
+        "abilities": {
+          "leadership": 68,
+          "might": 65,
+          "intelligence": 69,
+          "politics": 77,
+          "charisma": 73
+        },
+        "traits": [
+          "忠义",
+          "谨慎"
+        ],
+        "ideals": [
+          "忠义",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-shi-wu",
+        "factionId": "faction-shi-xie",
+        "cityId": "city-cangwu",
+        "loyalty": 95,
+        "merit": 1500,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-zhang-min",
+        "name": "张旻",
+        "courtesyName": "景云",
+        "birthYear": 163,
+        "abilities": {
+          "leadership": 74,
+          "might": 76,
+          "intelligence": 62,
+          "politics": 58,
+          "charisma": 67
+        },
+        "traits": [
+          "谨慎",
+          "忠义"
+        ],
+        "ideals": [
+          "忠义",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-zhang-min",
+        "factionId": "faction-shi-xie",
+        "cityId": "city-cangwu",
+        "loyalty": 88,
+        "merit": 1150,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-gongsun-du",
+        "name": "公孙度",
+        "courtesyName": "升济",
+        "birthYear": 150,
+        "abilities": {
+          "leadership": 82,
+          "might": 78,
+          "intelligence": 74,
+          "politics": 72,
+          "charisma": 84
+        },
+        "traits": [
+          "野心",
+          "沉着"
+        ],
+        "ideals": [
+          "霸业",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-gongsun-du",
+        "factionId": "faction-gongsun-du",
+        "cityId": "city-xiangping",
+        "loyalty": 100,
+        "merit": 3200,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "ruler"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-liu-yi",
+        "name": "柳毅",
+        "courtesyName": "仲果",
+        "birthYear": 158,
+        "abilities": {
+          "leadership": 77,
+          "might": 75,
+          "intelligence": 66,
+          "politics": 64,
+          "charisma": 68
+        },
+        "traits": [
+          "谨慎",
+          "忠义"
+        ],
+        "ideals": [
+          "忠义",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-liu-yi",
+        "factionId": "faction-gongsun-du",
+        "cityId": "city-xiangping",
+        "loyalty": 93,
+        "merit": 1600,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "governor"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-yang-yi-liaodong",
+        "name": "阳仪",
+        "courtesyName": "子度",
+        "birthYear": 161,
+        "abilities": {
+          "leadership": 73,
+          "might": 71,
+          "intelligence": 75,
+          "politics": 70,
+          "charisma": 66
+        },
+        "traits": [
+          "沉着",
+          "善谋"
+        ],
+        "ideals": [
+          "安定",
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-yang-yi-liaodong",
+        "factionId": "faction-gongsun-du",
+        "cityId": "city-xiangping",
+        "loyalty": 90,
+        "merit": 1350,
+        "health": 100,
+        "fatigue": 0,
+        "status": "serving",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "general"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-xu-shu",
+        "name": "徐庶",
+        "courtesyName": "元直",
+        "birthYear": 168,
+        "abilities": {
+          "leadership": 76,
+          "might": 64,
+          "intelligence": 96,
+          "politics": 84,
+          "charisma": 82
+        },
+        "traits": [
+          "善谋",
+          "忠义"
+        ],
+        "ideals": [
+          "忠义",
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-xu-shu",
+        "factionId": null,
+        "cityId": "city-xiaopei",
+        "loyalty": 42,
+        "merit": 0,
+        "health": 100,
+        "fatigue": 0,
+        "status": "free",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "reserve"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-chen-dao",
+        "name": "陈到",
+        "courtesyName": "叔至",
+        "birthYear": 168,
+        "abilities": {
+          "leadership": 84,
+          "might": 88,
+          "intelligence": 68,
+          "politics": 55,
+          "charisma": 72
+        },
+        "traits": [
+          "忠义",
+          "谨慎"
+        ],
+        "ideals": [
+          "忠义",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-chen-dao",
+        "factionId": null,
+        "cityId": "city-xiapi",
+        "loyalty": 38,
+        "merit": 0,
+        "health": 100,
+        "fatigue": 0,
+        "status": "free",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "reserve"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-taishi-ci",
+        "name": "太史慈",
+        "courtesyName": "子义",
+        "birthYear": 166,
+        "abilities": {
+          "leadership": 90,
+          "might": 95,
+          "intelligence": 69,
+          "politics": 58,
+          "charisma": 80
+        },
+        "traits": [
+          "豪勇",
+          "忠义"
+        ],
+        "ideals": [
+          "霸业",
+          "忠义"
+        ]
+      },
+      "initialState": {
+        "id": "officer-taishi-ci",
+        "factionId": null,
+        "cityId": "city-jianye",
+        "loyalty": 48,
+        "merit": 0,
+        "health": 100,
+        "fatigue": 0,
+        "status": "free",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "reserve"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-lu-su",
+        "name": "鲁肃",
+        "courtesyName": "子敬",
+        "birthYear": 172,
+        "abilities": {
+          "leadership": 78,
+          "might": 56,
+          "intelligence": 94,
+          "politics": 93,
+          "charisma": 91
+        },
+        "traits": [
+          "善谋",
+          "善政"
+        ],
+        "ideals": [
+          "仁政",
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-lu-su",
+        "factionId": null,
+        "cityId": "city-shouchun",
+        "loyalty": 35,
+        "merit": 0,
+        "health": 100,
+        "fatigue": 0,
+        "status": "free",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "reserve"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-gan-ning",
+        "name": "甘宁",
+        "courtesyName": "兴霸",
+        "birthYear": 175,
+        "abilities": {
+          "leadership": 88,
+          "might": 94,
+          "intelligence": 72,
+          "politics": 54,
+          "charisma": 75
+        },
+        "traits": [
+          "豪勇",
+          "野心"
+        ],
+        "ideals": [
+          "霸业"
+        ]
+      },
+      "initialState": {
+        "id": "officer-gan-ning",
+        "factionId": null,
+        "cityId": "city-jiangling",
+        "loyalty": 43,
+        "merit": 0,
+        "health": 100,
+        "fatigue": 0,
+        "status": "free",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "reserve"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-pang-tong",
+        "name": "庞统",
+        "courtesyName": "士元",
+        "birthYear": 179,
+        "abilities": {
+          "leadership": 68,
+          "might": 42,
+          "intelligence": 98,
+          "politics": 89,
+          "charisma": 78
+        },
+        "traits": [
+          "善谋",
+          "沉着"
+        ],
+        "ideals": [
+          "安定",
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-pang-tong",
+        "factionId": null,
+        "cityId": "city-xiangyang",
+        "loyalty": 40,
+        "merit": 0,
+        "health": 100,
+        "fatigue": 0,
+        "status": "free",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "reserve"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-jia-xu",
+        "name": "贾诩",
+        "courtesyName": "文和",
+        "birthYear": 147,
+        "abilities": {
+          "leadership": 72,
+          "might": 48,
+          "intelligence": 99,
+          "politics": 92,
+          "charisma": 71
+        },
+        "traits": [
+          "善谋",
+          "谨慎"
+        ],
+        "ideals": [
+          "安定",
+          "谋略"
+        ]
+      },
+      "initialState": {
+        "id": "officer-jia-xu",
+        "factionId": null,
+        "cityId": "city-luoyang",
+        "loyalty": 52,
+        "merit": 0,
+        "health": 100,
+        "fatigue": 0,
+        "status": "free",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "reserve"
+      }
+    },
+    {
+      "profile": {
+        "id": "officer-liao-hua",
+        "name": "廖化",
+        "courtesyName": "元俭",
+        "birthYear": 170,
+        "abilities": {
+          "leadership": 78,
+          "might": 82,
+          "intelligence": 65,
+          "politics": 57,
+          "charisma": 70
+        },
+        "traits": [
+          "忠义",
+          "沉着"
+        ],
+        "ideals": [
+          "忠义",
+          "安定"
+        ]
+      },
+      "initialState": {
+        "id": "officer-liao-hua",
+        "factionId": null,
+        "cityId": "city-xiapi",
+        "loyalty": 36,
+        "merit": 0,
+        "health": 100,
+        "fatigue": 0,
+        "status": "free",
+        "injury": null,
+        "alive": true,
+        "deathTurn": null,
+        "armyId": null,
+        "appointment": "reserve"
+      }
+    }
+  ],
+  "roads": [
+    {
+      "id": "road-wuwei-tianshui",
+      "fromCityId": "city-wuwei",
+      "toCityId": "city-tianshui",
+      "kind": "trunk",
+      "terrain": "mountain",
+      "travelDays": 58,
+      "waypoints": []
+    },
+    {
+      "id": "road-tianshui-changan",
+      "fromCityId": "city-tianshui",
+      "toCityId": "city-changan",
+      "kind": "trunk",
+      "terrain": "hill",
+      "travelDays": 42,
+      "waypoints": []
+    },
+    {
+      "id": "road-changan-luoyang",
+      "fromCityId": "city-changan",
+      "toCityId": "city-luoyang",
+      "kind": "trunk",
+      "terrain": "mountain",
+      "travelDays": 52,
+      "waypoints": []
+    },
+    {
+      "id": "road-changan-jinyang",
+      "fromCityId": "city-changan",
+      "toCityId": "city-jinyang",
+      "kind": "secondary",
+      "terrain": "mountain",
+      "travelDays": 68,
+      "waypoints": []
+    },
+    {
+      "id": "road-jinyang-ye",
+      "fromCityId": "city-jinyang",
+      "toCityId": "city-ye",
+      "kind": "trunk",
+      "terrain": "hill",
+      "travelDays": 44,
+      "waypoints": []
+    },
+    {
+      "id": "road-jinyang-luoyang",
+      "fromCityId": "city-jinyang",
+      "toCityId": "city-luoyang",
+      "kind": "secondary",
+      "terrain": "mountain",
+      "travelDays": 64,
+      "waypoints": []
+    },
+    {
+      "id": "road-luoyang-chenliu",
+      "fromCityId": "city-luoyang",
+      "toCityId": "city-chenliu",
+      "kind": "trunk",
+      "terrain": "hill",
+      "travelDays": 36,
+      "waypoints": []
+    },
+    {
+      "id": "road-chenliu-ye",
+      "fromCityId": "city-chenliu",
+      "toCityId": "city-ye",
+      "kind": "trunk",
+      "terrain": "plain",
+      "travelDays": 48,
+      "waypoints": []
+    },
+    {
+      "id": "road-ye-nanpi",
+      "fromCityId": "city-ye",
+      "toCityId": "city-nanpi",
+      "kind": "trunk",
+      "terrain": "plain",
+      "travelDays": 30,
+      "waypoints": []
+    },
+    {
+      "id": "road-nanpi-yijing",
+      "fromCityId": "city-nanpi",
+      "toCityId": "city-yijing",
+      "kind": "trunk",
+      "terrain": "plain",
+      "travelDays": 38,
+      "waypoints": []
+    },
+    {
+      "id": "road-yijing-beiping",
+      "fromCityId": "city-yijing",
+      "toCityId": "city-beiping",
+      "kind": "secondary",
+      "terrain": "hill",
+      "travelDays": 28,
+      "waypoints": []
+    },
+    {
+      "id": "road-yijing-ji",
+      "fromCityId": "city-yijing",
+      "toCityId": "city-ji",
+      "kind": "trunk",
+      "terrain": "plain",
+      "travelDays": 34,
+      "waypoints": []
+    },
+    {
+      "id": "road-beiping-ji",
+      "fromCityId": "city-beiping",
+      "toCityId": "city-ji",
+      "kind": "secondary",
+      "terrain": "hill",
+      "travelDays": 40,
+      "waypoints": []
+    },
+    {
+      "id": "road-chenliu-puyang",
+      "fromCityId": "city-chenliu",
+      "toCityId": "city-puyang",
+      "kind": "trunk",
+      "terrain": "plain",
+      "travelDays": 28,
+      "waypoints": []
+    },
+    {
+      "id": "road-puyang-xiaopei",
+      "fromCityId": "city-puyang",
+      "toCityId": "city-xiaopei",
+      "kind": "trunk",
+      "terrain": "plain",
+      "travelDays": 34,
+      "waypoints": []
+    },
+    {
+      "id": "road-xuchang-puyang",
+      "fromCityId": "city-xuchang",
+      "toCityId": "city-puyang",
+      "kind": "secondary",
+      "terrain": "plain",
+      "travelDays": 32,
+      "waypoints": []
+    },
+    {
+      "id": "road-luoyang-xuchang",
+      "fromCityId": "city-luoyang",
+      "toCityId": "city-xuchang",
+      "kind": "trunk",
+      "terrain": "hill",
+      "travelDays": 40,
+      "waypoints": []
+    },
+    {
+      "id": "road-xuchang-xiaopei",
+      "fromCityId": "city-xuchang",
+      "toCityId": "city-xiaopei",
+      "kind": "trunk",
+      "terrain": "plain",
+      "travelDays": 44,
+      "waypoints": []
+    },
+    {
+      "id": "road-xiaopei-xiapi",
+      "fromCityId": "city-xiaopei",
+      "toCityId": "city-xiapi",
+      "kind": "trunk",
+      "terrain": "river",
+      "travelDays": 24,
+      "waypoints": []
+    },
+    {
+      "id": "road-xiaopei-shouchun",
+      "fromCityId": "city-xiaopei",
+      "toCityId": "city-shouchun",
+      "kind": "secondary",
+      "terrain": "river",
+      "travelDays": 46,
+      "waypoints": []
+    },
+    {
+      "id": "road-shouchun-jianye",
+      "fromCityId": "city-shouchun",
+      "toCityId": "city-jianye",
+      "kind": "trunk",
+      "terrain": "river",
+      "travelDays": 52,
+      "waypoints": []
+    },
+    {
+      "id": "road-xuchang-xiangyang",
+      "fromCityId": "city-xuchang",
+      "toCityId": "city-xiangyang",
+      "kind": "secondary",
+      "terrain": "hill",
+      "travelDays": 58,
+      "waypoints": []
+    },
+    {
+      "id": "road-xiangyang-jiangling",
+      "fromCityId": "city-xiangyang",
+      "toCityId": "city-jiangling",
+      "kind": "trunk",
+      "terrain": "river",
+      "travelDays": 38,
+      "waypoints": []
+    },
+    {
+      "id": "road-xiangyang-shouchun",
+      "fromCityId": "city-xiangyang",
+      "toCityId": "city-shouchun",
+      "kind": "secondary",
+      "terrain": "hill",
+      "travelDays": 76,
+      "waypoints": []
+    },
+    {
+      "id": "road-luoyang-xiangyang",
+      "fromCityId": "city-luoyang",
+      "toCityId": "city-xiangyang",
+      "kind": "secondary",
+      "terrain": "mountain",
+      "travelDays": 72,
+      "waypoints": []
+    },
+    {
+      "id": "road-anding-tianshui",
+      "fromCityId": "city-anding",
+      "toCityId": "city-tianshui",
+      "kind": "secondary",
+      "terrain": "hill",
+      "travelDays": 36,
+      "waypoints": []
+    },
+    {
+      "id": "road-anding-hongnong",
+      "fromCityId": "city-anding",
+      "toCityId": "city-hongnong",
+      "kind": "trunk",
+      "terrain": "mountain",
+      "travelDays": 54,
+      "waypoints": []
+    },
+    {
+      "id": "road-hongnong-luoyang",
+      "fromCityId": "city-hongnong",
+      "toCityId": "city-luoyang",
+      "kind": "trunk",
+      "terrain": "mountain",
+      "travelDays": 28,
+      "waypoints": []
+    },
+    {
+      "id": "road-hongnong-wan",
+      "fromCityId": "city-hongnong",
+      "toCityId": "city-wan",
+      "kind": "secondary",
+      "terrain": "mountain",
+      "travelDays": 48,
+      "waypoints": []
+    },
+    {
+      "id": "road-changan-hanzhong",
+      "fromCityId": "city-changan",
+      "toCityId": "city-hanzhong",
+      "kind": "secondary",
+      "terrain": "mountain",
+      "travelDays": 60,
+      "waypoints": []
+    },
+    {
+      "id": "road-hanzhong-zitong",
+      "fromCityId": "city-hanzhong",
+      "toCityId": "city-zitong",
+      "kind": "trunk",
+      "terrain": "mountain",
+      "travelDays": 50,
+      "waypoints": []
+    },
+    {
+      "id": "road-zitong-chengdu",
+      "fromCityId": "city-zitong",
+      "toCityId": "city-chengdu",
+      "kind": "trunk",
+      "terrain": "hill",
+      "travelDays": 36,
+      "waypoints": []
+    },
+    {
+      "id": "road-chengdu-jiangzhou",
+      "fromCityId": "city-chengdu",
+      "toCityId": "city-jiangzhou",
+      "kind": "trunk",
+      "terrain": "river",
+      "travelDays": 42,
+      "waypoints": []
+    },
+    {
+      "id": "road-jiangzhou-yongan",
+      "fromCityId": "city-jiangzhou",
+      "toCityId": "city-yongan",
+      "kind": "trunk",
+      "terrain": "river",
+      "travelDays": 36,
+      "waypoints": []
+    },
+    {
+      "id": "road-yongan-jiangling",
+      "fromCityId": "city-yongan",
+      "toCityId": "city-jiangling",
+      "kind": "trunk",
+      "terrain": "river",
+      "travelDays": 38,
+      "waypoints": []
+    },
+    {
+      "id": "road-wan-xuchang",
+      "fromCityId": "city-wan",
+      "toCityId": "city-xuchang",
+      "kind": "trunk",
+      "terrain": "plain",
+      "travelDays": 34,
+      "waypoints": []
+    },
+    {
+      "id": "road-wan-xiangyang",
+      "fromCityId": "city-wan",
+      "toCityId": "city-xiangyang",
+      "kind": "trunk",
+      "terrain": "hill",
+      "travelDays": 40,
+      "waypoints": []
+    },
+    {
+      "id": "road-runan-xuchang",
+      "fromCityId": "city-runan",
+      "toCityId": "city-xuchang",
+      "kind": "trunk",
+      "terrain": "plain",
+      "travelDays": 32,
+      "waypoints": []
+    },
+    {
+      "id": "road-runan-hefei",
+      "fromCityId": "city-runan",
+      "toCityId": "city-hefei",
+      "kind": "trunk",
+      "terrain": "plain",
+      "travelDays": 38,
+      "waypoints": []
+    },
+    {
+      "id": "road-hefei-shouchun",
+      "fromCityId": "city-hefei",
+      "toCityId": "city-shouchun",
+      "kind": "trunk",
+      "terrain": "river",
+      "travelDays": 24,
+      "waypoints": []
+    },
+    {
+      "id": "road-beihai-nanpi",
+      "fromCityId": "city-beihai",
+      "toCityId": "city-nanpi",
+      "kind": "secondary",
+      "terrain": "plain",
+      "travelDays": 44,
+      "waypoints": []
+    },
+    {
+      "id": "road-beihai-xiapi",
+      "fromCityId": "city-beihai",
+      "toCityId": "city-xiapi",
+      "kind": "trunk",
+      "terrain": "plain",
+      "travelDays": 48,
+      "waypoints": []
+    },
+    {
+      "id": "road-jiaozhi-cangwu",
+      "fromCityId": "city-jiaozhi",
+      "toCityId": "city-cangwu",
+      "kind": "trunk",
+      "terrain": "river",
+      "travelDays": 40,
+      "waypoints": []
+    },
+    {
+      "id": "road-cangwu-jiangzhou",
+      "fromCityId": "city-cangwu",
+      "toCityId": "city-jiangzhou",
+      "kind": "secondary",
+      "terrain": "mountain",
+      "travelDays": 78,
+      "waypoints": []
+    },
+    {
+      "id": "road-ji-xiangping",
+      "fromCityId": "city-ji",
+      "toCityId": "city-xiangping",
+      "kind": "secondary",
+      "terrain": "hill",
+      "travelDays": 56,
+      "waypoints": []
+    }
+  ],
+  "passes": [
+    {
+      "id": "pass-tong",
+      "name": "潼关",
+      "roadId": "road-changan-luoyang",
+      "position": {
+        "x": 44,
+        "y": 45
+      },
+      "defenseBonus": 26
+    },
+    {
+      "id": "pass-yanmen",
+      "name": "雁门关",
+      "roadId": "road-jinyang-ye",
+      "position": {
+        "x": 52,
+        "y": 30
+      },
+      "defenseBonus": 22
+    },
+    {
+      "id": "pass-hulao",
+      "name": "虎牢关",
+      "roadId": "road-luoyang-chenliu",
+      "position": {
+        "x": 52,
+        "y": 46
+      },
+      "defenseBonus": 24
+    },
+    {
+      "id": "pass-bowang",
+      "name": "博望坡",
+      "roadId": "road-luoyang-xiangyang",
+      "position": {
+        "x": 46,
+        "y": 60
+      },
+      "defenseBonus": 18
+    },
+    {
+      "id": "pass-jianmen",
+      "name": "剑门关",
+      "roadId": "road-hanzhong-zitong",
+      "position": {
+        "x": 34,
+        "y": 56
+      },
+      "defenseBonus": 28
+    },
+    {
+      "id": "pass-wu",
+      "name": "武关",
+      "roadId": "road-hongnong-wan",
+      "position": {
+        "x": 45,
+        "y": 53
+      },
+      "defenseBonus": 24
+    }
+  ],
+  "events": [
+    {
+      "id": "event-merchant-caravan",
+      "title": "远方商队",
+      "category": "world",
+      "description": "一支携带西域货物的商队请求通行与保护。",
+      "condition": "always",
+      "weight": 6,
+      "cooldownTurns": 8,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "拨款处理",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "gold",
+              "amount": -450
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "fatigue",
+              "amount": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-refugee-column",
+      "title": "流民入境",
+      "category": "world",
+      "description": "战乱流民抵达边境，既需要赈济，也能补充人口。",
+      "condition": "low-food",
+      "weight": 7,
+      "cooldownTurns": 9,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "拨款处理",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "food",
+              "amount": -700
+            },
+            {
+              "type": "city",
+              "metric": "publicOrder",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": -2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-imperial-edict",
+      "title": "天子诏书",
+      "category": "world",
+      "description": "朝廷使者带来一份措辞谨慎的诏令。",
+      "condition": "always",
+      "weight": 8,
+      "cooldownTurns": 10,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "拨款处理",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "gold",
+              "amount": -450
+            },
+            {
+              "type": "city",
+              "metric": "publicOrder",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "fatigue",
+              "amount": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-grain-rumor",
+      "title": "粮价传闻",
+      "category": "world",
+      "description": "各地粮商散播歉收传闻，市价开始波动。",
+      "condition": "low-food",
+      "weight": 9,
+      "cooldownTurns": 11,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "拨款处理",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "food",
+              "amount": -700
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": -2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-harvest-omen",
+      "title": "丰年之兆",
+      "category": "world",
+      "description": "老农根据水脉与风向判断今季可能丰收。",
+      "condition": "always",
+      "weight": 10,
+      "cooldownTurns": 8,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "拨款处理",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "gold",
+              "amount": -450
+            },
+            {
+              "type": "city",
+              "metric": "publicOrder",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "fatigue",
+              "amount": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-bandit-migration",
+      "title": "群盗流窜",
+      "category": "world",
+      "description": "邻境盗匪向我方边界迁徙。",
+      "condition": "always",
+      "weight": 6,
+      "cooldownTurns": 9,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "拨款处理",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "food",
+              "amount": -700
+            },
+            {
+              "type": "city",
+              "metric": "publicOrder",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": -2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-scholar-debate",
+      "title": "名士清议",
+      "category": "world",
+      "description": "各地名士评议诸侯治绩，我方也被列入其中。",
+      "condition": "always",
+      "weight": 7,
+      "cooldownTurns": 10,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "拨款处理",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "gold",
+              "amount": -450
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "fatigue",
+              "amount": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-artisan-guild",
+      "title": "百工来投",
+      "category": "world",
+      "description": "一批工匠寻求安稳居所并愿意效力。",
+      "condition": "always",
+      "weight": 8,
+      "cooldownTurns": 11,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "拨款处理",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "food",
+              "amount": -700
+            },
+            {
+              "type": "city",
+              "metric": "publicOrder",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": -2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-horse-traders",
+      "title": "胡商贩马",
+      "category": "world",
+      "description": "北地马商带来一批可供军用的良马。",
+      "condition": "always",
+      "weight": 9,
+      "cooldownTurns": 8,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "拨款处理",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "gold",
+              "amount": -450
+            },
+            {
+              "type": "city",
+              "metric": "publicOrder",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "fatigue",
+              "amount": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-flood-warning",
+      "title": "河水将涨",
+      "category": "world",
+      "description": "沿河亭长报告水位异常，需要提前防备。",
+      "condition": "always",
+      "weight": 10,
+      "cooldownTurns": 9,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "拨款处理",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "food",
+              "amount": -700
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": -2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-well-collapse",
+      "title": "古井坍塌",
+      "category": "city",
+      "description": "城中老井坍塌，周边居民用水困难。",
+      "condition": "always",
+      "weight": 6,
+      "cooldownTurns": 10,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "拨款处理",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "gold",
+              "amount": -450
+            },
+            {
+              "type": "city",
+              "metric": "publicOrder",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "fatigue",
+              "amount": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-market-fire",
+      "title": "市集失火",
+      "category": "city",
+      "description": "夜间市集突发火情，商户损失惨重。",
+      "condition": "always",
+      "weight": 7,
+      "cooldownTurns": 11,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "拨款处理",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "food",
+              "amount": -700
+            },
+            {
+              "type": "city",
+              "metric": "publicOrder",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": -2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-tax-petition",
+      "title": "百姓请减税",
+      "category": "city",
+      "description": "乡老联名请求减免本季杂税。",
+      "condition": "always",
+      "weight": 8,
+      "cooldownTurns": 8,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "拨款处理",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "gold",
+              "amount": -450
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "fatigue",
+              "amount": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-canal-silt",
+      "title": "沟渠淤塞",
+      "category": "city",
+      "description": "灌溉沟渠被泥沙堵塞，春耕受到影响。",
+      "condition": "always",
+      "weight": 9,
+      "cooldownTurns": 9,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "拨款处理",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "food",
+              "amount": -700
+            },
+            {
+              "type": "city",
+              "metric": "publicOrder",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": -2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-granary-pests",
+      "title": "仓中生蠹",
+      "category": "city",
+      "description": "粮仓发现虫害，若不处置将继续扩大。",
+      "condition": "low-food",
+      "weight": 10,
+      "cooldownTurns": 10,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "拨款处理",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "gold",
+              "amount": -450
+            },
+            {
+              "type": "city",
+              "metric": "publicOrder",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "fatigue",
+              "amount": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-local-feud",
+      "title": "宗族械斗",
+      "category": "city",
+      "description": "两大宗族因水田界线发生冲突。",
+      "condition": "always",
+      "weight": 6,
+      "cooldownTurns": 11,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "拨款处理",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "food",
+              "amount": -700
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": -2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-epidemic-sign",
+      "title": "疫病初现",
+      "category": "city",
+      "description": "医者报告城中出现相似高热病例。",
+      "condition": "high-fatigue",
+      "weight": 7,
+      "cooldownTurns": 8,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "拨款处理",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "gold",
+              "amount": -450
+            },
+            {
+              "type": "city",
+              "metric": "publicOrder",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "fatigue",
+              "amount": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-bridge-damage",
+      "title": "驿桥损坏",
+      "category": "city",
+      "description": "暴雨冲坏驿道木桥，商旅开始绕行。",
+      "condition": "always",
+      "weight": 8,
+      "cooldownTurns": 9,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "拨款处理",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "food",
+              "amount": -700
+            },
+            {
+              "type": "city",
+              "metric": "publicOrder",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": -2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-temple-festival",
+      "title": "乡社祭典",
+      "category": "city",
+      "description": "百姓希望举办祭典以安定人心。",
+      "condition": "always",
+      "weight": 9,
+      "cooldownTurns": 10,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "拨款处理",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "gold",
+              "amount": -450
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "fatigue",
+              "amount": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-corrupt-clerk",
+      "title": "仓曹舞弊",
+      "category": "city",
+      "description": "账目显示仓曹小吏可能长期侵吞物资。",
+      "condition": "always",
+      "weight": 10,
+      "cooldownTurns": 11,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "拨款处理",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "food",
+              "amount": -700
+            },
+            {
+              "type": "city",
+              "metric": "publicOrder",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": -2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-officer-sickness",
+      "title": "旧疾复发",
+      "category": "officer",
+      "description": "一名武将旧疾复发，仍坚持处理公务。",
+      "condition": "high-fatigue",
+      "weight": 6,
+      "cooldownTurns": 8,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "拨款处理",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "gold",
+              "amount": -450
+            },
+            {
+              "type": "city",
+              "metric": "publicOrder",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "fatigue",
+              "amount": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-family-letter",
+      "title": "故乡家书",
+      "category": "officer",
+      "description": "武将收到故乡家书，心绪发生变化。",
+      "condition": "always",
+      "weight": 7,
+      "cooldownTurns": 9,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "拨款处理",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "food",
+              "amount": -700
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": -2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-merit-dispute",
+      "title": "争功不下",
+      "category": "officer",
+      "description": "数名将领对功劳归属各执一词。",
+      "condition": "always",
+      "weight": 8,
+      "cooldownTurns": 10,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "拨款处理",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "gold",
+              "amount": -450
+            },
+            {
+              "type": "city",
+              "metric": "publicOrder",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "fatigue",
+              "amount": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-private-donation",
+      "title": "捐俸助民",
+      "category": "officer",
+      "description": "武将愿意捐出部分俸禄救济贫户。",
+      "condition": "always",
+      "weight": 9,
+      "cooldownTurns": 11,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "拨款处理",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "food",
+              "amount": -700
+            },
+            {
+              "type": "city",
+              "metric": "publicOrder",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": -2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-training-injury",
+      "title": "操练受伤",
+      "category": "officer",
+      "description": "武将在校场亲自示范时不慎受伤。",
+      "condition": "always",
+      "weight": 10,
+      "cooldownTurns": 8,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "拨款处理",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "gold",
+              "amount": -450
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "fatigue",
+              "amount": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-recommend-talent",
+      "title": "举荐乡才",
+      "category": "officer",
+      "description": "武将举荐一名熟悉地方事务的乡士。",
+      "condition": "always",
+      "weight": 6,
+      "cooldownTurns": 9,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "拨款处理",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "food",
+              "amount": -700
+            },
+            {
+              "type": "city",
+              "metric": "publicOrder",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": -2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-banquet-request",
+      "title": "请设庆宴",
+      "category": "officer",
+      "description": "有功将领请求设宴犒劳部属。",
+      "condition": "always",
+      "weight": 7,
+      "cooldownTurns": 10,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "拨款处理",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "gold",
+              "amount": -450
+            },
+            {
+              "type": "city",
+              "metric": "publicOrder",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "fatigue",
+              "amount": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-rivalry-rumor",
+      "title": "将校不和",
+      "category": "officer",
+      "description": "军中传出两位将校不和的流言。",
+      "condition": "always",
+      "weight": 8,
+      "cooldownTurns": 11,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "拨款处理",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "food",
+              "amount": -700
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": -2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-study-strategy",
+      "title": "研读兵书",
+      "category": "officer",
+      "description": "武将寻得一卷残缺兵书，希望闭门研读。",
+      "condition": "always",
+      "weight": 9,
+      "cooldownTurns": 8,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "拨款处理",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "gold",
+              "amount": -450
+            },
+            {
+              "type": "city",
+              "metric": "publicOrder",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "fatigue",
+              "amount": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-visit-graves",
+      "title": "请归祭祖",
+      "category": "officer",
+      "description": "武将请求短暂返乡祭扫先人。",
+      "condition": "always",
+      "weight": 10,
+      "cooldownTurns": 9,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "拨款处理",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "food",
+              "amount": -700
+            },
+            {
+              "type": "city",
+              "metric": "publicOrder",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": -2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-captives-after-battle",
+      "title": "战俘处置",
+      "category": "post-battle",
+      "description": "战后俘虏等待处置，军中意见不一。",
+      "condition": "after-battle",
+      "weight": 6,
+      "cooldownTurns": 10,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "妥善处置",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "gold",
+              "amount": -450
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "fatigue",
+              "amount": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-wounded-crowd",
+      "title": "伤兵满营",
+      "category": "post-battle",
+      "description": "大量伤兵需要药材与安置。",
+      "condition": "after-battle",
+      "weight": 7,
+      "cooldownTurns": 11,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "妥善处置",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "food",
+              "amount": -700
+            },
+            {
+              "type": "city",
+              "metric": "publicOrder",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": -2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-captured-grain",
+      "title": "缴获粮车",
+      "category": "post-battle",
+      "description": "斥候发现敌军遗弃的粮车。",
+      "condition": "after-battle",
+      "weight": 8,
+      "cooldownTurns": 8,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "妥善处置",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "gold",
+              "amount": -450
+            },
+            {
+              "type": "city",
+              "metric": "publicOrder",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "fatigue",
+              "amount": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-city-surrender",
+      "title": "降民惶恐",
+      "category": "post-battle",
+      "description": "新占城池百姓担忧清算，闭户不出。",
+      "condition": "after-battle",
+      "weight": 9,
+      "cooldownTurns": 9,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "妥善处置",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "food",
+              "amount": -700
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": -2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-heroic-story",
+      "title": "军中传捷",
+      "category": "post-battle",
+      "description": "士卒传颂此战英勇事迹。",
+      "condition": "after-battle",
+      "weight": 10,
+      "cooldownTurns": 10,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "妥善处置",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "gold",
+              "amount": -450
+            },
+            {
+              "type": "city",
+              "metric": "publicOrder",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "fatigue",
+              "amount": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-enemy-deserters",
+      "title": "敌军来降",
+      "category": "post-battle",
+      "description": "一批敌军溃兵请求编入我军。",
+      "condition": "after-battle",
+      "weight": 6,
+      "cooldownTurns": 11,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "妥善处置",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "food",
+              "amount": -700
+            },
+            {
+              "type": "city",
+              "metric": "publicOrder",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": -2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-broken-walls",
+      "title": "城垣残破",
+      "category": "post-battle",
+      "description": "战后城墙多处破损，守备存在缺口。",
+      "condition": "after-battle",
+      "weight": 7,
+      "cooldownTurns": 8,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "妥善处置",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "gold",
+              "amount": -450
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "fatigue",
+              "amount": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-funeral-request",
+      "title": "阵亡者丧仪",
+      "category": "post-battle",
+      "description": "军属请求为阵亡者举行统一丧仪。",
+      "condition": "after-battle",
+      "weight": 8,
+      "cooldownTurns": 9,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "妥善处置",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "food",
+              "amount": -700
+            },
+            {
+              "type": "city",
+              "metric": "publicOrder",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": -2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-spoils-dispute",
+      "title": "战利品争执",
+      "category": "post-battle",
+      "description": "部曲因战利品分配发生争执。",
+      "condition": "after-battle",
+      "weight": 9,
+      "cooldownTurns": 10,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "妥善处置",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "gold",
+              "amount": -450
+            },
+            {
+              "type": "city",
+              "metric": "publicOrder",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "fatigue",
+              "amount": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-scout-opportunity",
+      "title": "乘胜侦察",
+      "category": "post-battle",
+      "description": "斥候请求趁敌军混乱深入侦察。",
+      "condition": "after-battle",
+      "weight": 10,
+      "cooldownTurns": 11,
+      "choices": [
+        {
+          "id": "commit-resources",
+          "label": "妥善处置",
+          "description": "承担明确的钱粮代价，以换取稳定和长期收益。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "food",
+              "amount": -700
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": 3
+            }
+          ]
+        },
+        {
+          "id": "limited-response",
+          "label": "谨慎应对",
+          "description": "减少眼前支出，但承担一定疲敝或声望代价。",
+          "effects": [
+            {
+              "type": "resource",
+              "resource": "prestige",
+              "amount": -2
+            },
+            {
+              "type": "city",
+              "metric": "publicSupport",
+              "amount": -2
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

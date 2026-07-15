@@ -1,0 +1,9 @@
+.DS_Store
+.tools/
+godot/.godot/
+godot/.mono/
+godot/bin/
+godot/obj/
+godot/assets/generated/
+__pycache__/
+*.py[cod]
