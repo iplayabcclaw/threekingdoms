@@ -45,7 +45,6 @@ public partial class WorldMapView : Control
     private Button _armyRetreat = null!;
     private Label _date = null!;
     private Label _resources = null!;
-    private OptionButton _mapMode = null!;
     private OptionButton _factionFilter = null!;
     private CityData? _selectedCity;
     private Vector2 _mapSize = new(1672, 941);
@@ -312,13 +311,10 @@ public partial class WorldMapView : Control
 
     private void BuildMapControls()
     {
-        var panel = new PanelContainer { Position = new Vector2(18, 86), Size = new Vector2(632, 52), MouseFilter = MouseFilterEnum.Stop, ZIndex = 20 };
+        var panel = new PanelContainer { Position = new Vector2(18, 86), Size = new Vector2(426, 52), MouseFilter = MouseFilterEnum.Stop, ZIndex = 20 };
         panel.AddThemeStyleboxOverride("panel", GameTheme.RaisedBox(7));
         var margin = new MarginContainer(); margin.AddThemeConstantOverride("margin_left", 5); margin.AddThemeConstantOverride("margin_right", 5); margin.AddThemeConstantOverride("margin_top", 4); margin.AddThemeConstantOverride("margin_bottom", 4); panel.AddChild(margin);
         var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 8); margin.AddChild(row);
-        _mapMode = new OptionButton { CustomMinimumSize = new Vector2(190, 40) };
-        foreach (var item in new[] { ("terrain", "地形与归属"), ("military", "军事兵力"), ("governance", "治理态势"), ("supply", "军粮补给"), ("talent", "人才分布"), ("diplomacy", "外交关系") }) { _mapMode.AddItem(item.Item2); _mapMode.SetItemMetadata(_mapMode.ItemCount - 1, item.Item1); }
-        _mapMode.ItemSelected += _ => Refresh(); row.AddChild(_mapMode);
         _factionFilter = new OptionButton { CustomMinimumSize = new Vector2(210, 40) }; _factionFilter.AddItem("显示全部势力"); _factionFilter.SetItemMetadata(0, "all");
         foreach (var faction in _runtime.State.Factions) { _factionFilter.AddItem(faction.Name); _factionFilter.SetItemMetadata(_factionFilter.ItemCount - 1, faction.Id); }
         _factionFilter.ItemSelected += _ => Refresh(); row.AddChild(_factionFilter);

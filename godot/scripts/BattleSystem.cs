@@ -129,6 +129,7 @@ public sealed class BattleTimelineEventData
     public string GroupId { get; set; } = string.Empty;
     public string TargetGroupId { get; set; } = string.Empty;
     public string OfficerId { get; set; } = string.Empty;
+    public string TargetOfficerId { get; set; } = string.Empty;
     public float StartX { get; set; }
     public float StartY { get; set; }
     public float EndX { get; set; }
@@ -153,10 +154,19 @@ public sealed class BattleOfficerUnitData
     public float PreviousY { get; set; }
     public double AttackCooldown { get; set; }
     public double CombatPower { get; set; }
+    public int MaxHitPoints { get; set; }
+    public int HitPoints { get; set; }
+    public double InitialMorale { get; set; }
+    public double Morale { get; set; }
+    public double Defense { get; set; }
     public int Leadership { get; set; }
     public int Might { get; set; }
     public int Intelligence { get; set; }
+    public int Charisma { get; set; }
     public int TotalDamage { get; set; }
+    public int OfficerDamageDealt { get; set; }
+    public int DamageTaken { get; set; }
+    public bool IsRouted { get; set; }
     public string State { get; set; } = "mounted-idle";
 }
 
@@ -748,12 +758,15 @@ public static class BattleCalculator
                 var leadership = OfficerProgressionRules.EffectiveAbility(officer, "leadership", "military");
                 var might = OfficerProgressionRules.EffectiveAbility(officer, "might", "military");
                 var intelligence = OfficerProgressionRules.EffectiveAbility(officer, "intelligence", "military");
+                var charisma = OfficerProgressionRules.EffectiveAbility(officer, "charisma", "military");
                 var spriteId = MountedOfficerSpriteId(officerId, leadership, might, intelligence);
                 var anchor = pending.Groups.Where(item => item.Side == side && item.AssignedOfficerId == officerId)
                     .OrderBy(item => item.Depth).ThenByDescending(item => item.InitialSoldiers).FirstOrDefault()
                     ?? pending.Groups.Where(item => item.Side == side).OrderByDescending(item => item.InitialSoldiers).FirstOrDefault();
                 if (anchor is null) continue;
                 var rearOffset = side == "attacker" ? 30 : -30;
+                var maxHitPoints = MountedOfficerMaxHitPoints(leadership, might);
+                var morale = MountedOfficerInitialMorale(leadership, charisma, officer.InitialState.Fatigue);
                 result.Add(new BattleOfficerUnitData
                 {
                     OfficerId = officerId,
@@ -767,9 +780,15 @@ public static class BattleCalculator
                     PreviousY = anchor.Y - 28,
                     AttackCooldown = (officerId.Sum(character => character) % 8) / 5d,
                     CombatPower = MountedOfficerCombatPower(spriteId, leadership, might, intelligence),
+                    MaxHitPoints = maxHitPoints,
+                    HitPoints = maxHitPoints,
+                    InitialMorale = morale,
+                    Morale = morale,
+                    Defense = MountedOfficerDefense(leadership, might),
                     Leadership = leadership,
                     Might = might,
                     Intelligence = intelligence,
+                    Charisma = charisma,
                 });
             }
         }
@@ -795,11 +814,28 @@ public static class BattleCalculator
         return Math.Round(Math.Clamp(basePower * historical, 3.5, 10.5), 2);
     }
 
+    public static int MountedOfficerMaxHitPoints(int leadership, int might) =>
+        Math.Clamp(900 + might * 7 + leadership * 3, 1100, 2100);
+
+    public static double MountedOfficerDefense(int leadership, int might) =>
+        Math.Round(Math.Clamp(20 + might * .35 + leadership * .25, 30, 90), 1);
+
+    public static double MountedOfficerInitialMorale(int leadership, int charisma, int fatigue) =>
+        Math.Round(Math.Clamp(42 + leadership * .28 + charisma * .28 - fatigue * .12, 55, 100), 1);
+
     private static void StepMountedOfficers(PendingBattleData pending, double delta)
     {
         foreach (var officer in pending.OfficerUnits)
         {
             officer.AttackCooldown = Math.Max(0, officer.AttackCooldown - delta);
+            if (officer.HitPoints <= 0 || officer.Morale < 20 || officer.IsRouted)
+            {
+                officer.IsRouted = true;
+                officer.State = officer.HitPoints <= 0 ? "mounted-defeated" : "mounted-retreat";
+                var withdrawalX = officer.Side == "attacker" ? 990f : 10f;
+                officer.X = MoveTowards(officer.X, withdrawalX, 115f * (float)delta);
+                continue;
+            }
             var allies = pending.Groups.Where(item => item.Side == officer.Side && item.FinalSoldiers > 0 && !item.IsRouted).ToList();
             var enemies = pending.Groups.Where(item => item.Side != officer.Side && item.FinalSoldiers > 0 && !item.IsRouted).ToList();
             if (allies.Count == 0 || enemies.Count == 0) { officer.State = "mounted-retreat"; continue; }
@@ -822,6 +858,16 @@ public static class BattleCalculator
             var range = strategist ? 285 : 105;
             var breached = pending.BattleType != "siege" || pending.WallAfter <= 0 || pending.GateAfter <= 0;
             if (!breached && !anchor.IsSortie && !target.IsSortie) continue;
+            var enemyOfficer = pending.OfficerUnits
+                .Where(item => item.Side != officer.Side && item.HitPoints > 0 && !item.IsRouted && item.Morale >= 20)
+                .OrderBy(item => OfficerDistance(officer, item))
+                .FirstOrDefault();
+            var officerRange = strategist ? 175 : 125;
+            if (enemyOfficer is not null && OfficerDistance(officer, enemyOfficer) <= officerRange && officer.AttackCooldown <= 0)
+            {
+                AttackMountedOfficer(pending, officer, enemyOfficer, strategist);
+                continue;
+            }
             if (OfficerDistance(officer, target) > range || officer.AttackCooldown > 0) continue;
             var losses = Math.Clamp((int)Math.Round(officer.CombatPower), 2, Math.Max(2, (int)Math.Ceiling(target.FinalSoldiers * .035)));
             losses = Math.Min(losses, target.FinalSoldiers);
@@ -830,6 +876,7 @@ public static class BattleCalculator
             officer.AttackCooldown = strategist ? 2.1 : officer.SpriteId == "lu-bu" ? 1.25 : 1.55;
             officer.State = strategist ? "mounted-command" : "mounted-charge";
             AddMountedOfficerEvent(pending, officer, target, losses, strategist);
+            ApplyMountedOfficerCounterfire(pending, officer, target, strategist);
         }
     }
 
@@ -838,6 +885,88 @@ public static class BattleCalculator
         var dx = officer.X - target.X;
         var dy = (officer.Y - target.Y) * .55f;
         return Math.Sqrt(dx * dx + dy * dy);
+    }
+
+    private static double OfficerDistance(BattleOfficerUnitData first, BattleOfficerUnitData second)
+    {
+        var dx = first.X - second.X;
+        var dy = (first.Y - second.Y) * .55f;
+        return Math.Sqrt(dx * dx + dy * dy);
+    }
+
+    private static void AttackMountedOfficer(PendingBattleData pending, BattleOfficerUnitData source, BattleOfficerUnitData target, bool strategist)
+    {
+        var rawDamage = 30 + source.Might * .58 + source.CombatPower * 4 + (strategist ? source.Intelligence * .18 : 0);
+        var damage = DamageMountedOfficer(pending, source, null, target, rawDamage,
+            strategist ? "谋将交锋" : "武将交锋", strategist ? $"{source.Name}临阵施策" : $"{source.Name}纵马交锋");
+        source.OfficerDamageDealt += damage;
+        source.AttackCooldown = strategist ? 2.0 : source.SpriteId == "lu-bu" ? 1.2 : 1.45;
+        source.State = strategist ? "mounted-command" : "mounted-duel";
+        pending.Timeline.Add(new BattleTimelineEventData
+        {
+            Start = pending.Elapsed,
+            Duration = .9,
+            Stage = strategist ? "谋将交锋" : "武将交锋",
+            Action = "officer-duel",
+            Side = source.Side,
+            OfficerId = source.OfficerId,
+            TargetOfficerId = target.OfficerId,
+            StartX = source.X,
+            StartY = source.Y,
+            EndX = target.X,
+            EndY = target.Y,
+            Losses = damage,
+            Text = $"{source.Name}迎战{target.Name}",
+        });
+    }
+
+    private static void ApplyMountedOfficerCounterfire(PendingBattleData pending, BattleOfficerUnitData officer, BattleUnitGroupData target, bool strategist)
+    {
+        var troopPressure = target.TroopType switch { "archers" => 1.18, "spears" => 1.12, "cavalry" => 1.08, "siege" => .72, _ => 1 };
+        var rawDamage = ((strategist ? 13 : 22) + Math.Sqrt(Math.Max(1, target.FinalSoldiers)) * .55) * troopPressure;
+        DamageMountedOfficer(pending, null, target, officer, rawDamage, "阵前承伤", $"{officer.Name}遭{BattleCatalog.TroopName(target.TroopType)}反击");
+    }
+
+    private static int DamageMountedOfficer(PendingBattleData pending, BattleOfficerUnitData? sourceOfficer,
+        BattleUnitGroupData? sourceGroup, BattleOfficerUnitData target, double rawDamage, string stage, string text)
+    {
+        var resistance = 100d / (100 + target.Defense * 1.8);
+        var damage = Math.Clamp((int)Math.Round(rawDamage * resistance), 1, Math.Max(1, target.HitPoints));
+        target.HitPoints = Math.Max(0, target.HitPoints - damage);
+        target.DamageTaken += damage;
+        var pressure = sourceOfficer is null ? 0 : Math.Max(0, sourceOfficer.Might - target.Leadership) * .02;
+        var moraleLoss = .8 + damage / (double)Math.Max(1, target.MaxHitPoints) * 55 + pressure;
+        target.Morale = Math.Max(0, target.Morale - moraleLoss);
+        if (target.HitPoints <= 0)
+        {
+            target.IsRouted = true;
+            target.State = "mounted-defeated";
+            text += "，已无力再战";
+        }
+        else if (target.Morale < 20)
+        {
+            target.IsRouted = true;
+            target.State = "mounted-retreat";
+            text += "，士气崩溃撤离战线";
+        }
+        pending.Timeline.Add(new BattleTimelineEventData
+        {
+            Start = pending.Elapsed + .16,
+            Duration = .8,
+            Stage = stage,
+            Action = "officer-damage",
+            Side = target.Side,
+            GroupId = sourceGroup?.Id ?? string.Empty,
+            OfficerId = sourceOfficer?.OfficerId ?? string.Empty,
+            TargetOfficerId = target.OfficerId,
+            StartX = sourceOfficer?.X ?? sourceGroup?.X ?? target.X,
+            StartY = sourceOfficer?.Y ?? sourceGroup?.Y ?? target.Y,
+            EndX = target.X,
+            EndY = target.Y,
+            Losses = damage,
+            Text = $"{text}，体力 −{damage}，士气 {target.Morale:F0}",
+        });
+        return damage;
     }
 
     private static void AddMountedOfficerEvent(PendingBattleData pending, BattleOfficerUnitData officer, BattleUnitGroupData target, int losses, bool strategist)
@@ -970,6 +1099,17 @@ public static class BattleCalculator
         if (source.TroopType == "cavalry") shock += 1.8;
         if (source.TroopType == "archers") shock *= .72;
         target.Morale = Math.Max(0, target.Morale - shock);
+        var assignedOfficer = pending.OfficerUnits.FirstOrDefault(item => item.OfficerId == target.AssignedOfficerId && !item.IsRouted);
+        if (assignedOfficer is not null)
+        {
+            var officerShock = .15 + lossShare * 6 + (target.Morale < 25 ? 1.5 : 0);
+            assignedOfficer.Morale = Math.Max(0, assignedOfficer.Morale - officerShock);
+            if (assignedOfficer.Morale < 20)
+            {
+                assignedOfficer.IsRouted = true;
+                assignedOfficer.State = "mounted-retreat";
+            }
+        }
         if (target.Morale >= 25) return;
 
         target.CommandTargetGroupId = string.Empty;
@@ -1111,7 +1251,7 @@ public static class BattleCalculator
         foreach (var officer in pending.OfficerUnits)
         {
             var current = pending.OfficerContributions.GetValueOrDefault(officer.OfficerId);
-            var mounted = $"骑将战力 {officer.CombatPower:F1} · 实时杀伤 {officer.TotalDamage:N0}";
+            var mounted = $"骑将战力 {officer.CombatPower:F1} · 体力 {officer.HitPoints:N0}/{officer.MaxHitPoints:N0} · 士气 {officer.Morale:F0} · 杀兵 {officer.TotalDamage:N0} · 对将伤害 {officer.OfficerDamageDealt:N0}";
             pending.OfficerContributions[officer.OfficerId] = string.IsNullOrEmpty(current) ? mounted : $"{current} · {mounted}";
         }
         if (result == "victory" && pending.BattleType == "siege") pending.InnerAfter = Math.Min(25, pending.InnerAfter);
@@ -1446,21 +1586,26 @@ public static class BattleCalculator
         {
             var officer = state.Officers.FirstOrDefault(item => item.Profile.Id == ids[index]);
             if (officer is null) continue;
-            var leadership = OfficerProgressionRules.EffectiveAbility(officer, "leadership", "military");
-            var might = OfficerProgressionRules.EffectiveAbility(officer, "might", "military");
-            var intelligence = OfficerProgressionRules.EffectiveAbility(officer, "intelligence", "military");
-            var charisma = OfficerProgressionRules.EffectiveAbility(officer, "charisma", "military");
-            var contribution = index == 0
-                ? Math.Clamp((leadership - 45) * .0018 + charisma * .00025, .015, .13)
-                : index == 1
-                    ? Math.Clamp((might + leadership) / 2800d, .025, .075)
-                    : Math.Clamp((intelligence + leadership) / 3000d, .025, .07);
-            contribution *= Math.Clamp(officer.InitialState.Health / 100d, .45, 1) * Math.Clamp(1 - officer.InitialState.Fatigue / 180d, .45, 1);
+            var contribution = OfficerRoleContribution(officer, index);
             total += contribution;
             var role = roles.GetValueOrDefault(officer.Profile.Id, attacker ? "随军武将" : "守城武将");
             descriptions[officer.Profile.Id] = $"{role} · 战力贡献 +{contribution:P1}";
         }
         return Math.Clamp(total, .85, 1.25);
+    }
+
+    public static double OfficerRoleContribution(ScenarioOfficerData officer, int roleIndex)
+    {
+        var leadership = OfficerProgressionRules.EffectiveAbility(officer, "leadership", "military");
+        var might = OfficerProgressionRules.EffectiveAbility(officer, "might", "military");
+        var intelligence = OfficerProgressionRules.EffectiveAbility(officer, "intelligence", "military");
+        var charisma = OfficerProgressionRules.EffectiveAbility(officer, "charisma", "military");
+        var contribution = roleIndex == 0
+            ? Math.Clamp((leadership - 45) * .0018 + charisma * .00025, .015, .13)
+            : roleIndex == 1
+                ? Math.Clamp((might + leadership) / 2800d, .025, .075)
+                : Math.Clamp((intelligence + leadership) / 3000d, .025, .07);
+        return contribution * Math.Clamp(officer.InitialState.Health / 100d, .45, 1) * Math.Clamp(1 - officer.InitialState.Fatigue / 180d, .45, 1);
     }
 
     private static double StateMultiplier(int training, int morale, int fatigue, bool supplied) =>

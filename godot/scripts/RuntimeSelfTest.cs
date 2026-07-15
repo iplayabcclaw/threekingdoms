@@ -46,6 +46,7 @@ public static class RuntimeSelfTest
         legacyDefaults.SchemaVersion = 3; legacyDefaults.Difficulty = ""; legacyDefaults.AutoSaveFrequency = ""; legacyDefaults.NineCityControlMonths = -1; legacyDefaults.EnsureDomesticDefaults();
         Require(legacyDefaults.SchemaVersion == GameSession.CurrentSchemaVersion && legacyDefaults.Difficulty == "standard" && legacyDefaults.AutoSaveFrequency == "monthly" && legacyDefaults.NineCityControlMonths == 0, "旧档补齐新游戏与胜利进度默认值");
         Require(GameSession.CurrentSchemaVersion == 7 && legacyDefaults.Officers.All(item => item.InitialState.Level is >= 1 and <= 20 && item.Profile.GrowthPlan.Count == 23 && item.Profile.AbilityPotential.Leadership >= item.Profile.Abilities.Leadership && item.InitialState.CourtOfficeId is not null), "schema v7 包含成长、朝堂职位与武将调动状态");
+        Require(legacyDefaults.Officers.All(item => item.InitialState.Health == 100), "武将战略健康固定保持100");
 
         var resourceForecast = new GameRuntime(scenario);
         var forecastBefore = new ResourceData
@@ -107,7 +108,9 @@ public static class RuntimeSelfTest
         Require(court.AppointCourtOffice(chancellor.Profile.Id, "chancellor") && OfficerProgressionRules.Salary(chancellor) == courtSalaryBefore + 100 && court.EffectiveAbility(chancellor, "politics", "civil") == courtPoliticsBefore + 6, "朝堂职位提供唯一任命、专属效果与俸禄津贴");
         var successor = court.PlayerOfficers().First(item => item.Profile.Id != chancellor.Profile.Id && item.InitialState.Appointment != "ruler" && item.InitialState.Status == "serving" && item.InitialState.OfficeTrack == "civil");
         successor.InitialState.OfficeRank = 3; successor.InitialState.CourtOfficeId = string.Empty;
-        Require(court.AppointCourtOffice(successor.Profile.Id, "chancellor") && string.IsNullOrEmpty(chancellor.InitialState.CourtOfficeId) && successor.InitialState.CourtOfficeId == "chancellor", "同一朝堂席位改任时自动卸任前任");
+        Require(!court.AppointCourtOffice(successor.Profile.Id, "chancellor") && chancellor.InitialState.CourtOfficeId == "chancellor" && string.IsNullOrEmpty(successor.InitialState.CourtOfficeId), "已占用的朝堂职位不能直接替换人选");
+        Require(!court.AppointCourtOffice(chancellor.Profile.Id, "strategist-general") && chancellor.InitialState.CourtOfficeId == "chancellor", "已任朝堂职位的武将不能同时选择其他职位");
+        Require(court.VacateCourtOffice(chancellor.Profile.Id) && court.AppointCourtOffice(successor.Profile.Id, "chancellor") && string.IsNullOrEmpty(chancellor.InitialState.CourtOfficeId) && successor.InitialState.CourtOfficeId == "chancellor", "先卸任后才能重新任命朝堂职位");
 
         var progression = new GameRuntime(scenario);
         var growingOfficer = progression.PlayerOfficers().First(item => item.InitialState.Appointment != "ruler" && item.Profile.Abilities.Leadership < 100);
@@ -140,6 +143,8 @@ public static class RuntimeSelfTest
         var noEliteTrait = OfficerProgressionRules.BattleTraitMultiplier(runtime.State, [gaoShun.Profile.Id], new Dictionary<string, string> { [gaoShun.Profile.Id] = "主将" }, new Dictionary<string, int> { ["infantry"] = 8000 }, [], "正面接战", traitDescriptions);
         var eliteTrait = OfficerProgressionRules.BattleTraitMultiplier(runtime.State, [gaoShun.Profile.Id], new Dictionary<string, string> { [gaoShun.Profile.Id] = "主将" }, new Dictionary<string, int> { ["infantry"] = 8000 }, new Dictionary<string, int> { ["trap-camp"] = 2000 }, "正面接战", traitDescriptions);
         Require(eliteTrait > noEliteTrait && traitDescriptions.GetValueOrDefault(gaoShun.Profile.Id).Contains("陷阵之志"), "名将特性只在特殊部队人数与占比达标时生效");
+        OfficerProgressionRules.BattleTraitMultiplier(runtime.State, [gaoShun.Profile.Id], new Dictionary<string, string> { [gaoShun.Profile.Id] = "主将" }, new Dictionary<string, int> { ["infantry"] = 8000 }, new Dictionary<string, int> { ["trap-camp"] = 2000 }, "决胜", traitDescriptions);
+        Require(traitDescriptions[gaoShun.Profile.Id].Split("陷阵之志").Length - 1 == 1, "同一特性作用于多个战斗阶段时战报只展示一次");
         var civilOfficer = runtime.PlayerOfficers().First(item => item.Profile.Traits.Contains("善政"));
         Require(runtime.CityCommandPreview(civilOfficer.InitialState.CityId, civilOfficer.Profile.Id, "agriculture").Contains("善政+4"), "文臣特性进入内政预估与正式公式");
 
@@ -182,7 +187,7 @@ public static class RuntimeSelfTest
             && constructionCity.ConstructionQueue is { DefinitionId: "market", TargetSlotIndex: 2 }
             && !GameRuntime.FacilitiesBySlot(constructionCity).ContainsKey(2),
             "设施开工后绑定所选空地并以建造中状态占位");
-        Require(domestic.ConfigureCityGovernance(secondCity.Id, "delegated", "agriculture", "granary", true), "逐城设置太守委任方针");
+        Require(domestic.ConfigureCityGovernance(secondCity.Id, "delegated", "agriculture", "granary"), "逐城设置太守委任方针");
         Require(domestic.EndTurn(), "智能内政月度结算");
         Require(domestic.State.Cities.All(item => item.ActionCapacity is >= 1 and <= 4 && item.ActionSlots == item.ActionCapacity), "逐城城务额度独立重置");
         Require(domestic.State.Cities.Any(item => item.OwnerFactionId != domestic.State.PlayerFactionId && item.LedgerEntries.Any(entry => entry.Category == "command")), "AI 使用同规则执行城务并写入台账");
@@ -356,16 +361,19 @@ public static class RuntimeSelfTest
         var fullCommander = fullSortie.PlayerOfficers().First(item => item.InitialState.CityId == fullSource.Id && item.InitialState.Status == "serving");
         var fullGarrison = fullSource.Garrison;
         var equipmentBeforeSpecialTroop = fullSortie.State.Resources.Equipment;
-        Require(fullSortie.CreateExpedition(fullSource.Id, fullTargetId, fullCommander.Profile.Id, fullGarrison, Math.Min(1000, fullSortie.State.Resources.Food), "standard", "steady-advance", [], new Dictionary<string, int> { ["infantry"] = fullGarrison - 500, ["archers"] = 500 }, new Dictionary<string, int> { ["danyang-veterans"] = 500 }), "允许玩家按实际阵型全城出击并编成特殊部队");
+        Require(fullSortie.CreateExpedition(fullSource.Id, fullTargetId, fullCommander.Profile.Id, fullGarrison, Math.Min(1000, fullSortie.State.Resources.Food), [], new Dictionary<string, int> { ["infantry"] = fullGarrison - 500, ["archers"] = 500 }, new Dictionary<string, int> { ["danyang-veterans"] = 500 }), "允许玩家按实际阵型全城出击并编成特殊部队");
         Require(fullSource.Garrison == 0 && fullSortie.State.Armies.Last().Soldiers == fullGarrison, "全城出击真实扣空驻军且军团兵力一致");
-        Require(fullSortie.State.Armies.Last().SpecialTroops.GetValueOrDefault("danyang-veterans") == 500 && fullSortie.State.Resources.Equipment == equipmentBeforeSpecialTroop - 40, "特殊部队写入军团并扣除军备");
+        Require(fullSortie.State.Armies.Last().SpecialTroops.GetValueOrDefault("danyang-veterans") == 500
+            && fullSortie.SpecialTroopEquipmentCost("danyang-veterans", 500) == 40
+            && fullSortie.State.Resources.Equipment == equipmentBeforeSpecialTroop - fullSortie.SpecialTroopEquipmentCost("danyang-veterans", 500),
+            "特殊部队界面费用与出征实际扣除共用同一军备数字");
 
         var withdrawal = new GameRuntime(scenario);
         var withdrawalSource = withdrawal.State.Cities.First(item => item.OwnerFactionId == withdrawal.State.PlayerFactionId && withdrawal.State.Roads.Any(road => road.TravelDays > 30 && ((road.FromCityId == item.Id && withdrawal.City(road.ToCityId)?.OwnerFactionId != withdrawal.State.PlayerFactionId) || (road.ToCityId == item.Id && withdrawal.City(road.FromCityId)?.OwnerFactionId != withdrawal.State.PlayerFactionId))));
         var withdrawalRoad = withdrawal.State.Roads.First(road => road.TravelDays > 30 && ((road.FromCityId == withdrawalSource.Id && withdrawal.City(road.ToCityId)?.OwnerFactionId != withdrawal.State.PlayerFactionId) || (road.ToCityId == withdrawalSource.Id && withdrawal.City(road.FromCityId)?.OwnerFactionId != withdrawal.State.PlayerFactionId)));
         var withdrawalTargetId = withdrawalRoad.FromCityId == withdrawalSource.Id ? withdrawalRoad.ToCityId : withdrawalRoad.FromCityId;
         var withdrawalCommander = withdrawal.PlayerOfficers().First(item => item.InitialState.CityId == withdrawalSource.Id && item.InitialState.Status == "serving");
-        Require(withdrawal.CreateExpedition(withdrawalSource.Id, withdrawalTargetId, withdrawalCommander.Profile.Id, 3000, 5000, "standard", "steady-advance", [], new Dictionary<string, int> { ["infantry"] = 2500, ["archers"] = 500 }), "撤兵自测军团完成首回合出征");
+        Require(withdrawal.CreateExpedition(withdrawalSource.Id, withdrawalTargetId, withdrawalCommander.Profile.Id, 3000, 5000, [], new Dictionary<string, int> { ["infantry"] = 2500, ["archers"] = 500 }), "撤兵自测军团完成首回合出征");
         var withdrawingArmy = withdrawal.State.Armies.Last();
         Require(!withdrawal.WithdrawArmy(withdrawingArmy.Id, withdrawalSource.Id), "出征当回合不能重复下达撤兵命令");
         Require(withdrawal.EndTurn(), "撤兵前推进到下一回合");
@@ -396,18 +404,17 @@ public static class RuntimeSelfTest
         var campaignTargetFactionId = campaign.City(targetId)!.OwnerFactionId!;
         var commander = campaign.PlayerOfficers().First(item => item.InitialState.CityId == source.Id && item.InitialState.Status == "serving");
         campaign.State.Diplomacy.First(item => item.FactionId == campaignTargetFactionId).Treaties["truce"] = 2;
-        Require(!campaign.CreateExpedition(source.Id, targetId, commander.Profile.Id, 3000, 5000, "standard", "steady-advance", [], new Dictionary<string, int> { ["infantry"] = 2000, ["archers"] = 1000 }), "停战阻止玩家出征");
+        Require(!campaign.CreateExpedition(source.Id, targetId, commander.Profile.Id, 3000, 5000, [], new Dictionary<string, int> { ["infantry"] = 2000, ["archers"] = 1000 }), "停战阻止玩家出征");
         campaign.State.Diplomacy.First(item => item.FactionId == campaignTargetFactionId).Treaties.Remove("truce");
         var insufficientTacticNotice = string.Empty;
         campaign.Notice += message => insufficientTacticNotice = message;
-        Require(!campaign.CreateExpedition(source.Id, targetId, commander.Profile.Id, 3000, 5000, "standard", "cavalry-charge", [], new Dictionary<string, int> { ["infantry"] = 2000, ["archers"] = 1000 }) && insufficientTacticNotice.Contains("骑兵需达到总兵力的12%"), "主战术兵种条件不足时阻止出征并显示具体条件");
-        Require(campaign.CreateExpedition(source.Id, targetId, commander.Profile.Id, 3000, 5000, "standard", "steady-advance", [], new Dictionary<string, int> { ["infantry"] = 2000, ["archers"] = 1000 }), "军团编成与出征");
+        Require(campaign.CreateExpedition(source.Id, targetId, commander.Profile.Id, 3000, 5000, [], new Dictionary<string, int> { ["infantry"] = 2000, ["archers"] = 1000 }), "军团编成与出征不提前选择战术");
         var army = campaign.State.Armies.Last();
         Require(army.LastMarchTurn == campaign.State.Turn && army.RemainingDays == army.TotalDays - 30, "出征后在回合内立即行军");
         Require(!campaign.MarchArmy(army.Id), "同一军团每回合只能行军一次");
         var remainingDays = army.RemainingDays;
         Require(campaign.EndTurn() && army.RemainingDays == remainingDays, "月末不重复推进己方军团");
-        Require(campaign.MarchArmy(army.Id) && campaign.State.PendingBattle is not null, "新回合继续行军并抵达战场");
+        Require(campaign.EndTurn() && campaign.State.PendingBattle is not null && army.LastMarchTurn == campaign.State.Turn, "新回合未主动行动的己方军团在月末自动行军并抵达战场");
         var pending = campaign.State.PendingBattle!;
         Require(pending.Terrain == "plain"
             && BattleCalculator.LocalMoveMultiplier(pending, "cavalry", 500, 500) == 1,
@@ -486,6 +493,10 @@ public static class RuntimeSelfTest
             && campaign.State.PendingBattle.OfficerUnits.All(item => item.SpriteId.Contains("generic") || item.SpriteId is "liu-bei" or "guan-yu" or "zhang-fei" or "lu-bu"), "双方参战武将全部展开为独立骑将单位");
         Require(BattleCalculator.MountedOfficerCombatPower("lu-bu", 92, 100, 42) > BattleCalculator.MountedOfficerCombatPower("generic-commander", 70, 70, 70)
             && campaign.State.PendingBattle.OfficerUnits.All(item => item.CombatPower >= 3.5), "骑将战力由属性计算且历史名将拥有专属强度");
+        Require(BattleCalculator.MountedOfficerMaxHitPoints(95, 95) > BattleCalculator.MountedOfficerMaxHitPoints(50, 50)
+            && BattleCalculator.MountedOfficerDefense(95, 95) > BattleCalculator.MountedOfficerDefense(50, 50)
+            && campaign.State.PendingBattle.OfficerUnits.All(item => item.MaxHitPoints >= 1100 && item.HitPoints == item.MaxHitPoints && item.Morale == item.InitialMorale && item.Defense >= 30),
+            "武将独立体力、士气与属性抗打数值完成初始化");
         var commandedGroup = campaign.State.PendingBattle!.Groups.First(item => item.Side == campaign.State.PendingBattle.PlayerSide && item.FinalSoldiers > 0);
         var commandedTarget = campaign.State.PendingBattle.Groups.First(item => item.Side != campaign.State.PendingBattle.PlayerSide && item.FinalSoldiers > 0);
         var commandMorale = commandedGroup.Morale;
@@ -510,8 +521,12 @@ public static class RuntimeSelfTest
         Require((campaign.State.PendingBattle.Timeline.Any(item => item.Action is "officer-charge" or "officer-command")
                 && campaign.State.PendingBattle.OfficerUnits.Any(item => item.TotalDamage > 0))
             || earlyMoraleResolution, "骑乘武将参战，或军心先于骑将冲锋崩溃");
+        Require((campaign.State.PendingBattle.Timeline.Any(item => item.Action == "officer-damage")
+                && campaign.State.PendingBattle.OfficerUnits.Any(item => item.DamageTaken > 0 && item.HitPoints < item.MaxHitPoints))
+            || earlyMoraleResolution, "武将体力与士气在实时交锋中独立承伤");
         campaign.State.TurnResolutionPending = false;
         Require(campaign.CompletePendingBattle(), "战斗时间线结算");
+        Require(pending.AttackerOfficerIds.Concat(pending.DefenderOfficerIds).All(id => campaign.Officer(id)?.InitialState.Health == 100), "战斗结算不再扣减战略健康");
         Require(campaign.State.BattleReports.Count > 0, "行军与战斗结算");
         var completedReport = campaign.State.BattleReports.Last();
         Require(completedReport.PhaseResults.Count == 1 && completedReport.PrimaryTactic == "steady-advance" && completedReport.PhaseResults.Sum(phase => phase.AttackerLosses) == completedReport.AttackerLosses, "战报持久保存实时结果与战术决策");
@@ -534,7 +549,7 @@ public static class RuntimeSelfTest
         interception.State.Armies.Add(enemyArmy);
         var interceptCommander = interception.PlayerOfficers().First(item => item.InitialState.CityId == interceptSource.Id && item.InitialState.Status == "serving");
         var cityOwnerBeforeInterception = interceptSource.OwnerFactionId;
-        Require(interception.CreateExpedition(interceptSource.Id, interceptSource.Id, interceptCommander.Profile.Id, 3000, 3000, "standard", "encirclement", [], new Dictionary<string, int> { ["infantry"] = 2000, ["archers"] = 1000 }, [], enemyArmy.Id), "可选中敌方军团并发起专门拦截");
+        Require(interception.CreateExpedition(interceptSource.Id, interceptSource.Id, interceptCommander.Profile.Id, 3000, 3000, [], new Dictionary<string, int> { ["infantry"] = 2000, ["archers"] = 1000 }, [], enemyArmy.Id), "可选中敌方军团并发起专门拦截");
         var fieldPending = interception.State.PendingBattle ?? throw new InvalidOperationException("[GodotSelfTest] FAIL · 未创建军团野战");
         Require(fieldPending.BattleType == "field" && fieldPending.DefenderArmyId == enemyArmy.Id && fieldPending.DefenderBefore == 3700, "拦截目标绑定敌军团并按真实兵力展开野战");
         Require(fieldPending.Terrain == "plain"

@@ -197,13 +197,18 @@ public sealed partial class GameRuntime
         _ => 0,
     };
 
+    public int SpecialTroopEquipmentCost(string specialTroopId, int count) =>
+        OfficerProgressionRules.SpecialTroops.TryGetValue(specialTroopId, out var definition) && count > 0
+            ? count / 500 * definition.EquipmentPerFiveHundred
+            : 0;
+
     private static int RecruitmentIdealBonus(ScenarioOfficerData actor, ScenarioOfficerData candidate) =>
         Math.Min(6, actor.Profile.Ideals.Intersect(candidate.Profile.Ideals).Distinct().Count() * 3);
 
     private static int WeightedPercent(int value, int percent) =>
         (int)Math.Round(value * percent / 100.0, MidpointRounding.AwayFromZero);
 
-    public bool CreateExpedition(string sourceCityId, string targetCityId, string commanderId, int soldiers, int food, string stance, string tactic, List<string>? deputyIds = null, Dictionary<string, int>? composition = null, Dictionary<string, int>? specialTroops = null, string targetArmyId = "")
+    public bool CreateExpedition(string sourceCityId, string targetCityId, string commanderId, int soldiers, int food, List<string>? deputyIds = null, Dictionary<string, int>? composition = null, Dictionary<string, int>? specialTroops = null, string targetArmyId = "")
     {
         var source = City(sourceCityId); var target = City(targetCityId); var commander = Officer(commanderId);
         var targetArmy = string.IsNullOrEmpty(targetArmyId) ? null : State.Armies.FirstOrDefault(item => item.Id == targetArmyId && item.Status is "marching" or "besieging");
@@ -225,8 +230,6 @@ public sealed partial class GameRuntime
         var activeTroops = composition.Where(item => item.Value > 0).ToList();
         if (activeTroops.Count > 3 || activeTroops.Any(item => item.Value < 500)) return Fail("军团最多混编三种兵种，每种至少500人。");
         if (activeTroops.Count == 1 && activeTroops[0].Key == "siege") return Fail("攻城器械不能成为唯一兵种。");
-        var tacticRequirement = BattleCalculator.TacticRequirement(tactic, composition);
-        if (!string.IsNullOrEmpty(tacticRequirement)) return Fail(tacticRequirement);
         specialTroops ??= [];
         var specialEquipment = 0;
         foreach (var entry in specialTroops.Where(item => item.Value > 0))
@@ -234,7 +237,7 @@ public sealed partial class GameRuntime
             if (!OfficerProgressionRules.SpecialTroops.TryGetValue(entry.Key, out var definition)) return Fail("特殊部队类型无效。");
             if (!definition.FactionIds.Contains(State.PlayerFactionId)) return Fail($"当前势力不能编成{definition.Name}。");
             if (entry.Value < 500 || entry.Value % 500 != 0 || entry.Value > composition.GetValueOrDefault(definition.BaseTroopType)) return Fail($"{definition.Name}必须以500人为单位，且不能超过对应基础兵种人数。");
-            specialEquipment += entry.Value / 500 * definition.EquipmentPerFiveHundred;
+            specialEquipment += SpecialTroopEquipmentCost(entry.Key, entry.Value);
         }
         if (specialTroops.Count(item => item.Value > 0) > 1) return Fail("首版每支军团最多编成一种特殊部队。");
         if (State.Resources.Equipment < specialEquipment) return Fail($"编成特殊部队需要军备{specialEquipment:N0}，势力军备不足。");
@@ -250,7 +253,7 @@ public sealed partial class GameRuntime
         if (deputyIds.Count > 0) roles[deputyIds[0]] = "vanguard";
         if (deputyIds.Count > 1) roles[deputyIds[1]] = "strategist";
         var commandPenalty = Math.Max(0, soldiers - commandCapacity) / Math.Max(1, commandCapacity / 10);
-        var army = new ArmyData { Id = armyId, FactionId = State.PlayerFactionId, SourceCityId = sourceCityId, TargetCityId = targetCityId, TargetArmyId = targetArmyId, CommanderId = commanderId, DeputyIds = deputyIds, OfficerRoles = roles, Composition = composition.Where(item => item.Value > 0).ToDictionary(item => item.Key, item => item.Value), SpecialTroops = specialTroops.Where(item => item.Value > 0).ToDictionary(item => item.Key, item => item.Value), Soldiers = soldiers, Food = food, Training = source.Training, Morale = Math.Max(50, 70 - commandPenalty), Stance = stance, Tactic = tactic, RouteRoadIds = route, RemainingDays = travelDays, TotalDays = travelDays };
+        var army = new ArmyData { Id = armyId, FactionId = State.PlayerFactionId, SourceCityId = sourceCityId, TargetCityId = targetCityId, TargetArmyId = targetArmyId, CommanderId = commanderId, DeputyIds = deputyIds, OfficerRoles = roles, Composition = composition.Where(item => item.Value > 0).ToDictionary(item => item.Key, item => item.Value), SpecialTroops = specialTroops.Where(item => item.Value > 0).ToDictionary(item => item.Key, item => item.Value), Soldiers = soldiers, Food = food, Training = source.Training, Morale = Math.Max(50, 70 - commandPenalty), Stance = "standard", Tactic = "steady-advance", RouteRoadIds = route, RemainingDays = travelDays, TotalDays = travelDays };
         State.Armies.Add(army);
         AdvanceArmy(army);
         var objective = targetArmy is null ? target.Name : $"{Officer(targetArmy.CommanderId)?.Profile.Name ?? "敌军"}军";
@@ -435,7 +438,7 @@ public sealed partial class GameRuntime
             return Success($"{City(State.PendingBattle.CityId)?.Name}战事爆发，已进入战前军议。", "battle");
         }
         FinishTurnResolution();
-        return Success($"进入{State.Year}年{State.Month}月。月度经济、AI行军与外交均已结算；己方军团可在回合内行军。", "turn");
+        return Success($"进入{State.Year}年{State.Month}月。月度经济、军团行军与外交均已结算；己方军团若本月未主动行动，会在月末自动行军。", "turn");
     }
 
     public ResourceData PreviewEndTurnResourceDelta()
@@ -559,7 +562,7 @@ public sealed partial class GameRuntime
     private void ResolveArmies()
     {
         if (State.PendingBattle is not null) return;
-        foreach (var army in State.Armies.Where(item => (item.Status is "marching" or "besieging") && item.FactionId != State.PlayerFactionId && item.LastMarchTurn < State.Turn).ToList())
+        foreach (var army in State.Armies.Where(item => (item.Status is "marching" or "besieging") && item.LastMarchTurn < State.Turn).ToList())
         {
             AdvanceArmy(army);
             if (State.PendingBattle is not null) return;
@@ -760,7 +763,7 @@ public sealed partial class GameRuntime
         {
             var officer = Officer(officerId); if (officer is null) continue;
             officer.InitialState.Merit += pending.Result == "victory" ? 18 : pending.Result == "stalemate" ? 8 : 3;
-            officer.InitialState.Health = Math.Max(25, officer.InitialState.Health - (pending.Result == "defeat" ? 6 : 2));
+            officer.InitialState.Health = 100;
             officer.InitialState.Fatigue = Math.Clamp(officer.InitialState.Fatigue + 12, 0, 100);
             AwardOfficerExperience(officer, 35 + (officerId == pending.AttackerCommanderId ? 25 : 0) + (pending.Result == "victory" ? 40 : 0), pending.Result == "victory" ? "赢得正式战斗" : "完成正式战斗", pending.Result == "victory" ? "battle-victory" : "battle-participation");
         }
@@ -768,7 +771,7 @@ public sealed partial class GameRuntime
         {
             var officer = Officer(officerId); if (officer is null) continue;
             officer.InitialState.Merit += pending.Result == "victory" ? 2 : 7;
-            officer.InitialState.Health = Math.Max(25, officer.InitialState.Health - (pending.Result == "victory" ? 7 : 2));
+            officer.InitialState.Health = 100;
             AwardOfficerExperience(officer, 35 + (pending.Result != "victory" ? 30 : 0), pending.Result != "victory" ? "完成守城" : "参加守城战", pending.Result != "victory" ? "city-defense" : "battle-participation");
         }
 
@@ -865,7 +868,7 @@ public sealed partial class GameRuntime
             var officer = Officer(officerId); if (officer is null) continue;
             var won = pending.AttackerOfficerIds.Contains(officerId) ? pending.Result == "victory" : pending.Result != "victory";
             officer.InitialState.Merit += won ? 14 : 4;
-            officer.InitialState.Health = Math.Max(25, officer.InitialState.Health - (won ? 2 : 6));
+            officer.InitialState.Health = 100;
             officer.InitialState.Fatigue = Math.Clamp(officer.InitialState.Fatigue + 12, 0, 100);
             AwardOfficerExperience(officer, won ? 70 : 40, won ? "赢得军团野战" : "参加军团野战", won ? "battle-victory" : "battle-participation");
         }

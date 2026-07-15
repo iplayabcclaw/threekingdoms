@@ -117,6 +117,7 @@ public static class OfficerProgressionRules
         state.CourtOfficeId ??= string.Empty;
         state.GrowthBonuses ??= new OfficerAbilitiesData();
         profile.AbilityPotential ??= new OfficerAbilitiesData();
+        state.Health = 100;
 
         if (string.IsNullOrWhiteSpace(profile.GrowthArchetype)) profile.GrowthArchetype = DetermineArchetype(profile.Abilities);
         if (profile.GrowthPlan.Count < 23) profile.GrowthPlan = BuildGrowthPlan(profile.GrowthArchetype);
@@ -228,8 +229,20 @@ public static class OfficerProgressionRules
         var total = Math.Min(.15, selected.Sum(item => item.Bonus));
         foreach (var group in selected.GroupBy(item => item.Officer.Profile.Id))
         {
-            var text = string.Join('、', group.Select(item => $"{item.Rule.Name}+{item.Bonus:P1}"));
-            descriptions[group.Key] = descriptions.TryGetValue(group.Key, out var existing) ? $"{existing}；{text}" : text;
+            var additions = group
+                .Select(item => $"{item.Rule.Name}+{item.Bonus:P1}")
+                .Distinct()
+                .ToList();
+            var existingItems = descriptions.TryGetValue(group.Key, out var existing)
+                ? existing.Split('；', StringSplitOptions.RemoveEmptyEntries).ToList()
+                : [];
+            foreach (var addition in additions)
+            {
+                var traitName = addition.Split('+', 2)[0];
+                if (existingItems.Any(item => item.StartsWith($"{traitName}+", StringComparison.Ordinal))) continue;
+                existingItems.Add(addition);
+            }
+            descriptions[group.Key] = string.Join('；', existingItems);
         }
         return 1 + total;
     }
@@ -350,13 +363,12 @@ public sealed partial class GameRuntime
         if (officer.InitialState.OfficeTrack != office.Track) return Fail($"{office.Name}只接受{OfficerProgressionRules.TrackName(office.Track)}序列武将。");
         if (officer.InitialState.OfficeRank < office.MinimumRank) return Fail($"{office.Name}需要至少{OfficerProgressionRules.OfficeName(office.Track, office.MinimumRank)}官阶。");
         if (officer.InitialState.CourtOfficeId == office.Id) return Fail($"{officer.Profile.Name}已经担任{office.Name}。");
-        var previousHolder = State.Officers.FirstOrDefault(item => item.InitialState.FactionId == State.PlayerFactionId && item.InitialState.CourtOfficeId == office.Id);
+        var currentHolder = State.Officers.FirstOrDefault(item => item.InitialState.FactionId == State.PlayerFactionId && item.InitialState.CourtOfficeId == office.Id);
         var previousOffice = OfficerProgressionRules.CourtOffice(officer.InitialState.CourtOfficeId);
-        if (previousHolder is not null) previousHolder.InitialState.CourtOfficeId = string.Empty;
+        if (currentHolder is not null) return Fail($"{office.Name}已有{currentHolder.Profile.Name}任职，请先卸任现任。");
+        if (previousOffice is not null) return Fail($"{officer.Profile.Name}已担任{previousOffice.Name}，请先卸任后再改任。");
         officer.InitialState.CourtOfficeId = office.Id;
-        var change = previousHolder is null ? "" : $"，{previousHolder.Profile.Name}卸任";
-        var transfer = previousOffice is null ? "" : $"（原{previousOffice.Name}）";
-        return Success($"{officer.Profile.Name}{transfer}出任{office.Name}{change}；月俸增至{OfficerProgressionRules.Salary(officer)}金，{office.Effect}。", "talent");
+        return Success($"{officer.Profile.Name}出任{office.Name}；月俸增至{OfficerProgressionRules.Salary(officer)}金，{office.Effect}。", "talent");
     }
 
     public bool VacateCourtOffice(string officerId)

@@ -5,7 +5,7 @@ public sealed partial class GameRuntime
     private static readonly HashSet<string> GovernanceModes = ["manual", "delegated"];
     private static readonly HashSet<string> GovernancePolicies = ["balanced", "recovery", "commerce", "agriculture", "military", "integration"];
     private static readonly HashSet<string> CityRoles = ["unassigned", "granary", "market", "garrison", "academy", "hub"];
-    public bool ConfigureCityGovernance(string cityId, string mode, string policy, string role, bool allowNeighborAid)
+    public bool ConfigureCityGovernance(string cityId, string mode, string policy, string role)
     {
         var city = City(cityId);
         if (city?.OwnerFactionId != State.PlayerFactionId) return Fail("只能设置己方城池的治理方针。");
@@ -17,7 +17,6 @@ public sealed partial class GameRuntime
         }
         city.GovernanceMode = mode;
         city.GovernancePolicy = policy;
-        city.AllowNeighborAid = allowNeighborAid;
         return Success($"{city.Name}已设置为{GovernanceModeLabel(mode)}，方针为{GovernancePolicyLabel(policy)}。", "city");
     }
 

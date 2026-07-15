@@ -19,7 +19,6 @@ public partial class CityManagementView : Control
     private VBoxContainer _overviewList = null!, _buildingSlots = null!;
     private Control _detail = null!;
     private OptionButton _officer = null!, _commandGroup = null!, _facilityChoice = null!, _builderChoice = null!, _governanceMode = null!, _policy = null!, _role = null!;
-    private CheckButton _allowAid = null!;
     private Control _builderRow = null!;
 
     public void Initialize(GameRuntime runtime)
@@ -96,7 +95,7 @@ public partial class CityManagementView : Control
         var treasury = _runtime.State.Resources;
         _title.Text = $"{city.Name}城";
         _subtitle.Text = $"{city.Region} · {faction?.Name ?? "未知势力"} · 太守 {city.GovernorName} · {GameRuntime.CityStatusLabel(city.Status)} · 本月城务 {city.ActionSlots}/{city.ActionCapacity}";
-        _back.Text = "← 内政总览"; _previous.Visible = true; _next.Visible = true;
+        _back.Text = "← 返回天下"; _previous.Visible = true; _next.Visible = true;
         _overviewResources.Text = $"势力府库\n金　{treasury.Gold:N0}\n粮　{treasury.Food:N0}\n军备　{treasury.Equipment:N0}\n\n本城月度贡献\n金 {forecast.GoldIncome - forecast.GoldUpkeep:+#,0;-#,0;0}\n粮 {forecast.FoodIncome - forecast.FoodUpkeep:+#,0;-#,0;0}\n\n驻军 {city.Garrison:N0}　人口 {city.Population:N0}";
         _overviewDevelopment.Text = $"太守\n{city.GovernorName}\n\n农业　{city.Agriculture}　商业　{city.Commerce}\n治安　{city.PublicOrder}　民心　{city.PublicSupport}\n城防　{city.Defense}　文化　{city.Culture}\n训练　{city.Training}　疲敝　{city.Fatigue}\n\n当前要务：{_runtime.CityPrioritySummary(city)}";
         var ledger = city.LedgerEntries.TakeLast(5).Reverse().Select(item => $"第{item.Turn}月 · {item.Description}");
@@ -109,7 +108,6 @@ public partial class CityManagementView : Control
         SelectByMetadata(_governanceMode, city.GovernanceMode);
         SelectByMetadata(_policy, city.GovernancePolicy);
         SelectByMetadata(_role, city.CityRole);
-        _allowAid.ButtonPressed = city.AllowNeighborAid;
         RefreshBuildingPanel(city);
         RefreshCommandButtons();
     }
@@ -117,23 +115,24 @@ public partial class CityManagementView : Control
     private void BuildInterface()
     {
         var background = new ColorRect { Color = GameTheme.Backdrop }; background.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); AddChild(background);
-        var header = new Panel(); header.SetAnchorsPreset(LayoutPreset.TopWide); header.OffsetBottom = 86; header.AddThemeStyleboxOverride("panel", GameTheme.HeaderBox()); AddChild(header);
+        var header = new Panel { ZIndex = 10 }; header.SetAnchorsPreset(LayoutPreset.TopWide); header.OffsetBottom = 86; header.AddThemeStyleboxOverride("panel", GameTheme.HeaderBox()); AddChild(header);
         UiOrnaments.AttachInkCorners(header, 185, .055f);
         _back = GameTheme.Button("← 返回天下"); _back.Position = new Vector2(22, 21); _back.Size = new Vector2(148, 42); _back.Pressed += Back; header.AddChild(_back);
         _title = new Label { Position = new Vector2(200, 10), Size = new Vector2(500, 40), VerticalAlignment = VerticalAlignment.Center }; _title.AddThemeFontSizeOverride("font_size", 29); _title.AddThemeColorOverride("font_color", GameTheme.Paper); header.AddChild(_title);
         _subtitle = new Label { Position = new Vector2(202, 47), Size = new Vector2(1040, 28) }; _subtitle.AddThemeColorOverride("font_color", GameTheme.Muted); header.AddChild(_subtitle);
-        _previous = GameTheme.Button("上一城"); _previous.AnchorLeft = 1; _previous.AnchorRight = 1; _previous.Position = new Vector2(-246, 21); _previous.Size = new Vector2(102, 42); _previous.Pressed += () => StepCity(-1); header.AddChild(_previous);
-        _next = GameTheme.Button("下一城"); _next.AnchorLeft = 1; _next.AnchorRight = 1; _next.Position = new Vector2(-132, 21); _next.Size = new Vector2(102, 42); _next.Pressed += () => StepCity(1); header.AddChild(_next);
+        _previous = GameTheme.Button("上一城"); _previous.SetAnchorsPreset(LayoutPreset.TopRight); _previous.OffsetLeft = -246; _previous.OffsetTop = 21; _previous.OffsetRight = -144; _previous.OffsetBottom = 63; _previous.Pressed += () => StepCity(-1); header.AddChild(_previous);
+        _next = GameTheme.Button("下一城"); _next.SetAnchorsPreset(LayoutPreset.TopRight); _next.OffsetLeft = -132; _next.OffsetTop = 21; _next.OffsetRight = -30; _next.OffsetBottom = 63; _next.Pressed += () => StepCity(1); header.AddChild(_next);
 
         _overview = new ScrollContainer(); _overview.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); _overview.OffsetLeft = 30; _overview.OffsetTop = 104; _overview.OffsetRight = -30; _overview.OffsetBottom = -76; AddChild(_overview);
         _overviewList = new VBoxContainer { CustomMinimumSize = new Vector2(1280, 0), SizeFlagsHorizontal = SizeFlags.ExpandFill }; _overviewList.AddThemeConstantOverride("separation", 8); _overview.AddChild(_overviewList);
 
-        _detail = new Control(); _detail.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); AddChild(_detail);
+        _detail = new Control { MouseFilter = MouseFilterEnum.Ignore }; _detail.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); AddChild(_detail);
         var tabRow = new HBoxContainer(); tabRow.SetAnchorsPreset(LayoutPreset.TopWide); tabRow.OffsetLeft = 30; tabRow.OffsetTop = 100; tabRow.OffsetRight = -30; tabRow.OffsetBottom = 148; tabRow.AddThemeConstantOverride("separation", 8); _detail.AddChild(tabRow);
         AddTab(tabRow, "overview", "总览"); AddTab(tabRow, "buildings", "建筑"); AddTab(tabRow, "governance", "治理");
         BuildOverviewPage(); BuildBuildingsPage(); BuildGovernancePage();
         _notice = new Label { Text = "金粮为势力通用资源；城务与建设仍需本城可用武将及城务额度。", AutowrapMode = TextServer.AutowrapMode.WordSmart, VerticalAlignment = VerticalAlignment.Center };
         _notice.SetAnchorsPreset(LayoutPreset.BottomWide); _notice.OffsetLeft = 30; _notice.OffsetTop = -66; _notice.OffsetRight = -30; _notice.OffsetBottom = -20; _notice.AddThemeColorOverride("font_color", GameTheme.Bronze); _notice.AddThemeStyleboxOverride("normal", GameTheme.Box(new Color(GameTheme.Bronze, .07f), new Color(GameTheme.GoldDim, .38f), 5, 1, 12, 4)); _detail.AddChild(_notice);
+        MoveChild(header, GetChildCount() - 1);
     }
 
     private void AddTab(HBoxContainer row, string id, string label)
@@ -169,7 +168,7 @@ public partial class CityManagementView : Control
         var cards = new HBoxContainer(); cards.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); cards.OffsetBottom = -106; cards.AddThemeConstantOverride("separation", 12); page.AddChild(cards);
         cards.AddChild(Card("势力府库与驻军", out _overviewResources, new Vector2(330, 0)));
         cards.AddChild(Card("太守与城池发展", out _overviewDevelopment, new Vector2(370, 0)));
-        cards.AddChild(Card("城池状态与台账", out _overviewLedger, new Vector2(400, 0)));
+        cards.AddChild(ScrollableCard("城池状态与台账", out _overviewLedger, new Vector2(400, 0)));
         var actions = new VBoxContainer(); actions.SetAnchorsPreset(LayoutPreset.BottomWide); actions.OffsetTop = -96; actions.AddThemeConstantOverride("separation", 6); page.AddChild(actions); BuildCommandRow(actions);
     }
 
@@ -220,8 +219,8 @@ public partial class CityManagementView : Control
         var policyPanel = new VBoxContainer(); policyPanel.SetAnchorsPreset(LayoutPreset.TopWide); policyPanel.OffsetTop = 294; policyPanel.AddThemeConstantOverride("separation", 10); page.AddChild(policyPanel);
         var row = FlowRow(10); row.AddChild(new Label { Text = "治理方式", CustomMinimumSize = new Vector2(82, 40), VerticalAlignment = VerticalAlignment.Center });
         _governanceMode = Choice(150, ("亲自治理", "manual"), ("方针委任", "delegated")); _policy = Choice(165, ("均衡治理", "balanced"), ("休养生息", "recovery"), ("富民通商", "commerce"), ("屯田积粮", "agriculture"), ("整军备战", "military"), ("巩固新土", "integration")); _role = Choice(135, ("未定", "unassigned"), ("粮仓", "granary"), ("商埠", "market"), ("军镇", "garrison"), ("学府", "academy"), ("枢纽", "hub"));
-        _allowAid = new CheckButton { Text = "允许邻城支援", CustomMinimumSize = new Vector2(155, 40) }; var apply = GameTheme.Button("应用治理方针"); apply.CustomMinimumSize = new Vector2(155, 40); apply.Pressed += ApplyGovernance;
-        foreach (var control in new Control[] { _governanceMode, _policy, _role, _allowAid, apply }) row.AddChild(control); policyPanel.AddChild(CommandPanel(row));
+        var apply = GameTheme.Button("应用治理方针"); apply.CustomMinimumSize = new Vector2(155, 40); apply.Pressed += ApplyGovernance;
+        foreach (var control in new Control[] { _governanceMode, _policy, _role, apply }) row.AddChild(control); policyPanel.AddChild(CommandPanel(row));
     }
 
     private void FillBuildingSlots(CityData city)
@@ -301,7 +300,7 @@ public partial class CityManagementView : Control
 
     private int SelectedSlotIndex() => _selectedSlot.StartsWith("slot-") && int.TryParse(_selectedSlot[5..], out var index) ? index : 0;
 
-    private void ApplyGovernance() => _runtime.ConfigureCityGovernance(_cityId, Selected(_governanceMode), Selected(_policy), Selected(_role), _allowAid.ButtonPressed);
+    private void ApplyGovernance() => _runtime.ConfigureCityGovernance(_cityId, Selected(_governanceMode), Selected(_policy), Selected(_role));
 
     private void FillOfficers(CityData city)
     {
@@ -329,7 +328,7 @@ public partial class CityManagementView : Control
         var visible = _commandFocuses.Keys.FirstOrDefault(button => button.Visible); if (visible is not null && _page == "overview") _notice.Text = visible.TooltipText.Replace('\n', '　');
     }
 
-    private void Back() { if (_overviewMode) EmitSignal(SignalName.BackRequested); else ShowOverview(); }
+    private void Back() => EmitSignal(SignalName.BackRequested);
     private void StepCity(int direction) { var cities = PlayerCities().ToList(); if (cities.Count == 0) return; var index = cities.FindIndex(city => city.Id == _cityId); ShowCity(cities[(index + direction + cities.Count) % cities.Count]); }
     private IEnumerable<CityData> PlayerCities() => _runtime.State.Cities.Where(item => item.OwnerFactionId == _runtime.State.PlayerFactionId);
     private static int CitySortScore(CityData city) => city.Status switch { "shortage" => 0, "unrest" => 1, "integrating" => 2, "frontline" => 3, _ => 10 };
@@ -340,5 +339,35 @@ public partial class CityManagementView : Control
     private static void SelectByMetadata(OptionButton option, string value) { for (var index = 0; index < option.ItemCount; index++) if (option.GetItemMetadata(index).AsString() == value) { option.Select(index); return; } if (option.ItemCount > 0) option.Select(0); }
     private static PanelContainer CommandPanel(Control child) { var panel = new PanelContainer(); panel.AddThemeStyleboxOverride("panel", GameTheme.Box(new Color(GameTheme.Panel, .74f), new Color(GameTheme.GoldDim, .55f), 6, 1)); var margin = new MarginContainer(); margin.AddThemeConstantOverride("margin_left", 10); margin.AddThemeConstantOverride("margin_right", 10); margin.AddThemeConstantOverride("margin_top", 5); margin.AddThemeConstantOverride("margin_bottom", 5); margin.AddChild(child); panel.AddChild(margin); return panel; }
     private static PanelContainer Card(string heading, out Label body, Vector2 minimum) { var card = new PanelContainer { CustomMinimumSize = minimum, SizeFlagsHorizontal = SizeFlags.ExpandFill }; card.AddThemeStyleboxOverride("panel", GameTheme.PanelBox(10)); UiOrnaments.AttachInkCorners(card, 210, .07f); var layout = new VBoxContainer(); layout.AddThemeConstantOverride("separation", 12); var margin = new MarginContainer(); margin.AddThemeConstantOverride("margin_left", 18); margin.AddThemeConstantOverride("margin_right", 18); margin.AddThemeConstantOverride("margin_top", 14); margin.AddThemeConstantOverride("margin_bottom", 14); margin.AddChild(layout); card.AddChild(margin); var title = new Label { Text = heading, CustomMinimumSize = new Vector2(0, 38) }; title.AddThemeFontSizeOverride("font_size", 20); title.AddThemeColorOverride("font_color", GameTheme.Gold); layout.AddChild(title); body = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsVertical = SizeFlags.ExpandFill }; body.AddThemeFontSizeOverride("font_size", 16); body.AddThemeColorOverride("font_color", GameTheme.Muted); layout.AddChild(body); return card; }
+    private static PanelContainer ScrollableCard(string heading, out Label body, Vector2 minimum)
+    {
+        var card = new PanelContainer { CustomMinimumSize = minimum, SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        card.AddThemeStyleboxOverride("panel", GameTheme.PanelBox(10));
+        UiOrnaments.AttachInkCorners(card, 210, .07f);
+        var margin = new MarginContainer();
+        margin.AddThemeConstantOverride("margin_left", 18); margin.AddThemeConstantOverride("margin_right", 12);
+        margin.AddThemeConstantOverride("margin_top", 14); margin.AddThemeConstantOverride("margin_bottom", 14);
+        card.AddChild(margin);
+        var layout = new VBoxContainer(); layout.AddThemeConstantOverride("separation", 12); margin.AddChild(layout);
+        var title = new Label { Text = heading, CustomMinimumSize = new Vector2(0, 38) };
+        title.AddThemeFontSizeOverride("font_size", 20); title.AddThemeColorOverride("font_color", GameTheme.Gold); layout.AddChild(title);
+        var scroll = new ScrollContainer
+        {
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+            VerticalScrollMode = ScrollContainer.ScrollMode.ShowAlways,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill
+        };
+        layout.AddChild(scroll);
+        body = new Label
+        {
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ShrinkBegin
+        };
+        body.AddThemeFontSizeOverride("font_size", 16); body.AddThemeColorOverride("font_color", GameTheme.Muted);
+        scroll.AddChild(body);
+        return card;
+    }
     private static PanelContainer StaticCard(string heading, string text, Vector2 minimum) { var card = Card(heading, out var body, minimum); body.Text = text; return card; }
 }

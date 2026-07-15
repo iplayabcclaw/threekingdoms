@@ -12,6 +12,7 @@ public partial class Main : Control
     private CityManagementView _cityManagement = null!;
     private ExpeditionView _expedition = null!;
     private BattleView _battleView = null!;
+    private BattleReportView _battleReportView = null!;
     private Control _current = null!;
     private ColorRect _fade = null!;
     private Label _toast = null!;
@@ -74,7 +75,9 @@ public partial class Main : Control
         AddFeature(sceneHost, "talent", new TalentView(), "人才府", "登庸、劝降、策反、任命与武将调动共用完整武将状态。");
         AddFeature(sceneHost, "ai", new AiCouncilView(), "军师府 · AI 托管", "分别控制内政、人才、外交和军事代理，也可启动全势力自动演进。");
         _battleView = new BattleView();
-        AddFeature(sceneHost, "battle", _battleView, "沙场演武", "布置前中后军与左右翼，实时点选或框选战斗队，下达移动、集火和固守军令。");
+        AddFeature(sceneHost, "battle", _battleView, "沙场演武", "这里只进行战前布阵和实时战斗；战斗结束后会自动切换到独立战报界面。");
+        _battleReportView = new BattleReportView();
+        AddFeature(sceneHost, "battle-report", _battleReportView, "本场战报", "只复盘刚刚结束的这一场战斗，不在战斗画面中混入历史战报。");
         AddFeature(sceneHost, "save", new SaveView(), "存档管理", "3 个循环自动档与 10 个手动档，保存完整局势、事件、军团、外交与设置。");
 
         _worldMap.Initialize(_runtime);
@@ -85,7 +88,8 @@ public partial class Main : Control
         _worldMap.ArmyMovementFinished += OnArmyMovementFinished;
         _expedition.ArmyMovementRequested += ShowArmyMovement;
         _cityManagement.BackRequested += () => Navigate("world");
-        _battleView.BattleResultConfirmed += () => Navigate("world");
+        _battleView.BattleCompleted += () => Navigate("battle-report");
+        _battleReportView.Confirmed += () => Navigate(_runtime.State.PendingBattle is null ? "world" : "battle");
         _current = _worldMap;
         foreach (var screen in _screens.Values) screen.Visible = screen == _current;
 
@@ -125,7 +129,7 @@ public partial class Main : Control
         panel.AddThemeStyleboxOverride("panel", GameTheme.RaisedBox(9)); AddChild(panel);
         var margin = new MarginContainer(); margin.AddThemeConstantOverride("margin_left", 6); margin.AddThemeConstantOverride("margin_right", 6); margin.AddThemeConstantOverride("margin_top", 5); margin.AddThemeConstantOverride("margin_bottom", 5); panel.AddChild(margin);
         var row = new HFlowContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; row.AddThemeConstantOverride("h_separation", 6); row.AddThemeConstantOverride("v_separation", 5); margin.AddChild(row);
-        foreach (var item in new[] { ("world", "天下"), ("city", "内政"), ("talent", "人才"), ("diplomacy", "外交"), ("expedition", "出征"), ("battle", "战报"), ("ai", "军师"), ("save", "存档") })
+        foreach (var item in new[] { ("world", "天下"), ("city", "内政"), ("talent", "人才"), ("diplomacy", "外交"), ("expedition", "出征"), ("battle", "战斗"), ("battle-report", "战报"), ("ai", "军师"), ("save", "存档") })
         {
             var button = GameTheme.Button(item.Item2); button.CustomMinimumSize = new Vector2(88, 40); button.ToggleMode = true; var id = item.Item1; button.Pressed += () => { if (id == "city") _cityManagement.ShowOverview(); Navigate(id); }; _navigationButtons[id] = button; row.AddChild(button);
         }
@@ -193,7 +197,7 @@ public partial class Main : Control
         var enemyArmy = new ArmyData { Id = "visual-enemy-army", FactionId = enemyCity.OwnerFactionId!, SourceCityId = enemyCity.Id, TargetCityId = fieldSource.Id, CommanderId = enemyCommander.Profile.Id, Soldiers = 3700, Food = 6000, Training = 70, Morale = 72, Composition = new Dictionary<string, int> { ["infantry"] = 2200, ["archers"] = 1000, ["cavalry"] = 500 }, Status = "marching", RemainingDays = 12, TotalDays = 60 };
         enemyCommander.InitialState.Status = "deployed"; enemyCommander.InitialState.ArmyId = enemyArmy.Id; _runtime.State.Armies.Add(enemyArmy);
         var fieldCommander = _runtime.PlayerOfficers().Where(item => item.InitialState.CityId == fieldSource.Id && item.InitialState.Status == "serving").OrderByDescending(item => _runtime.EffectiveAbility(item, "leadership", "military")).First();
-        _runtime.CreateExpedition(fieldSource.Id, fieldSource.Id, fieldCommander.Profile.Id, 4000, 6000, "standard", "encirclement", [], new Dictionary<string, int> { ["infantry"] = 2500, ["spears"] = 750, ["archers"] = 750 }, [], enemyArmy.Id);
+        _runtime.CreateExpedition(fieldSource.Id, fieldSource.Id, fieldCommander.Profile.Id, 4000, 6000, [], new Dictionary<string, int> { ["infantry"] = 2500, ["spears"] = 750, ["archers"] = 750 }, [], enemyArmy.Id);
         Navigate("battle");
         await ToSignal(GetTree().CreateTimer(.7), SceneTreeTimer.SignalName.Timeout);
         _runtime.ConfigurePendingBattle("goose", new Dictionary<string, string> { ["infantry"] = "shield-line", ["spears"] = "spear-wall", ["archers"] = "rear-double" });
@@ -216,7 +220,7 @@ public partial class Main : Control
         var road = _runtime.State.Roads.First(item => (item.FromCityId == source.Id && _runtime.City(item.ToCityId)?.OwnerFactionId != _runtime.State.PlayerFactionId) || (item.ToCityId == source.Id && _runtime.City(item.FromCityId)?.OwnerFactionId != _runtime.State.PlayerFactionId));
         var targetId = road.FromCityId == source.Id ? road.ToCityId : road.FromCityId;
         var commander = _runtime.PlayerOfficers().Where(item => item.InitialState.CityId == source.Id && item.InitialState.Status == "serving").OrderByDescending(item => _runtime.EffectiveAbility(item, "leadership", "military")).First();
-        _runtime.CreateExpedition(source.Id, targetId, commander.Profile.Id, 3000, 5000, "standard", "steady-advance", [], new Dictionary<string, int> { ["infantry"] = 2000, ["spears"] = 500, ["archers"] = 500 });
+        _runtime.CreateExpedition(source.Id, targetId, commander.Profile.Id, 3000, 5000, [], new Dictionary<string, int> { ["infantry"] = 2000, ["spears"] = 500, ["archers"] = 500 });
         var army = _runtime.State.Armies.Last();
         while (_runtime.State.PendingBattle is null && army.Status == "marching") { _runtime.State.Turn++; _runtime.MarchArmy(army.Id); }
         Navigate("battle");
@@ -228,6 +232,7 @@ public partial class Main : Control
         var siegeImage = GetViewport().GetTexture().GetImage();
         var siegeError = siegeImage.SavePng("/tmp/three-kingdoms-battle-siege-test.png");
         _runtime.CompletePendingBattle();
+        Navigate("battle-report");
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         var resultImage = GetViewport().GetTexture().GetImage();
         var resultError = resultImage.SavePng("/tmp/three-kingdoms-battle-result-test.png");
@@ -249,7 +254,7 @@ public partial class Main : Control
         var armyRoad = _runtime.State.Roads.First(road => road.TravelDays > 30 && ((road.FromCityId == armySource.Id && _runtime.City(road.ToCityId)?.OwnerFactionId != _runtime.State.PlayerFactionId) || (road.ToCityId == armySource.Id && _runtime.City(road.FromCityId)?.OwnerFactionId != _runtime.State.PlayerFactionId)));
         var armyTargetId = armyRoad.FromCityId == armySource.Id ? armyRoad.ToCityId : armyRoad.FromCityId;
         var armyCommander = _runtime.PlayerOfficers().First(item => item.InitialState.CityId == armySource.Id && item.InitialState.Status == "serving");
-        _runtime.CreateExpedition(armySource.Id, armyTargetId, armyCommander.Profile.Id, 3000, 5000, "standard", "steady-advance", [], new Dictionary<string, int> { ["infantry"] = 2500, ["archers"] = 500 });
+        _runtime.CreateExpedition(armySource.Id, armyTargetId, armyCommander.Profile.Id, 3000, 5000, [], new Dictionary<string, int> { ["infantry"] = 2500, ["archers"] = 500 });
         _worldMap.SelectArmyForVisualTest(_runtime.State.Armies.Last().Id);
         await SaveUiFrame("army-control");
 
@@ -274,8 +279,15 @@ public partial class Main : Control
         var visualBuilder = _runtime.PlayerOfficers().First(item => item.InitialState.CityId == cityForVisualTest.Id && item.InitialState.Status == "serving");
         _runtime.State.Resources.Gold = Math.Max(_runtime.State.Resources.Gold, 100_000);
         _runtime.State.Resources.Food = Math.Max(_runtime.State.Resources.Food, 100_000);
-        _runtime.BuildFacility(cityForVisualTest.Id, visualBuilder.Profile.Id, "market", 2);
+        for (var index = 1; index <= 5; index++) cityForVisualTest.LedgerEntries.Add(new CityLedgerEntryData
+        {
+            Turn = index,
+            Category = "visual-test",
+            Description = $"台账长文本测试{index}：本月完成农桑、城防、训练与赈济结算，所有说明必须在城池状态卡片内换行，不得撑宽页面。"
+        });
         _cityManagement.ShowCity(cityForVisualTest);
+        await SaveUiFrame("city-overview-ledger");
+        _runtime.BuildFacility(cityForVisualTest.Id, visualBuilder.Profile.Id, "market", 2);
         _cityManagement.ShowPageForVisualTest("buildings");
         await SaveUiFrame("city-buildings");
         _cityManagement.ShowPageForVisualTest("governance");
@@ -293,7 +305,7 @@ public partial class Main : Control
             Navigate(id);
             await SaveUiFrame(id);
         }
-        GD.Print("[UiVisualTest] world/expedition/city/city-buildings/city-governance/talent-tabs/diplomacy/ai/save screenshots saved");
+        GD.Print("[UiVisualTest] world/expedition/city/city-overview-ledger/city-buildings/city-governance/talent-tabs/diplomacy/ai/save screenshots saved");
         GetTree().Quit();
     }
 
@@ -361,7 +373,7 @@ public partial class Main : Control
     {
         UpdateMusicForGameState();
         if (_runtime.State.PendingEvent is not null) ShowEvent(); else CloseEvent();
-        if (_runtime.State.PendingBattle is not null && _runtime.State.Armies.FirstOrDefault(item => item.Id == _runtime.State.PendingBattle.ArmyId)?.FactionId != _runtime.State.PlayerFactionId && _screens.TryGetValue("battle", out var battle) && _current != battle) Navigate("battle");
+        if (_runtime.State.PendingBattle is not null && _screens.TryGetValue("battle", out var battle) && _current != battle) Navigate("battle");
         if (_runtime.State.Outcome != "ongoing" && !string.IsNullOrEmpty(_runtime.State.OutcomeMessage)) ShowNotice(_runtime.State.OutcomeMessage, true);
     }
 

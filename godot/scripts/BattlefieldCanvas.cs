@@ -327,9 +327,10 @@ public partial class BattlefieldCanvas : Control
             if (item.Start < _time - 1.5) break;
             if (item.Start > _time || item.Start + Math.Max(.2, item.Duration) < _time) continue;
             if (!string.IsNullOrEmpty(item.GroupId)) _activeActions[item.GroupId] = item.Action;
-            if (!string.IsNullOrEmpty(item.OfficerId) && item.Action is "officer-charge" or "officer-command") _activeOfficerActions[item.OfficerId] = item.Action;
+            if (!string.IsNullOrEmpty(item.OfficerId) && item.Action is "officer-charge" or "officer-command" or "officer-duel") _activeOfficerActions[item.OfficerId] = item.Action;
+            if (!string.IsNullOrEmpty(item.TargetOfficerId) && item.Action == "officer-damage") _activeOfficerActions[item.TargetOfficerId] = "officer-hit";
             if (item.Action == "volley") _activeVolleys.Add(item);
-            else if (item.Action == "damage") _activeDamage.Add(item);
+            else if (item.Action is "damage" or "officer-damage") _activeDamage.Add(item);
             if (_latestActiveEvent is null || item.Start >= _latestActiveEvent.Start) _latestActiveEvent = item;
         }
     }
@@ -577,7 +578,7 @@ public partial class BattlefieldCanvas : Control
         if (!_officerTextures.TryGetValue(officer.SpriteId, out var texture) || texture is null) return;
         var position = OfficerPosition(officer);
         var active = _activeOfficerActions.GetValueOrDefault(officer.OfficerId) ?? officer.State;
-        var attacking = active is "officer-charge" or "officer-command";
+        var attacking = active is "officer-charge" or "officer-command" or "officer-duel" or "mounted-duel";
         var moving = active == "mounted-move";
         var rate = attacking ? 8.5 : moving ? 7.5 : 3.2;
         var phase = officer.OfficerId.Sum(character => character) * .13;
@@ -591,7 +592,10 @@ public partial class BattlefieldCanvas : Control
         var destination = new Rect2(position - size / 2, size);
         DrawWorldEllipse(position + new Vector2(3, size.Y * .34f), new Vector2(size.X * .40f, size.Y * .12f), new Color(.015f, .02f, .012f, .34f));
         if (moving && !_reducedMotion) DrawMovementDust(position, depthScale * 1.12f, officer.Side == _battle!.PlayerSide);
-        DrawTroopFrame(texture, destination, source, Colors.White, officer.Side == _battle!.PlayerSide);
+        var modulate = officer.IsRouted
+            ? new Color(.62f, .62f, .62f, officer.HitPoints <= 0 ? .42f : .68f)
+            : active == "officer-hit" ? new Color(1, .58f, .58f) : Colors.White;
+        DrawTroopFrame(texture, destination, source, modulate, officer.Side == _battle!.PlayerSide);
         var ownColor = officer.Side == _battle.PlayerSide ? Color.FromHtml("#f2d36f") : Color.FromHtml("#ee8a70");
         DrawArc(position + new Vector2(0, 8), size.X * .43f, 0, Mathf.Tau, 28, new Color(ownColor, .78f), 2, true);
         var plaqueWidth = 96 * depthScale;
@@ -599,6 +603,18 @@ public partial class BattlefieldCanvas : Control
         DrawRect(new Rect2(position.X - plaqueWidth / 2, plaqueY, plaqueWidth, 19), new Color(.025f, .035f, .025f, .88f));
         DrawRect(new Rect2(position.X - plaqueWidth / 2, plaqueY, plaqueWidth, 19), new Color(ownColor, .48f), false, 1);
         DrawString(GetThemeDefaultFont(), new Vector2(position.X - plaqueWidth / 2 + 2, plaqueY + 14), $"将·{officer.Name} {officer.CombatPower:F1}", HorizontalAlignment.Center, plaqueWidth - 4, 10, ownColor);
+        var barWidth = 90 * depthScale;
+        var barX = position.X - barWidth / 2;
+        var barY = position.Y + size.Y * .50f;
+        var hitPointRatio = (float)Math.Clamp(officer.HitPoints / (double)Math.Max(1, officer.MaxHitPoints), 0, 1);
+        var hitPointColor = hitPointRatio < .25f ? GameTheme.Danger : hitPointRatio < .55f ? Color.FromHtml("#d8a55b") : Color.FromHtml("#70ba78");
+        DrawRect(new Rect2(barX, barY, barWidth, 6), new Color(.025f, .035f, .025f, .92f));
+        DrawRect(new Rect2(barX, barY, barWidth * hitPointRatio, 6), hitPointColor);
+        var moraleColor = officer.Morale < 20 ? GameTheme.Danger : officer.Morale < 45 ? GameTheme.Bronze : Color.FromHtml("#e2c861");
+        DrawRect(new Rect2(barX, barY + 8, barWidth, 3), new Color(.025f, .035f, .025f, .88f));
+        DrawRect(new Rect2(barX, barY + 8, barWidth * (float)Math.Clamp(officer.Morale / 100, 0, 1), 3), moraleColor);
+        if (officer.IsRouted)
+            DrawString(GetThemeDefaultFont(), new Vector2(barX, barY + 25), officer.HitPoints <= 0 ? "无力再战" : "士气崩溃", HorizontalAlignment.Center, barWidth, 10, GameTheme.Danger);
     }
 
     private static float DepthScale(float logicalY) => .78f + Math.Clamp(logicalY / LogicalExtent, 0, 1) * .32f;
@@ -716,9 +732,17 @@ public partial class BattlefieldCanvas : Control
         if (_battle is null) return;
         foreach (var item in _activeDamage)
         {
+            var progress = (float)((_time - item.Start) / Math.Max(.1, item.Duration));
+            if (item.Action == "officer-damage")
+            {
+                var officer = _battle.OfficerUnits.FirstOrDefault(value => value.OfficerId == item.TargetOfficerId); if (officer is null) continue;
+                var position = OfficerPosition(officer) + new Vector2(-22, -58 - progress * 20);
+                DrawString(GetThemeDefaultFont(), position, $"体−{item.Losses}", HorizontalAlignment.Center, 64, 15, Color.FromHtml("#ff725f"));
+                continue;
+            }
             var group = _battle.Groups.FirstOrDefault(value => value.Id == item.GroupId); if (group is null) continue;
-            var progress = (float)((_time - item.Start) / Math.Max(.1, item.Duration)); var position = BattlePosition(group, true) + new Vector2(-18, -45 - progress * 20);
-            DrawString(GetThemeDefaultFont(), position, $"−{item.Losses}", HorizontalAlignment.Center, 52, 15, Color.FromHtml("#ff9b76"));
+            var groupPosition = BattlePosition(group, true) + new Vector2(-18, -45 - progress * 20);
+            DrawString(GetThemeDefaultFont(), groupPosition, $"−{item.Losses}", HorizontalAlignment.Center, 52, 15, Color.FromHtml("#ff9b76"));
         }
     }
 

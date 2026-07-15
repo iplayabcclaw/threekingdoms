@@ -77,7 +77,6 @@ public sealed class CityData
     public string CityRole { get; set; } = "unassigned";
     public int RoleTransitionMonths { get; set; }
     public int IntegrationMonthsRemaining { get; set; }
-    public bool AllowNeighborAid { get; set; } = true;
     public List<string> MonthlyOfficerActionIds { get; set; } = [];
     public List<CityLedgerEntryData> LedgerEntries { get; set; } = [];
     public string LastMonthlyReport { get; set; } = string.Empty;
