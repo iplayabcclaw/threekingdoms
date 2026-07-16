@@ -199,6 +199,8 @@ public sealed class PendingBattleData
     public string ArmyId { get; set; } = string.Empty;
     public string DefenderArmyId { get; set; } = string.Empty;
     public string CityId { get; set; } = string.Empty;
+    public string EncounterRoadId { get; set; } = string.Empty;
+    public double EncounterOffsetDays { get; set; } = -1;
     public string BattleType { get; set; } = "siege";
     public string Terrain { get; set; } = "plain";
     public string Region { get; set; } = string.Empty;
@@ -306,7 +308,7 @@ public static class BattleCalculator
         return pending;
     }
 
-    public static PendingBattleData CreateFieldBattle(GameSession state, ArmyData attacker, ArmyData defender, string encounterRoadId = "")
+    public static PendingBattleData CreateFieldBattle(GameSession state, ArmyData attacker, ArmyData defender, string encounterRoadId = "", double encounterOffsetDays = -1)
     {
         var road = state.Roads.FirstOrDefault(item => item.Id == encounterRoadId)
             ?? defender.RouteRoadIds.Select(id => state.Roads.FirstOrDefault(item => item.Id == id)).LastOrDefault(item => item is not null)
@@ -319,7 +321,8 @@ public static class BattleCalculator
         var pending = new PendingBattleData
         {
             Id = $"battle-{state.Turn}-{state.BattleReports.Count + 1}", ArmyId = attacker.Id, DefenderArmyId = defender.Id,
-            CityId = battlefieldCity.Id, BattleType = "field", Terrain = "plain", Region = battlefieldCity.Region,
+            CityId = battlefieldCity.Id, EncounterRoadId = road?.Id ?? string.Empty, EncounterOffsetDays = encounterOffsetDays,
+            BattleType = "field", Terrain = "plain", Region = battlefieldCity.Region,
             AttackerFactionId = attacker.FactionId, DefenderFactionId = defender.FactionId,
             PlayerSide = attacker.FactionId == state.PlayerFactionId ? "attacker" : "defender",
             AttackerCommanderId = attacker.CommanderId, DefenderCommanderId = defender.CommanderId,

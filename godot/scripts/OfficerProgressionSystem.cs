@@ -148,7 +148,8 @@ public static class OfficerProgressionRules
         }
         state.OfficeRank = Math.Clamp(state.OfficeRank, 0, 7);
         var courtOffice = CourtOffice(state.CourtOfficeId);
-        if (courtOffice is null || state.OfficeTrack != courtOffice.Track || state.OfficeRank < courtOffice.MinimumRank) state.CourtOfficeId = string.Empty;
+        if (courtOffice is null || state.OfficeTrack != courtOffice.Track || state.OfficeRank < courtOffice.MinimumRank
+            || !state.Alive || state.Status is "captive" or "free") state.CourtOfficeId = string.Empty;
     }
 
     public static IReadOnlyList<string> AllTraits(ScenarioOfficerData officer)
@@ -188,7 +189,10 @@ public static class OfficerProgressionRules
     public static FactionCourtEffects FactionCourtInfluence(GameSession state, string factionId)
     {
         var result = new FactionCourtEffects();
-        foreach (var officer in state.Officers.Where(item => item.InitialState.FactionId == factionId && !string.IsNullOrEmpty(item.InitialState.CourtOfficeId)))
+        foreach (var officer in state.Officers.Where(item => item.InitialState.FactionId == factionId
+            && item.InitialState.Alive
+            && item.InitialState.Status is not "captive" and not "free"
+            && !string.IsNullOrEmpty(item.InitialState.CourtOfficeId)))
         {
             var office = CourtOffice(officer.InitialState.CourtOfficeId);
             if (office is not null) ApplyCourtInfluence(result, officer, office, true);

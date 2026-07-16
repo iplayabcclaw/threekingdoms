@@ -508,7 +508,7 @@ public partial class WorldMapView : Control
             tween.TweenProperty(marker, "position", end, movement.RemoveAfter ? 1.35f : 1.15f);
             await ToSignal(tween, Tween.SignalName.Finished);
             marker.Position = end;
-            if (movement.RemoveAfter || army.Status is not "marching" and not "besieging")
+            if (movement.RemoveAfter || army.Status is not "marching" and not "besieging" and not "retreating")
             {
                 await ToSignal(GetTree().CreateTimer(.45), SceneTreeTimer.SignalName.Timeout);
                 _armyMarkers.Remove(army.Id);
@@ -523,13 +523,13 @@ public partial class WorldMapView : Control
     private void RefreshArmyMarkers()
     {
         if (_armyLayer is null) return;
-        var visibleIds = _runtime.State.Armies.Where(item => item.Status is "marching" or "besieging" || item.Id == _playingArmyId).Select(item => item.Id).ToHashSet();
+        var visibleIds = _runtime.State.Armies.Where(item => item.Status is "marching" or "besieging" or "retreating" || item.Id == _playingArmyId).Select(item => item.Id).ToHashSet();
         foreach (var armyId in _armyMarkers.Keys.Where(id => !visibleIds.Contains(id)).ToList())
         {
             _armyMarkers[armyId].QueueFree();
             _armyMarkers.Remove(armyId);
         }
-        foreach (var army in _runtime.State.Armies.Where(item => item.Status is "marching" or "besieging"))
+        foreach (var army in _runtime.State.Armies.Where(item => item.Status is "marching" or "besieging" or "retreating"))
         {
             var marker = GetOrCreateArmyMarker(army);
             if (army.Id != _playingArmyId) marker.Position = ArmyMapPosition(army, army.RemainingDays);
@@ -579,7 +579,7 @@ public partial class WorldMapView : Control
     {
         if (_armyPanel is null || string.IsNullOrEmpty(_selectedArmyId)) return;
         var army = _runtime.State.Armies.FirstOrDefault(item => item.Id == _selectedArmyId);
-        if (army is null || army.Status is not "marching" and not "besieging")
+        if (army is null || army.Status is not "marching" and not "besieging" and not "retreating")
         {
             _selectedArmyId = null;
             _armyPanel.Visible = false;
@@ -591,9 +591,9 @@ public partial class WorldMapView : Control
         _armyName.Text = $"{faction} · {commander}军";
         _armyDetails.Text = $"{_runtime.City(army.SourceCityId)?.Name} → {_runtime.City(army.TargetCityId)?.Name}\n兵力 {army.Soldiers:N0}　军粮 {army.Food:N0}　士气 {army.Morale}\n行程 {progress}/{army.TotalDays}日　{ArmyStatusName(army.Status)}";
         var controllable = army.FactionId == _runtime.State.PlayerFactionId;
-        var canAct = controllable && army.LastMarchTurn < _runtime.State.Turn;
+        var canAct = controllable && (army.Status is "marching" or "besieging") && army.LastMarchTurn < _runtime.State.Turn;
         _armyAdvance.Disabled = !canAct;
-        _armyAdvance.Text = !controllable ? "敌军不可控制" : canAct ? army.Status == "besieging" ? "继续攻城" : "继续前进" : "本回合已行动";
+        _armyAdvance.Text = !controllable ? "敌军不可控制" : army.Status == "retreating" ? "败军正在撤退" : canAct ? army.Status == "besieging" ? "继续攻城" : "继续前进" : "本回合已行动";
         _armyAdvance.Visible = controllable;
         _armyIntercept.Visible = !controllable;
         _armyIntercept.Disabled = controllable || _runtime.State.PendingBattle is not null;
@@ -703,7 +703,7 @@ public partial class WorldMapView : Control
 
     private string ArmyMarkerText(ArmyData army) => $"{_runtime.Officer(army.CommanderId)?.Profile.Name ?? "军团"} · {Compact(army.Soldiers)}兵";
 
-    private static string ArmyStatusName(string status) => status switch { "marching" => "行军中", "besieging" => "围城中", "awaiting-battle" => "等待交战", _ => status };
+    private static string ArmyStatusName(string status) => status switch { "marching" => "行军中", "besieging" => "围城中", "retreating" => "败退中", "awaiting-battle" => "等待交战", _ => status };
 
     private Vector2 ArmyMapPosition(ArmyData army, int remainingDays)
     {

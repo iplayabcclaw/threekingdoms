@@ -131,7 +131,7 @@ public static class GameCli
             resources = state.Resources,
             cityCount = cities.Count,
             officerCount = context.Runtime.PlayerOfficers().Count(),
-            activeArmies = state.Armies.Count(item => item.FactionId == state.PlayerFactionId && item.Status is "marching" or "besieging" or "awaiting-battle"),
+            activeArmies = state.Armies.Count(item => item.FactionId == state.PlayerFactionId && item.Status is "marching" or "besieging" or "retreating" or "awaiting-battle"),
             pendingEvent = PendingEvent(context),
             pendingBattle = PendingBattle(context),
             state.Outcome,
@@ -142,19 +142,28 @@ public static class GameCli
 
     private static object Factions(Context context, List<string> args)
     {
-        var difficulty = TakeOption(args, "--difficulty") ?? context.Runtime.State.Difficulty;
-        if (difficulty is not ("standard" or "relaxed" or "hard")) throw new CliException("难度必须是 standard、relaxed 或 hard。");
         EnsureNoArgs(args);
-        return context.Scenario.Factions
-            .Where(faction => context.Scenario.Cities.Any(city => city.OwnerFactionId == faction.Id))
-            .Select(faction => new
+        var state = context.Runtime.State;
+        return state.Factions.Select(faction =>
+        {
+            var cities = state.Cities.Where(city => city.OwnerFactionId == faction.Id).ToList();
+            var officers = state.Officers.Where(officer => officer.InitialState.FactionId == faction.Id && officer.InitialState.Alive).ToList();
+            var resources = faction.Id == state.PlayerFactionId
+                ? state.Resources
+                : state.FactionTreasuries.GetValueOrDefault(faction.Id) ?? new ResourceData();
+            return new
             {
                 faction.Id, faction.Name, faction.ShortName, faction.RulerName,
-                cityCount = context.Scenario.Cities.Count(city => city.OwnerFactionId == faction.Id),
-                cities = context.Scenario.Cities.Where(city => city.OwnerFactionId == faction.Id).Select(city => city.Name),
-                officerCount = context.Scenario.Officers.Count(officer => officer.InitialState.FactionId == faction.Id && officer.InitialState.Alive),
-                resources = GameSession.PreviewInitialResources(context.Scenario, faction.Id, difficulty),
-            }).ToList();
+                isPlayer = faction.Id == state.PlayerFactionId,
+                isEliminated = cities.Count == 0,
+                cityCount = cities.Count,
+                cities = cities.Select(city => city.Name).ToList(),
+                officerCount = officers.Count,
+                servingOfficerCount = officers.Count(officer => officer.InitialState.Status is "serving" or "marching" or "deployed"),
+                captiveOfficerCount = officers.Count(officer => officer.InitialState.Status == "captive"),
+                resources,
+            };
+        }).ToList();
     }
 
     private static object MapState(Context context, List<string> args)
@@ -427,7 +436,7 @@ public static class GameCli
                 actorId = actor.Profile.Id,
                 actor = actor.Profile.Name,
                 chance = context.Runtime.RecruitmentChance(candidate.Profile.Id, actor.Profile.Id),
-            }).OrderByDescending(item => item.chance).ToList();
+            }).Where(item => item.chance > 0).OrderByDescending(item => item.chance).ToList();
             return new
             {
                 candidateId = candidate.Profile.Id,
@@ -654,7 +663,7 @@ public static class GameCli
     {
         usage = "./tools/game-cli.sh [--json] <command> [arguments]",
         notes = new[] { "默认局势保存在 .playtest/cli-session.json，每次成功操作后自动保存。", "城池、势力、武将参数均可使用 ID 或唯一中文名。", "执行 reset 可重新开局；查询命令不会改变游戏。" },
-        queries = new[] { "status", "factions [--difficulty <难度>]", "map", "cities [--all]", "city <城>", "officers [--all] [--city <城>]", "officer <武将>", "talent status|candidates", "armies [--all]", "expedition-options <城> [--soldiers <兵力>]", "reports [条数]", "catalog", "coverage", "preview end-turn", "preview develop <城> <武将> <城务>", "diplomacy list|preview ...", "event show", "battle show", "log [条数]", "saves" },
+        queries = new[] { "status", "factions", "map", "cities [--all]", "city <城>", "officers [--all] [--city <城>]", "officer <武将>", "talent status|candidates", "armies [--all]", "expedition-options <城> [--soldiers <兵力>]", "reports [条数]", "catalog", "coverage", "preview end-turn", "preview develop <城> <武将> <城务>", "diplomacy list|preview ...", "event show", "battle show", "log [条数]", "saves" },
         session = new[] { "reset [--faction <势力>] [--difficulty standard|relaxed|hard] [--autosave monthly|quarterly|yearly|off]", "save <1-10>", "load manual|auto <槽位>" },
         domestic = new[] { "develop <城> <武将> agriculture|commerce|patrol|defense|recruit|train|search|relief", "build <城> <武将> <设施ID> [槽位]", "city-upgrade <城> <武将>", "city-upgrade cancel <城>", "city-upgrade reassign <城> <武将>", "maintain <城> <设施实例ID> upgrade|repair", "govern <城> manual|delegated <方针> <定位>" },
         talent = new[] { "talent status|candidates", "talent appoint <武将> governor|strategist|civil|general|reserve", "talent transfer <武将> <目标城>", "talent recruit <候选人> <执行者> <任命>", "talent promote <武将> civil|military", "talent demote <武将>", "talent court-appoint <武将> <朝堂职位ID>", "talent court-vacate <武将>", "talent pay-arrears <武将>" },

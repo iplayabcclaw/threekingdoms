@@ -128,6 +128,32 @@ public sealed partial class GameRuntime
     {
         var officer = Officer(officerId);
         if (officer?.InitialState.FactionId != State.PlayerFactionId || officer.InitialState.Appointment == "ruler") return Fail("该武将不能改任。");
+        if (appointment is not ("governor" or "strategist" or "civil" or "general" or "reserve")) return Fail("任命职位无效。");
+        if (officer.InitialState.Status != "serving" || !string.IsNullOrEmpty(officer.InitialState.ArmyId)) return Fail("只有当前在城且未出征的武将可以改任。");
+
+        if (appointment == "governor")
+        {
+            var city = City(officer.InitialState.CityId);
+            if (city?.OwnerFactionId != State.PlayerFactionId) return Fail("只能任命驻留己方城池的武将为太守。");
+            foreach (var other in State.Cities.Where(item => item.Id != city.Id && item.GovernorId == officer.Profile.Id))
+            {
+                other.GovernorId = string.Empty;
+                other.GovernorName = "空缺";
+            }
+            var previous = Officer(city.GovernorId);
+            if (previous is not null && previous.Profile.Id != officer.Profile.Id && previous.InitialState.Appointment == "governor")
+                previous.InitialState.Appointment = previous.InitialState.OfficeTrack == "military" ? "general" : "civil";
+            city.GovernorId = officer.Profile.Id;
+            city.GovernorName = officer.Profile.Name;
+        }
+        else
+        {
+            foreach (var city in State.Cities.Where(item => item.GovernorId == officer.Profile.Id))
+            {
+                city.GovernorId = string.Empty;
+                city.GovernorName = "空缺";
+            }
+        }
         officer.InitialState.Appointment = appointment;
         return Success($"{officer.Profile.Name}已改任{AppointmentLabel(appointment)}。", "city");
     }
@@ -175,7 +201,7 @@ public sealed partial class GameRuntime
         var candidate = Officer(candidateId);
         if (candidate is null || candidate.InitialState.FactionId == State.PlayerFactionId) return string.Empty;
         if (candidate.InitialState.Status == "free" && State.DiscoveredOfficerIds.Contains(candidateId)) return "direct";
-        if (candidate.InitialState.Status == "captive") return "captive";
+        if (candidate.InitialState.Status == "captive" && City(candidate.InitialState.CityId)?.OwnerFactionId == State.PlayerFactionId) return "captive";
         if (candidate.InitialState.Status == "serving" && candidate.InitialState.FactionId is not null && candidate.InitialState.Loyalty < SubversionLoyaltyLimit) return "subversion";
         return string.Empty;
     }
@@ -194,6 +220,7 @@ public sealed partial class GameRuntime
         if (candidate is null || actor?.InitialState.FactionId != State.PlayerFactionId || actor.InitialState.Status != "serving") return Fail("候选人或执行者无效。");
         var method = RecruitmentMethod(candidateId);
         if (string.IsNullOrEmpty(method)) return Fail("该人才当前尚不能招募。");
+        if (method == "captive" && candidate.InitialState.CityId != actor.InitialState.CityId) return Fail("劝降俘虏必须由与其同城的在职武将执行。");
         var chance = RecruitmentChance(candidateId, actorId);
         if (method == "subversion")
         {
@@ -225,6 +252,7 @@ public sealed partial class GameRuntime
         var candidate = Officer(candidateId); var actor = Officer(actorId);
         var method = RecruitmentMethod(candidateId);
         if (candidate is null || actor is null || string.IsNullOrEmpty(method)) return 0;
+        if (method == "captive" && candidate.InitialState.CityId != actor.InitialState.CityId) return 0;
         var ruler = State.Officers.FirstOrDefault(item => item.InitialState.FactionId == State.PlayerFactionId && item.InitialState.Appointment == "ruler") ?? actor;
         var actorCharisma = EffectiveAbility(actor, "charisma", "civil");
         var rulerCharisma = EffectiveAbility(ruler, "charisma", "civil");
@@ -615,7 +643,7 @@ public sealed partial class GameRuntime
     private void ResolveArmies()
     {
         if (State.PendingBattle is not null) return;
-        foreach (var army in State.Armies.Where(item => (item.Status is "marching" or "besieging") && item.LastMarchTurn < State.Turn).ToList())
+        foreach (var army in State.Armies.Where(item => (item.Status is "marching" or "besieging" or "retreating") && item.LastMarchTurn < State.Turn).ToList())
         {
             AdvanceArmy(army);
             if (State.PendingBattle is not null) return;
@@ -631,6 +659,11 @@ public sealed partial class GameRuntime
         army.Morale = Math.Clamp(army.Morale + (army.Food == 0 ? -12 : -1), 0, 100);
         army.RemainingDays = Math.Max(0, army.RemainingDays - (army.Food == 0 ? 18 : 30));
         army.LastMarchTurn = State.Turn;
+        if (army.Status == "retreating")
+        {
+            if (army.RemainingDays == 0) CompleteArmyRetreat(army);
+            return;
+        }
         if (TryPrepareRoadEncounter(army, beforeRemainingDays)) return;
         if (army.RemainingDays == 0) PrepareBattle(army);
     }
@@ -652,7 +685,7 @@ public sealed partial class GameRuntime
                 && enemyPosition.OffsetDays >= item.StartOffsetDays - .01
                 && enemyPosition.OffsetDays <= item.EndOffsetDays + .01);
             if (string.IsNullOrEmpty(encounter.RoadId)) continue;
-            PrepareArmyBattle(mover, enemy, encounter.RoadId);
+            PrepareArmyBattle(mover, enemy, encounter.RoadId, enemyPosition.OffsetDays);
             return true;
         }
         return false;
@@ -705,17 +738,22 @@ public sealed partial class GameRuntime
             RecallArmy(army, $"因双方处于停战期，{Officer(army.CommanderId)?.Profile.Name}军停止拦截并返回驻地。");
             return;
         }
-        PrepareArmyBattle(army, defender, string.Empty);
+        if (TryRoadPosition(defender, out var defenderPosition))
+            PrepareArmyBattle(army, defender, defenderPosition.RoadId, defenderPosition.OffsetDays);
+        else if (TryRoadPosition(army, out var attackerPosition))
+            PrepareArmyBattle(army, defender, attackerPosition.RoadId, attackerPosition.OffsetDays);
+        else
+            PrepareArmyBattle(army, defender, string.Empty, -1);
     }
 
-    private void PrepareArmyBattle(ArmyData army, ArmyData defender, string encounterRoadId)
+    private void PrepareArmyBattle(ArmyData army, ArmyData defender, string encounterRoadId, double encounterOffsetDays)
     {
         if (army.Composition.Count == 0) army.Composition["infantry"] = army.Soldiers;
         if (defender.Composition.Count == 0) defender.Composition["infantry"] = defender.Soldiers;
         army.TargetArmyId = defender.Id;
         army.Status = "awaiting-battle";
         defender.Status = "awaiting-battle";
-        State.PendingBattle = BattleCalculator.CreateFieldBattle(State, army, defender, encounterRoadId);
+        State.PendingBattle = BattleCalculator.CreateFieldBattle(State, army, defender, encounterRoadId, encounterOffsetDays);
         if (army.FactionId != State.PlayerFactionId && defender.FactionId != State.PlayerFactionId)
         {
             BattleCalculator.Generate(State, State.PendingBattle);
@@ -845,6 +883,7 @@ public sealed partial class GameRuntime
                     && !State.Cities.Any(other => other.Id != city.Id && other.OwnerFactionId == army.FactionId && other.GovernorId == officer.Profile.Id));
             city.GovernorId = capturedGovernor?.Profile.Id ?? string.Empty;
             city.GovernorName = capturedGovernor?.Profile.Name ?? "空缺";
+            if (capturedGovernor is not null) capturedGovernor.InitialState.Appointment = "governor";
             city.Garrison = army.Soldiers;
             city.WallDurability = Math.Max(20, city.WallDurability);
             city.GateDurability = Math.Max(20, city.GateDurability);
@@ -861,7 +900,7 @@ public sealed partial class GameRuntime
             foreach (var defender in State.Officers.Where(item => item.InitialState.FactionId == formerOwner && item.InitialState.CityId == city.Id && item.InitialState.Status != "deployed"))
             {
                 if (retreatCity is not null && _random.Next(100) < 72) defender.InitialState.CityId = retreatCity.Id;
-                else { defender.InitialState.Status = "captive"; defender.InitialState.CityId = city.Id; }
+                else CaptureOfficer(defender, city.Id);
             }
             var defeatedTreasury = Treasury(formerOwner);
             var lootGold = Math.Min(defeatedTreasury.Gold / 10, 1200); var lootFood = Math.Min(defeatedTreasury.Food / 10, 4000);
@@ -934,8 +973,10 @@ public sealed partial class GameRuntime
             AwardOfficerExperience(officer, won ? 70 : 40, won ? "赢得军团野战" : "参加军团野战", won ? "battle-victory" : "battle-participation");
         }
 
-        ReturnArmyAfterFieldBattle(attacker, pending.Result == "victory" ? "field-victory" : "field-defeat");
-        ReturnArmyAfterFieldBattle(defender, pending.Result == "victory" ? "field-defeat" : "field-victory");
+        var winner = pending.Result == "victory" ? attacker : defender;
+        var loser = pending.Result == "victory" ? defender : attacker;
+        KeepFieldBattleWinnerAtEncounter(winner, pending);
+        StartFieldBattleRetreat(loser, pending);
         State.BattleReports.Add(new BattleReportData
         {
             Id = pending.Id, Turn = State.Turn, CityId = battlefield.Id, CityName = $"{battlefield.Name}近郊", BattleType = "field",
@@ -1001,18 +1042,63 @@ public sealed partial class GameRuntime
         army.RoutedByTroop = SplitLossesByTroop(groups, routed ? .28 : .12);
     }
 
-    private void ReturnArmyAfterFieldBattle(ArmyData army, string status)
+    private void KeepFieldBattleWinnerAtEncounter(ArmyData army, PendingBattleData pending)
     {
-        var destination = City(army.SourceCityId)?.OwnerFactionId == army.FactionId
-            ? City(army.SourceCityId)
-            : State.Cities.FirstOrDefault(item => item.OwnerFactionId == army.FactionId);
-        if (destination is not null)
+        if (!string.IsNullOrEmpty(pending.EncounterRoadId) && pending.EncounterOffsetDays >= 0)
+            SnapArmyToRoadPosition(army, pending.EncounterRoadId, pending.EncounterOffsetDays);
+        army.TargetArmyId = string.Empty;
+        army.Status = "marching";
+        army.LastMarchTurn = State.Turn;
+    }
+
+    private void StartFieldBattleRetreat(ArmyData army, PendingBattleData pending)
+    {
+        army.TargetArmyId = string.Empty;
+        army.LastMarchTurn = State.Turn;
+        if (army.Soldiers <= 0)
         {
-            destination.Garrison += army.Soldiers;
-            ReturnArmyFoodToTreasury(army);
-            ReleaseArmyOfficers(army, destination.Id);
+            var fallback = NearestOwnedCity(army.FactionId, pending.CityId);
+            if (fallback is not null) ReleaseArmyOfficers(army, fallback.Id);
+            army.Food = 0;
+            army.Status = "field-destroyed";
+            army.RemainingDays = 0;
+            return;
         }
-        army.Status = status;
+
+        var road = State.Roads.FirstOrDefault(item => item.Id == pending.EncounterRoadId);
+        var retreat = road is not null && pending.EncounterOffsetDays >= 0
+            ? NearestOwnedRouteFromRoad(army.FactionId, road, pending.EncounterOffsetDays)
+            : NearestOwnedRouteFromCity(army.FactionId, pending.CityId);
+        if (retreat is null)
+        {
+            army.Status = "field-destroyed";
+            army.Food = 0;
+            army.RemainingDays = 0;
+            return;
+        }
+
+        army.SourceCityId = retreat.Value.SourceCityId;
+        army.TargetCityId = retreat.Value.TargetCityId;
+        army.RouteRoadIds = retreat.Value.RoadIds;
+        army.TotalDays = retreat.Value.TotalDays;
+        army.RemainingDays = retreat.Value.RemainingDays;
+        army.Status = "retreating";
+        if (army.RemainingDays == 0) CompleteArmyRetreat(army);
+    }
+
+    private void CompleteArmyRetreat(ArmyData army)
+    {
+        var destination = City(army.TargetCityId);
+        if (destination?.OwnerFactionId != army.FactionId)
+        {
+            army.Status = "field-destroyed";
+            army.Food = 0;
+            return;
+        }
+        destination.Garrison += army.Soldiers;
+        ReturnArmyFoodToTreasury(army);
+        ReleaseArmyOfficers(army, destination.Id);
+        army.Status = "field-defeat";
         army.RemainingDays = 0;
     }
 
@@ -1094,6 +1180,24 @@ public sealed partial class GameRuntime
     }
 
     private ScenarioOfficerData? CaptiveHeldBy(string holderFactionId, string originalFactionId) => State.Officers.FirstOrDefault(item => item.InitialState.Status == "captive" && item.InitialState.FactionId == originalFactionId && City(item.InitialState.CityId)?.OwnerFactionId == holderFactionId);
+
+    private void CaptureOfficer(ScenarioOfficerData officer, string cityId)
+    {
+        foreach (var governedCity in State.Cities.Where(item => item.GovernorId == officer.Profile.Id))
+        {
+            governedCity.GovernorId = string.Empty;
+            governedCity.GovernorName = "空缺";
+        }
+        officer.InitialState.Status = "captive";
+        officer.InitialState.CityId = cityId;
+        officer.InitialState.ArmyId = null;
+        officer.InitialState.CourtOfficeId = string.Empty;
+        officer.InitialState.TravelTargetCityId = string.Empty;
+        officer.InitialState.TravelTotalDays = 0;
+        officer.InitialState.TravelRemainingDays = 0;
+        if (officer.InitialState.Appointment == "governor")
+            officer.InitialState.Appointment = officer.InitialState.OfficeTrack == "military" ? "general" : "civil";
+    }
 
     private string ExchangeCaptives(string factionId)
     {
@@ -1197,6 +1301,110 @@ public sealed partial class GameRuntime
         return route;
     }
 
+    private RouteResult? FindShortestRoute(string sourceId, string targetId, string excludedRoadId = "")
+    {
+        if (sourceId == targetId) return new RouteResult(sourceId, targetId, [], 0, 0);
+        var distance = new Dictionary<string, int> { [sourceId] = 0 };
+        var previous = new Dictionary<string, (string CityId, string RoadId)>();
+        var queue = new PriorityQueue<string, int>();
+        queue.Enqueue(sourceId, 0);
+        while (queue.TryDequeue(out var current, out var currentDistance))
+        {
+            if (current == targetId) break;
+            if (currentDistance != distance.GetValueOrDefault(current, int.MaxValue)) continue;
+            foreach (var road in State.Roads.Where(item => item.Id != excludedRoadId && (item.FromCityId == current || item.ToCityId == current)))
+            {
+                var next = road.FromCityId == current ? road.ToCityId : road.FromCityId;
+                var candidateDistance = currentDistance + Math.Max(1, road.TravelDays);
+                if (candidateDistance >= distance.GetValueOrDefault(next, int.MaxValue)) continue;
+                distance[next] = candidateDistance;
+                previous[next] = (current, road.Id);
+                queue.Enqueue(next, candidateDistance);
+            }
+        }
+        if (!distance.TryGetValue(targetId, out var totalDays)) return null;
+        var route = new List<string>();
+        for (var cityId = targetId; cityId != sourceId;)
+        {
+            var step = previous[cityId];
+            route.Add(step.RoadId);
+            cityId = step.CityId;
+        }
+        route.Reverse();
+        return new RouteResult(sourceId, targetId, route, totalDays, totalDays);
+    }
+
+    private CityData? NearestOwnedCity(string factionId, string fromCityId) => State.Cities
+        .Where(item => item.OwnerFactionId == factionId)
+        .Select(item => new { City = item, Route = FindShortestRoute(fromCityId, item.Id) })
+        .Where(item => item.Route is not null)
+        .OrderBy(item => item.Route!.Value.RemainingDays)
+        .ThenBy(item => item.City.Id)
+        .Select(item => item.City)
+        .FirstOrDefault();
+
+    private RouteResult? NearestOwnedRouteFromCity(string factionId, string fromCityId)
+    {
+        var routes = State.Cities
+            .Where(item => item.OwnerFactionId == factionId)
+            .Select(item => FindShortestRoute(fromCityId, item.Id))
+            .Where(item => item is not null)
+            .Select(item => item!.Value)
+            .OrderBy(item => item.RemainingDays)
+            .ThenBy(item => item.TargetCityId)
+            .ToList();
+        return routes.Count == 0 ? null : routes[0];
+    }
+
+    private RouteResult? NearestOwnedRouteFromRoad(string factionId, RoadData road, double offsetDays)
+    {
+        var offset = Math.Clamp((int)Math.Round(offsetDays), 0, road.TravelDays);
+        var candidates = new List<RouteResult>();
+        foreach (var city in State.Cities.Where(item => item.OwnerFactionId == factionId))
+        {
+            var fromRoute = FindShortestRoute(road.FromCityId, city.Id, road.Id);
+            if (fromRoute is not null)
+            {
+                var roads = new List<string> { road.Id }; roads.AddRange(fromRoute.Value.RoadIds);
+                candidates.Add(new RouteResult(road.ToCityId, city.Id, roads,
+                    road.TravelDays + fromRoute.Value.TotalDays, offset + fromRoute.Value.RemainingDays));
+            }
+            var toRoute = FindShortestRoute(road.ToCityId, city.Id, road.Id);
+            if (toRoute is not null)
+            {
+                var roads = new List<string> { road.Id }; roads.AddRange(toRoute.Value.RoadIds);
+                candidates.Add(new RouteResult(road.FromCityId, city.Id, roads,
+                    road.TravelDays + toRoute.Value.TotalDays, road.TravelDays - offset + toRoute.Value.RemainingDays));
+            }
+        }
+        return candidates.Count == 0
+            ? null
+            : candidates.OrderBy(item => item.RemainingDays).ThenBy(item => item.TargetCityId).First();
+    }
+
+    private void SnapArmyToRoadPosition(ArmyData army, string roadId, double offsetDays)
+    {
+        var currentCityId = army.SourceCityId;
+        var accumulated = 0;
+        foreach (var routeRoadId in army.RouteRoadIds)
+        {
+            var road = State.Roads.FirstOrDefault(item => item.Id == routeRoadId);
+            if (road is null) continue;
+            var forward = road.FromCityId == currentCityId;
+            var nextCityId = forward ? road.ToCityId : road.FromCityId;
+            if (road.Id == roadId)
+            {
+                var canonicalOffset = Math.Clamp(offsetDays, 0, road.TravelDays);
+                var localOffset = forward ? canonicalOffset : road.TravelDays - canonicalOffset;
+                var elapsed = accumulated + (int)Math.Round(localOffset);
+                army.RemainingDays = Math.Clamp(army.TotalDays - elapsed, 0, army.TotalDays);
+                return;
+            }
+            accumulated += road.TravelDays;
+            currentCityId = nextCityId;
+        }
+    }
+
     private HashSet<string> RemainingRoadIds(ArmyData army)
     {
         if (army.RouteRoadIds.Count == 0) return [];
@@ -1268,6 +1476,7 @@ public sealed partial class GameRuntime
 
     private readonly record struct RoadPosition(string RoadId, double OffsetDays);
     private readonly record struct RoadInterval(string RoadId, double StartOffsetDays, double EndOffsetDays);
+    private readonly record struct RouteResult(string SourceCityId, string TargetCityId, List<string> RoadIds, int TotalDays, int RemainingDays);
 
     private bool CanAct(CityData? city, ScenarioOfficerData? officer, out string error)
     {

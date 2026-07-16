@@ -8,7 +8,7 @@ public sealed partial class GameRuntime
     public IReadOnlyList<StrategicMilitaryCandidate> EvaluateStrategicMilitaryCandidates(string factionId)
     {
         var cities = State.Cities.Where(city => city.OwnerFactionId == factionId).ToList();
-        var activeArmyCount = State.Armies.Count(army => army.FactionId == factionId && army.Status is "marching" or "besieging" or "awaiting-battle");
+        var activeArmyCount = State.Armies.Count(army => army.FactionId == factionId && army.Status is "marching" or "besieging" or "retreating" or "awaiting-battle");
         var activeArmyLimit = Math.Clamp((cities.Count + 2) / 3, 1, 3);
         var treasury = Treasury(factionId);
         var cityGoldUpkeep = cities.Sum(city => CityMonthlyForecast(city).GoldUpkeep);

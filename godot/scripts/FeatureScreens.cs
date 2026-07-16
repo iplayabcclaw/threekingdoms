@@ -356,8 +356,12 @@ public partial class TalentView : FeatureScreen
         }
         var chance = Runtime.RecruitmentChance(candidate.Profile.Id, actor.Profile.Id);
         var cost = method == "subversion" ? "；消耗1000金" : "；无额外花费";
-        var blocked = method == "subversion" && Runtime.State.Resources.Gold < 1000;
-        _recruitmentPreview.Text = $"{actor.Profile.Name}将以「{GameRuntime.RecruitmentMethodLabel(method)}」尝试招募{candidate.Profile.Name}　·　预计成功率 {chance}%{cost}" + (blocked ? "\n当前不可执行：势力府库不足1000金。" : "");
+        var locationBlocked = method == "captive" && chance == 0;
+        var goldBlocked = method == "subversion" && Runtime.State.Resources.Gold < 1000;
+        var blocked = locationBlocked || goldBlocked;
+        var blockedReason = locationBlocked ? "\n当前不可执行：劝降俘虏必须由与其同城的在职武将执行。"
+            : goldBlocked ? "\n当前不可执行：势力府库不足1000金。" : "";
+        _recruitmentPreview.Text = $"{actor.Profile.Name}将以「{GameRuntime.RecruitmentMethodLabel(method)}」尝试招募{candidate.Profile.Name}　·　预计成功率 {chance}%{cost}{blockedReason}";
         _recruitButton.Disabled = blocked;
     }
     private void RefreshProgression()
@@ -1099,7 +1103,7 @@ public partial class BattleReportView : FeatureScreen
         _resultTitle.Text = undecided ? "战 事 未 决" : won ? "胜　利" : "失　败";
         _resultTitle.AddThemeColorOverride("font_color", undecided ? GameTheme.Bronze : won ? GameTheme.Success : GameTheme.Danger);
         _resultSubtitle.Text = report.BattleType == "field"
-            ? $"第{report.Turn}回合 · {report.CityName}军团野战 · 双方收兵回营"
+            ? $"第{report.Turn}回合 · {report.CityName}军团野战 · 胜军留场、败军撤退"
             : $"第{report.Turn}回合 · {report.CityName}攻防战 · {(report.CityCaptured ? "城池易手" : undecided ? "转入持续围城" : "城池未失")}";
         var playerBefore = report.PlayerSide == "attacker" ? report.AttackerBefore : report.DefenderBefore;
         var playerAfter = report.PlayerSide == "attacker" ? report.AttackerAfter : report.DefenderAfter;

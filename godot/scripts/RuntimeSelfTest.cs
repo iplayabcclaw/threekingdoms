@@ -109,6 +109,38 @@ public static class RuntimeSelfTest
         var directChance = recruitment.RecruitmentChance(recruitmentTarget.Profile.Id, recruiter.Profile.Id);
         Require(directChance == subversionChance, "策反不再提供额外成功率加成");
 
+        var captiveRecruitment = new GameRuntime(scenario);
+        var captiveActor = captiveRecruitment.PlayerOfficers().First(item => item.InitialState.Status == "serving");
+        var remoteCaptive = captiveRecruitment.State.Officers.First(item => item.InitialState.FactionId != captiveRecruitment.State.PlayerFactionId && item.InitialState.Status == "serving");
+        remoteCaptive.InitialState.Status = "captive";
+        remoteCaptive.InitialState.CityId = captiveRecruitment.State.Cities.First(item => item.OwnerFactionId != captiveRecruitment.State.PlayerFactionId).Id;
+        Require(!captiveRecruitment.IsRecruitmentCandidate(remoteCaptive.Profile.Id)
+            && captiveRecruitment.RecruitmentChance(remoteCaptive.Profile.Id, captiveActor.Profile.Id) == 0,
+            "其他势力扣押的俘虏不能跨地图招降");
+        remoteCaptive.InitialState.CityId = captiveActor.InitialState.CityId;
+        var distantActor = captiveRecruitment.PlayerOfficers().First(item => item.InitialState.Status == "serving" && item.InitialState.CityId != captiveActor.InitialState.CityId);
+        Require(captiveRecruitment.RecruitmentMethod(remoteCaptive.Profile.Id) == "captive"
+            && captiveRecruitment.RecruitmentChance(remoteCaptive.Profile.Id, captiveActor.Profile.Id) > 0
+            && captiveRecruitment.RecruitmentChance(remoteCaptive.Profile.Id, distantActor.Profile.Id) == 0
+            && !captiveRecruitment.RecruitOfficer(remoteCaptive.Profile.Id, distantActor.Profile.Id, "reserve"),
+            "我方扣押的俘虏只能由同城在职武将劝降");
+
+        var governorAppointment = new GameRuntime(scenario);
+        var governorCity = governorAppointment.State.Cities.First(item => item.OwnerFactionId == governorAppointment.State.PlayerFactionId
+            && !string.IsNullOrEmpty(item.GovernorId)
+            && governorAppointment.PlayerOfficers().Count(officer => officer.InitialState.Status == "serving" && officer.InitialState.CityId == item.Id && officer.InitialState.Appointment != "ruler") >= 2);
+        var previousGovernor = governorAppointment.Officer(governorCity.GovernorId)!;
+        var replacementGovernor = governorAppointment.PlayerOfficers().First(item => item.InitialState.Status == "serving"
+            && item.InitialState.CityId == governorCity.Id && item.Profile.Id != previousGovernor.Profile.Id && item.InitialState.Appointment != "ruler");
+        Require(governorAppointment.AppointOfficer(replacementGovernor.Profile.Id, "governor")
+            && governorCity.GovernorId == replacementGovernor.Profile.Id && governorCity.GovernorName == replacementGovernor.Profile.Name
+            && replacementGovernor.InitialState.Appointment == "governor"
+            && previousGovernor.InitialState.Appointment != "governor",
+            "任命太守同步替换武将所在城的实际治理者");
+        Require(governorAppointment.AppointOfficer(replacementGovernor.Profile.Id, "general")
+            && string.IsNullOrEmpty(governorCity.GovernorId) && governorCity.GovernorName == "空缺",
+            "实际太守改任其他职责时同步解除城市治理职位");
+
         var transfer = new GameRuntime(scenario);
         var transferOfficer = transfer.State.Cities
             .Where(item => item.OwnerFactionId == transfer.State.PlayerFactionId && !string.IsNullOrEmpty(item.GovernorId))
@@ -149,6 +181,18 @@ public static class RuntimeSelfTest
         Require(!court.AppointCourtOffice(successor.Profile.Id, "chancellor") && chancellor.InitialState.CourtOfficeId == "chancellor" && string.IsNullOrEmpty(successor.InitialState.CourtOfficeId), "已占用的朝堂职位不能直接替换人选");
         Require(!court.AppointCourtOffice(chancellor.Profile.Id, "strategist-general") && chancellor.InitialState.CourtOfficeId == "chancellor", "已任朝堂职位的武将不能同时选择其他职位");
         Require(court.VacateCourtOffice(chancellor.Profile.Id) && court.AppointCourtOffice(successor.Profile.Id, "chancellor") && string.IsNullOrEmpty(chancellor.InitialState.CourtOfficeId) && successor.InitialState.CourtOfficeId == "chancellor", "先卸任后才能重新任命朝堂职位");
+
+        var captiveCourt = new GameRuntime(scenario);
+        var captiveCourtOfficer = captiveCourt.PlayerOfficers().First(item => item.InitialState.Appointment != "ruler" && item.InitialState.Status == "serving" && item.InitialState.OfficeTrack == "civil");
+        captiveCourtOfficer.InitialState.OfficeRank = 3;
+        captiveCourtOfficer.InitialState.CourtOfficeId = string.Empty;
+        Require(captiveCourt.AppointCourtOffice(captiveCourtOfficer.Profile.Id, "chancellor"), "俘虏朝堂自测前置任命");
+        captiveCourtOfficer.InitialState.Status = "captive";
+        var captiveInfluence = OfficerProgressionRules.FactionCourtInfluence(captiveCourt.State, captiveCourt.State.PlayerFactionId);
+        OfficerProgressionRules.EnsureDefaults(captiveCourtOfficer, captiveCourt.State.Year);
+        Require(captiveInfluence.GoldIncomeRate == 0 && captiveInfluence.FoodIncomeRate == 0 && captiveInfluence.DomesticActionRate == 0
+            && string.IsNullOrEmpty(captiveCourtOfficer.InitialState.CourtOfficeId),
+            "被俘武将立即失去朝堂加成且朝堂职位自动解除");
 
         var militaryCourt = new GameRuntime(scenario);
         var zhaoYun = militaryCourt.Officer("officer-zhao-yun")!;
@@ -494,6 +538,42 @@ public static class RuntimeSelfTest
             && automaticField.DefenderArmyId == automaticArmies.EnemyArmy.Id
             && automaticField.Terrain == "plain",
             "敌对军团在同一道路行军区间相交时自动触发平地野战");
+        var automaticSettlement = automaticEncounter.State.PendingBattle!;
+        foreach (var group in automaticSettlement.Groups.Where(item => item.Side == "defender"))
+            group.FinalSoldiers = Math.Max(1, (int)Math.Round(group.InitialSoldiers * .65));
+        automaticSettlement.AttackerAfter = automaticSettlement.Groups.Where(item => item.Side == "attacker").Sum(item => item.FinalSoldiers);
+        automaticSettlement.DefenderAfter = automaticSettlement.Groups.Where(item => item.Side == "defender").Sum(item => item.FinalSoldiers);
+        automaticSettlement.AttackerLosses = automaticSettlement.AttackerBefore - automaticSettlement.AttackerAfter;
+        automaticSettlement.DefenderLosses = automaticSettlement.DefenderBefore - automaticSettlement.DefenderAfter;
+        automaticSettlement.Result = "victory";
+        automaticSettlement.Status = "resolved";
+        automaticSettlement.Summary = "自测野战由进攻方获胜。";
+        var enemyGarrisonBeforeRetreat = automaticEncounter.State.Cities.Where(item => item.OwnerFactionId == automaticArmies.EnemyArmy.FactionId).Sum(item => item.Garrison);
+        var winnerFoodAtSettlement = automaticArmies.PlayerArmy.Food;
+        var loserFoodAtSettlement = automaticArmies.EnemyArmy.Food;
+        Require(automaticSettlement.EncounterRoadId == automaticArmies.Road.Id && automaticSettlement.EncounterOffsetDays > 0
+            && automaticSettlement.EncounterOffsetDays < automaticArmies.Road.TravelDays, "野战结算保存道路上的真实交战点");
+        Require(automaticEncounter.CompletePendingBattle(), "道路野战结算胜军与败军去向");
+        Require(automaticArmies.PlayerArmy.Status == "marching" && automaticArmies.PlayerArmy.RemainingDays > 0
+            && automaticArmies.PlayerArmy.Food == winnerFoodAtSettlement, "野战胜军停在交战点并保留军粮，未瞬移回城");
+        Require(automaticArmies.EnemyArmy.Status == "retreating" && automaticArmies.EnemyArmy.RemainingDays > 0
+            && automaticArmies.EnemyArmy.RouteRoadIds.Count > 0
+            && automaticEncounter.City(automaticArmies.EnemyArmy.TargetCityId)?.OwnerFactionId == automaticArmies.EnemyArmy.FactionId
+            && automaticEncounter.State.Cities.Where(item => item.OwnerFactionId == automaticArmies.EnemyArmy.FactionId).Sum(item => item.Garrison) == enemyGarrisonBeforeRetreat
+            && automaticArmies.EnemyArmy.Food == loserFoodAtSettlement,
+            "野战败军携剩余兵粮沿真实路线撤往距交战点最近的己城，不即时归城");
+        var retreatDaysBeforeAdvance = automaticArmies.EnemyArmy.RemainingDays;
+        var retreatDestination = automaticEncounter.City(automaticArmies.EnemyArmy.TargetCityId)!;
+        automaticEncounter.State.Turn++;
+        automaticArmies.PlayerArmy.LastMarchTurn = automaticEncounter.State.Turn;
+        Require(automaticEncounter.EndTurn(), "野战败军进入下一月撤退结算");
+        Require(automaticArmies.EnemyArmy.Status == "retreating"
+                ? automaticArmies.EnemyArmy.RemainingDays < retreatDaysBeforeAdvance
+                : automaticArmies.EnemyArmy.Status == "field-defeat" && automaticArmies.EnemyArmy.RemainingDays == 0
+                    && automaticArmies.EnemyArmy.Food == 0
+                    && automaticEncounter.Officer(automaticArmies.EnemyArmy.CommanderId)?.InitialState is { Status: "serving" } commanderState
+                    && commanderState.CityId == retreatDestination.Id,
+            "败军每月按道路日数推进，只有实际抵城后才归还兵力与余粮");
 
         var redirectedEncounter = new GameRuntime(scenario);
         var redirectedArmies = AddHeadOnRoadArmies(redirectedEncounter, "redirected");
@@ -684,7 +764,16 @@ public static class RuntimeSelfTest
         var fieldAttackerWon = fieldPending.Result == "victory";
         Require(interception.CompletePendingBattle(), "军团野战完成结算");
         var fieldReport = interception.State.BattleReports.Last();
-        Require(fieldReport.BattleType == "field" && !fieldReport.CityCaptured && interceptSource.OwnerFactionId == cityOwnerBeforeInterception && interception.State.Armies.Where(item => item.Id is "self-test-enemy-army" || item.TargetArmyId == "self-test-enemy-army").All(item => item.Status is "field-victory" or "field-defeat"), "野战只结算两军并回营，不改变城池归属");
+        var fieldWinner = fieldAttackerWon
+            ? interception.State.Armies.First(item => item.Id == fieldPending.ArmyId)
+            : interception.State.Armies.First(item => item.Id == fieldPending.DefenderArmyId);
+        var fieldLoser = fieldAttackerWon
+            ? interception.State.Armies.First(item => item.Id == fieldPending.DefenderArmyId)
+            : interception.State.Armies.First(item => item.Id == fieldPending.ArmyId);
+        Require(fieldReport.BattleType == "field" && !fieldReport.CityCaptured && interceptSource.OwnerFactionId == cityOwnerBeforeInterception
+            && fieldWinner.Status == "marching"
+            && (fieldLoser.Soldiers <= 0 ? fieldLoser.Status == "field-destroyed" : fieldLoser.Status is "retreating" or "field-defeat"),
+            "野战只结算两军，胜军留场、败军撤退且不改变城池归属");
         Require(fieldPending.AttackerOfficerIds.All(id => interception.Officer(id)?.InitialState.Loyalty == (fieldAttackerWon ? 51 : 49))
             && fieldPending.DefenderOfficerIds.All(id => interception.Officer(id)?.InitialState.Loyalty == (fieldAttackerWon ? 49 : 51)),
             "军团野战胜方参战武将忠诚+1且败方-1");
@@ -708,7 +797,7 @@ public static class RuntimeSelfTest
         {
             var fromOwner = runtime.City(item.FromCityId)?.OwnerFactionId;
             var toOwner = runtime.City(item.ToCityId)?.OwnerFactionId;
-            return fromOwner != toOwner && (fromOwner == runtime.State.PlayerFactionId || toOwner == runtime.State.PlayerFactionId);
+            return item.TravelDays > 30 && fromOwner != toOwner && (fromOwner == runtime.State.PlayerFactionId || toOwner == runtime.State.PlayerFactionId);
         });
         var from = runtime.City(road.FromCityId)!;
         var to = runtime.City(road.ToCityId)!;
