@@ -6,5 +6,7 @@ godot/bin/
 godot/obj/
 godot/assets/generated/
 build/
+.playtest/
+outputs/
 __pycache__/
 *.py[cod]

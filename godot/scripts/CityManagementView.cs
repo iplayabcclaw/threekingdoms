@@ -13,13 +13,14 @@ public partial class CityManagementView : Control
     private GameRuntime _runtime = null!;
     private string _cityId = string.Empty, _page = "overview", _selectedSlot = string.Empty;
     private bool _overviewMode = true, _awaitingBuilder;
-    private Button _back = null!, _previous = null!, _next = null!, _buildAction = null!, _upgradeAction = null!, _repairAction = null!;
-    private Label _title = null!, _subtitle = null!, _notice = null!, _buildingTitle = null!, _buildingInfo = null!, _overviewResources = null!, _overviewDevelopment = null!, _overviewLedger = null!;
+    private Button _back = null!, _previous = null!, _next = null!, _buildAction = null!, _upgradeAction = null!, _repairAction = null!, _cityUpgradeAction = null!, _cancelCityUpgradeAction = null!;
+    private Label _title = null!, _subtitle = null!, _notice = null!, _buildingTitle = null!, _buildingInfo = null!, _cityUpgradeInfo = null!, _overviewResources = null!, _overviewDevelopment = null!, _overviewLedger = null!;
     private ScrollContainer _overview = null!;
     private VBoxContainer _overviewList = null!, _buildingSlots = null!;
     private Control _detail = null!;
-    private OptionButton _officer = null!, _commandGroup = null!, _facilityChoice = null!, _builderChoice = null!, _governanceMode = null!, _policy = null!, _role = null!;
+    private OptionButton _officer = null!, _commandGroup = null!, _facilityChoice = null!, _builderChoice = null!, _cityUpgradeOfficer = null!, _governanceMode = null!, _policy = null!, _role = null!;
     private Control _builderRow = null!;
+    private ConfirmationDialog _cityUpgradeDialog = null!, _cancelCityUpgradeDialog = null!;
 
     public void Initialize(GameRuntime runtime)
     {
@@ -66,7 +67,7 @@ public partial class CityManagementView : Control
         var remaining = cities.Sum(city => city.ActionSlots);
         var capacity = cities.Sum(city => city.ActionCapacity);
         var treasury = _runtime.State.Resources;
-        _subtitle.Text = $"势力府库：金 {treasury.Gold:N0}　粮 {treasury.Food:N0}　军备 {treasury.Equipment:N0}　· {cities.Count}城 · 本月城务 {remaining}/{capacity}";
+        _subtitle.Text = $"势力府库：金 {treasury.Gold:N0}　粮 {treasury.Food:N0}　· {cities.Count}城 · 本月城务 {remaining}/{capacity}";
         _back.Text = "← 返回天下";
         _previous.Visible = false; _next.Visible = false;
         foreach (var child in _overviewList.GetChildren()) child.QueueFree();
@@ -77,7 +78,7 @@ public partial class CityManagementView : Control
         {
             var forecast = _runtime.CityMonthlyForecast(city);
             var button = GameTheme.Button(
-                $"{city.Name}　{GameRuntime.CityStatusLabel(city.Status)}　太守 {city.GovernorName}　城务 {city.ActionSlots}/{city.ActionCapacity}\n" +
+                $"{city.Name} Lv.{city.CityLevel}　{GameRuntime.CityStatusLabel(city.Status)}　太守 {city.GovernorName}　城务 {city.ActionSlots}/{city.ActionCapacity}\n" +
                 $"月度贡献：金 {forecast.GoldIncome - forecast.GoldUpkeep:+#,0;-#,0;0}　粮 {forecast.FoodIncome - forecast.FoodUpkeep:+#,0;-#,0;0}　驻军 {city.Garrison:N0}　" +
                 $"{GameRuntime.CityRoleLabel(city.CityRole)} / {GameRuntime.GovernancePolicyLabel(city.GovernancePolicy)}　· {_runtime.CityPrioritySummary(city)}");
             button.CustomMinimumSize = new Vector2(0, 78); button.Alignment = HorizontalAlignment.Left;
@@ -93,18 +94,19 @@ public partial class CityManagementView : Control
         var faction = _runtime.Faction(city.OwnerFactionId);
         var forecast = _runtime.CityMonthlyForecast(city);
         var treasury = _runtime.State.Resources;
-        _title.Text = $"{city.Name}城";
+        _title.Text = $"{city.Name}城 · Lv.{city.CityLevel}";
         _subtitle.Text = $"{city.Region} · {faction?.Name ?? "未知势力"} · 太守 {city.GovernorName} · {GameRuntime.CityStatusLabel(city.Status)} · 本月城务 {city.ActionSlots}/{city.ActionCapacity}";
         _back.Text = "← 返回天下"; _previous.Visible = true; _next.Visible = true;
-        _overviewResources.Text = $"势力府库\n金　{treasury.Gold:N0}\n粮　{treasury.Food:N0}\n军备　{treasury.Equipment:N0}\n\n本城月度贡献\n金 {forecast.GoldIncome - forecast.GoldUpkeep:+#,0;-#,0;0}\n粮 {forecast.FoodIncome - forecast.FoodUpkeep:+#,0;-#,0;0}\n\n驻军 {city.Garrison:N0}　人口 {city.Population:N0}";
+        _overviewResources.Text = $"势力府库\n金　{treasury.Gold:N0}\n粮　{treasury.Food:N0}\n\n本城月度贡献\n金 {forecast.GoldIncome - forecast.GoldUpkeep:+#,0;-#,0;0}\n粮 {forecast.FoodIncome - forecast.FoodUpkeep:+#,0;-#,0;0}\n\n驻军 {city.Garrison:N0}　人口 {city.Population:N0}";
         _overviewDevelopment.Text = $"太守\n{city.GovernorName}\n\n农业　{city.Agriculture}　商业　{city.Commerce}\n治安　{city.PublicOrder}　民心　{city.PublicSupport}\n城防　{city.Defense}　文化　{city.Culture}\n训练　{city.Training}　疲敝　{city.Fatigue}\n\n当前要务：{_runtime.CityPrioritySummary(city)}";
         var ledger = city.LedgerEntries.TakeLast(5).Reverse().Select(item => $"第{item.Turn}月 · {item.Description}");
         var occupiedFacilitySlots = city.Facilities.Count + (city.ConstructionQueue?.Kind == "build" ? 1 : 0);
-        _overviewLedger.Text = $"城池状态\n{GameRuntime.CityStatusLabel(city.Status)}　{GameRuntime.CityRoleLabel(city.CityRole)}\n设施 {occupiedFacilitySlots}/{city.FacilitySlots}\n" +
-            (city.ConstructionQueue is null ? "当前无工程" : $"在建：{GameRuntime.FacilityName(city.ConstructionQueue.DefinitionId)} · 余{city.ConstructionQueue.RemainingMonths}月") +
+        _overviewLedger.Text = $"城池状态\n{GameRuntime.CityStatusLabel(city.Status)}　{GameRuntime.CityRoleLabel(city.CityRole)}\n城池 Lv.{city.CityLevel}　设施 {occupiedFacilitySlots}/{city.FacilitySlots}\n" +
+            (city.ConstructionQueue is null ? "当前无工程" : $"在建：{GameRuntime.ConstructionLabel(city.ConstructionQueue)} · 余{city.ConstructionQueue.RemainingMonths}月") +
             $"\n\n最近台账\n{(ledger.Any() ? string.Join('\n', ledger) : "尚无月报")}";
         FillOfficers(city);
         FillBuildingSlots(city);
+        RefreshCityUpgradePanel(city);
         SelectByMetadata(_governanceMode, city.GovernanceMode);
         SelectByMetadata(_policy, city.GovernancePolicy);
         SelectByMetadata(_role, city.CityRole);
@@ -176,7 +178,7 @@ public partial class CityManagementView : Control
     {
         var row = FlowRow(8); row.AddChild(new Label { Text = "城务武将", CustomMinimumSize = new Vector2(82, 38), VerticalAlignment = VerticalAlignment.Center });
         _officer = new OptionButton { CustomMinimumSize = new Vector2(265, 38) }; _officer.ItemSelected += _ => RefreshCommandPreviews(); row.AddChild(_officer);
-        _commandGroup = Choice(135, ("生产", "production"), ("民生", "civil"), ("军备", "military"), ("人才", "talent")); _commandGroup.ItemSelected += _ => RefreshCommandButtons(); row.AddChild(_commandGroup);
+        _commandGroup = Choice(135, ("生产", "production"), ("民生", "civil"), ("军事", "military"), ("人才", "talent")); _commandGroup.ItemSelected += _ => RefreshCommandButtons(); row.AddChild(_commandGroup);
         foreach (var command in new[] { ("production", "agriculture", "劝课农桑"), ("production", "commerce", "振兴商业"), ("civil", "patrol", "整顿治安"), ("civil", "relief", "赈济百姓"), ("military", "defense", "修缮城防"), ("military", "recruit", "征募士卒"), ("military", "train", "操练兵马"), ("talent", "search", "寻访人才") })
         {
             var button = GameTheme.Button(command.Item3); button.CustomMinimumSize = new Vector2(116, 38); var focus = command.Item2; button.Pressed += () => _runtime.DevelopCity(_cityId, Selected(_officer), focus);
@@ -193,6 +195,13 @@ public partial class CityManagementView : Control
         UiOrnaments.AttachInkCorners(board, 250, .075f);
         var margin = new MarginContainer(); margin.AddThemeConstantOverride("margin_left", 18); margin.AddThemeConstantOverride("margin_right", 18); margin.AddThemeConstantOverride("margin_top", 14); margin.AddThemeConstantOverride("margin_bottom", 14); board.AddChild(margin);
         var cityLayout = new VBoxContainer(); cityLayout.AddThemeConstantOverride("separation", 12); margin.AddChild(cityLayout);
+        var upgradeCard = new PanelContainer(); upgradeCard.AddThemeStyleboxOverride("panel", GameTheme.Box(new Color(GameTheme.Panel, .78f), new Color(GameTheme.GoldDim, .65f), 7, 1, 12, 8)); cityLayout.AddChild(upgradeCard);
+        var upgradeLayout = new VBoxContainer(); upgradeLayout.AddThemeConstantOverride("separation", 7); upgradeCard.AddChild(upgradeLayout);
+        _cityUpgradeInfo = new Label { Text = "城池建设", AutowrapMode = TextServer.AutowrapMode.WordSmart }; _cityUpgradeInfo.AddThemeColorOverride("font_color", GameTheme.Gold); upgradeLayout.AddChild(_cityUpgradeInfo);
+        var upgradeRow = new HBoxContainer(); upgradeRow.AddThemeConstantOverride("separation", 8); upgradeLayout.AddChild(upgradeRow);
+        _cityUpgradeOfficer = new OptionButton { CustomMinimumSize = new Vector2(220, 38), SizeFlagsHorizontal = SizeFlags.ExpandFill }; upgradeRow.AddChild(_cityUpgradeOfficer);
+        _cityUpgradeAction = GameTheme.Button("升级城池"); _cityUpgradeAction.CustomMinimumSize = new Vector2(130, 38); _cityUpgradeAction.Pressed += BeginCityUpgrade; upgradeRow.AddChild(_cityUpgradeAction);
+        _cancelCityUpgradeAction = GameTheme.Button("取消升级"); _cancelCityUpgradeAction.CustomMinimumSize = new Vector2(110, 38); _cancelCityUpgradeAction.Pressed += BeginCancelCityUpgrade; upgradeRow.AddChild(_cancelCityUpgradeAction);
         var caption = new Label { Text = "城池示意 · 点击城内地块查看建筑", CustomMinimumSize = new Vector2(0, 38) }; caption.AddThemeFontSizeOverride("font_size", 20); caption.AddThemeColorOverride("font_color", GameTheme.Gold); cityLayout.AddChild(caption);
         var cityHint = new Label { Text = "城门与主街围绕各功能区展开；已建设施显示等级，空地可直接选择建造。", AutowrapMode = TextServer.AutowrapMode.WordSmart }; cityHint.AddThemeColorOverride("font_color", GameTheme.Muted); cityLayout.AddChild(cityHint);
         _buildingSlots = new VBoxContainer { SizeFlagsVertical = SizeFlags.ExpandFill }; _buildingSlots.AddThemeConstantOverride("separation", 10); cityLayout.AddChild(_buildingSlots);
@@ -208,17 +217,20 @@ public partial class CityManagementView : Control
         _builderRow = new HBoxContainer { Visible = false }; _builderRow.AddThemeConstantOverride("separation", 8); _builderRow.AddChild(new Label { Text = "负责武将", CustomMinimumSize = new Vector2(78, 38), VerticalAlignment = VerticalAlignment.Center }); _builderChoice = new OptionButton { CustomMinimumSize = new Vector2(0, 38), SizeFlagsHorizontal = SizeFlags.ExpandFill }; _builderRow.AddChild(_builderChoice); info.AddChild(_builderRow);
         _upgradeAction = GameTheme.Button("升级已建设施"); _upgradeAction.Pressed += () => MaintainSelected(true); info.AddChild(_upgradeAction);
         _repairAction = GameTheme.Button("修缮已建设施"); _repairAction.Pressed += () => MaintainSelected(false); info.AddChild(_repairAction);
+
+        _cityUpgradeDialog = new ConfirmationDialog { Title = "确认升级城池", OkButtonText = "确认开工", CancelButtonText = "返回" }; _cityUpgradeDialog.Confirmed += ConfirmCityUpgrade; AddChild(_cityUpgradeDialog);
+        _cancelCityUpgradeDialog = new ConfirmationDialog { Title = "确认取消城池升级", OkButtonText = "取消并返还资源", CancelButtonText = "继续施工" }; _cancelCityUpgradeDialog.Confirmed += ConfirmCancelCityUpgrade; AddChild(_cancelCityUpgradeDialog);
     }
 
     private void BuildGovernancePage()
     {
         var page = AddPage("governance");
         var cards = new HBoxContainer(); cards.SetAnchorsPreset(LayoutPreset.TopWide); cards.OffsetBottom = 270; cards.AddThemeConstantOverride("separation", 14); page.AddChild(cards);
-        cards.AddChild(StaticCard("治理说明", "治理方针决定太守委任时的优先城务；城市定位会在转型完成后提供对应倾向。金粮为全势力共用，不再设置城市保底或上缴。", new Vector2(520, 0)));
+        cards.AddChild(StaticCard("治理说明", "亲自治理时城务均由玩家下令；方针委任会在月末让太守按所选方针使用本城剩余城务额度。城市定位会在转型完成后提供对应倾向。金粮为全势力共用。", new Vector2(520, 0)));
         cards.AddChild(StaticCard("方针含义", "休养：民心、治安与恢复优先\n通商：商业、治安优先\n屯田：农业、赈济优先\n备战：城防、征募、训练优先\n新土：治安、赈济、城防优先", new Vector2(520, 0)));
         var policyPanel = new VBoxContainer(); policyPanel.SetAnchorsPreset(LayoutPreset.TopWide); policyPanel.OffsetTop = 294; policyPanel.AddThemeConstantOverride("separation", 10); page.AddChild(policyPanel);
         var row = FlowRow(10); row.AddChild(new Label { Text = "治理方式", CustomMinimumSize = new Vector2(82, 40), VerticalAlignment = VerticalAlignment.Center });
-        _governanceMode = Choice(150, ("亲自治理", "manual"), ("方针委任", "delegated")); _policy = Choice(165, ("均衡治理", "balanced"), ("休养生息", "recovery"), ("富民通商", "commerce"), ("屯田积粮", "agriculture"), ("整军备战", "military"), ("巩固新土", "integration")); _role = Choice(135, ("未定", "unassigned"), ("粮仓", "granary"), ("商埠", "market"), ("军镇", "garrison"), ("学府", "academy"), ("枢纽", "hub"));
+        _governanceMode = Choice(150, ("亲自治理", "manual"), ("方针委任", "delegated")); _policy = Choice(165, ("均衡治理", "balanced"), ("休养生息", "recovery"), ("富民通商", "commerce"), ("屯田积粮", "agriculture"), ("强军固防", "military"), ("巩固新土", "integration")); _role = Choice(135, ("未定", "unassigned"), ("粮仓", "granary"), ("商埠", "market"), ("军镇", "garrison"), ("学府", "academy"), ("枢纽", "hub"));
         var apply = GameTheme.Button("应用治理方针"); apply.CustomMinimumSize = new Vector2(155, 40); apply.Pressed += ApplyGovernance;
         foreach (var control in new Control[] { _governanceMode, _policy, _role, apply }) row.AddChild(control); policyPanel.AddChild(CommandPanel(row));
     }
@@ -227,7 +239,7 @@ public partial class CityManagementView : Control
     {
         if (_buildingSlots is null) return;
         foreach (var child in _buildingSlots.GetChildren()) child.QueueFree();
-        var slots = Math.Max(1, city.FacilitySlots);
+        var slots = GameRuntime.MaxFacilitySlots;
         var facilitiesBySlot = GameRuntime.FacilitiesBySlot(city);
         for (var index = 0; index < slots; index += 2)
         {
@@ -235,21 +247,26 @@ public partial class CityManagementView : Control
             for (var column = 0; column < 2 && index + column < slots; column++)
             {
                 var slotIndex = index + column;
+                var locked = slotIndex >= city.FacilitySlots;
                 var item = facilitiesBySlot.GetValueOrDefault(slotIndex);
                 var construction = city.ConstructionQueue is { Kind: "build" } queue && queue.TargetSlotIndex == slotIndex ? queue : null;
                 var slotKey = $"slot-{slotIndex}";
-                var label = construction is not null
+                var unlockLevel = (slotIndex - GameRuntime.MinFacilitySlots + 1) * 2;
+                var label = locked
+                    ? $"🔒 第 {slotIndex + 1} 个位置\n城池 Lv.{unlockLevel} 解锁"
+                    : construction is not null
                     ? $"{GameRuntime.FacilityName(construction.DefinitionId)}\n建造中 · 余{construction.RemainingMonths}月"
                     : item is null
                         ? $"＋ 空地 {slotIndex + 1}\n点击选择建筑"
                         : $"{GameRuntime.FacilityName(item.DefinitionId)}  Lv.{item.Level}\n状况 {item.Condition}%";
-                var button = GameTheme.Button(label); button.CustomMinimumSize = new Vector2(0, 102); button.SizeFlagsHorizontal = SizeFlags.ExpandFill; button.AddThemeFontSizeOverride("font_size", 18);
+                var button = GameTheme.Button(label); button.CustomMinimumSize = new Vector2(0, 88); button.SizeFlagsHorizontal = SizeFlags.ExpandFill; button.AddThemeFontSizeOverride("font_size", 17); button.Disabled = locked;
                 if (construction is not null) button.AddThemeColorOverride("font_color", GameTheme.Gold);
                 if (slotKey == _selectedSlot) button.AddThemeStyleboxOverride("normal", GameTheme.Box(new Color(GameTheme.Gold, .22f), GameTheme.Gold, 8, 2, 14, 8));
-                var selected = slotKey; button.Pressed += () => { _selectedSlot = selected; _awaitingBuilder = false; Refresh(); }; row.AddChild(button);
+                if (!locked) { var selected = slotKey; button.Pressed += () => { _selectedSlot = selected; _awaitingBuilder = false; Refresh(); }; }
+                row.AddChild(button);
             }
         }
-        if (string.IsNullOrEmpty(_selectedSlot) || SelectedSlotIndex() >= slots) _selectedSlot = "slot-0";
+        if (string.IsNullOrEmpty(_selectedSlot) || SelectedSlotIndex() >= city.FacilitySlots) _selectedSlot = "slot-0";
     }
 
     private void RefreshBuildingPanel(CityData? city)
@@ -262,7 +279,7 @@ public partial class CityManagementView : Control
         _facilityChoice.Visible = isEmpty;
         _buildAction.Visible = isEmpty;
         _builderRow.Visible = isEmpty && _awaitingBuilder;
-        _upgradeAction.Visible = facility is not null;
+        _upgradeAction.Visible = facility is not null && facility.Level < 3;
         _repairAction.Visible = facility is not null;
         if (construction is not null)
         {
@@ -279,9 +296,77 @@ public partial class CityManagementView : Control
         }
         else
         {
-            _buildingTitle.Text = $"{GameRuntime.FacilityName(facility.DefinitionId)} · Lv.{facility.Level}";
-            _buildingInfo.Text = $"{GameRuntime.FacilityEffect(facility.DefinitionId)}\n\n当前状况：{facility.Condition}%\n" + (city.ConstructionQueue is null ? "可选择升级或修缮。" : $"当前工程：{GameRuntime.FacilityName(city.ConstructionQueue.DefinitionId)}，余{city.ConstructionQueue.RemainingMonths}月。");
+            var builtFacility = facility!;
+            _buildingTitle.Text = $"{GameRuntime.FacilityName(builtFacility.DefinitionId)} · Lv.{builtFacility.Level}";
+            _buildingInfo.Text = $"{GameRuntime.FacilityEffect(builtFacility.DefinitionId)}\n\n当前状况：{builtFacility.Condition}%\n" + (city.ConstructionQueue is null ? (builtFacility.Level >= 3 ? "设施已满级，可进行修缮。" : "可选择升级或修缮。") : $"当前工程：{GameRuntime.ConstructionLabel(city.ConstructionQueue)}，余{city.ConstructionQueue.RemainingMonths}月。");
         }
+    }
+
+    private void RefreshCityUpgradePanel(CityData city)
+    {
+        var queue = city.ConstructionQueue;
+        var cityUpgrade = queue is { Kind: "city-upgrade" } ? queue : null;
+        _cancelCityUpgradeAction.Visible = cityUpgrade is not null;
+        if (cityUpgrade is not null)
+        {
+            var completed = cityUpgrade.TotalMonths - cityUpgrade.RemainingMonths;
+            var builder = _runtime.Officer(cityUpgrade.OfficerId)?.Profile.Name ?? "未指定";
+            var pauseReason = _runtime.CityUpgradePauseReason(city);
+            _cityUpgradeInfo.Text = $"城池建设 · Lv.{city.CityLevel} → Lv.{cityUpgrade.TargetCityLevel}\n进度 {completed}/{cityUpgrade.TotalMonths}个月 · 剩余{cityUpgrade.RemainingMonths}个月 · 负责 {builder}" + (string.IsNullOrEmpty(pauseReason) ? "" : $"\n{pauseReason}");
+            _cityUpgradeOfficer.Visible = !string.IsNullOrEmpty(pauseReason);
+            _cityUpgradeAction.Visible = !string.IsNullOrEmpty(pauseReason);
+            _cityUpgradeAction.Text = "更换负责武将";
+            _cancelCityUpgradeAction.Text = $"取消并返还 金{cityUpgrade.GoldCost:N0}/粮{cityUpgrade.FoodCost:N0}";
+            return;
+        }
+        _cityUpgradeOfficer.Visible = city.CityLevel < GameRuntime.MaxCityLevel;
+        _cityUpgradeAction.Visible = city.CityLevel < GameRuntime.MaxCityLevel;
+        _cancelCityUpgradeAction.Visible = false;
+        _cityUpgradeAction.Text = "升级城池";
+        if (city.CityLevel >= GameRuntime.MaxCityLevel)
+        {
+            _cityUpgradeInfo.Text = $"城池建设 · Lv.{city.CityLevel} 已达最高等级\n建造位置 {city.FacilitySlots}/{GameRuntime.MaxFacilitySlots}";
+            return;
+        }
+        var definition = GameRuntime.CityUpgradeForTargetLevel(city.CityLevel + 1)!;
+        var unlock = definition.UnlocksFacilitySlot ? $" · 解锁第{GameRuntime.FacilitySlotsForCityLevel(definition.TargetLevel)}个位置" : $" · 下个位置 Lv.{GameRuntime.NextFacilitySlotUnlockLevel(city.CityLevel)} 解锁";
+        var queueBlock = queue is null ? "" : $"\n需等待当前工程：{GameRuntime.ConstructionLabel(queue)}";
+        _cityUpgradeInfo.Text = $"城池建设 · Lv.{city.CityLevel} → Lv.{definition.TargetLevel}　位置 {city.FacilitySlots}/{GameRuntime.MaxFacilitySlots}{unlock}\n农业+1　商业+1　城防+2　文化+1 · 金{definition.Gold:N0} 粮{definition.Food:N0} · {definition.Months}个月{queueBlock}";
+        _cityUpgradeAction.Disabled = queue is not null;
+    }
+
+    private void BeginCityUpgrade()
+    {
+        var city = _runtime.City(_cityId);
+        if (city is null) return;
+        if (city.ConstructionQueue is { Kind: "city-upgrade" })
+        {
+            if (_runtime.ReassignCityUpgrade(city.Id, Selected(_cityUpgradeOfficer))) Refresh();
+            return;
+        }
+        var definition = GameRuntime.CityUpgradeForTargetLevel(city.CityLevel + 1);
+        if (definition is null) return;
+        var unlock = definition.UnlocksFacilitySlot ? $"\n解锁：第{GameRuntime.FacilitySlotsForCityLevel(definition.TargetLevel)}个建造位置" : "";
+        _cityUpgradeDialog.DialogText = $"{city.Name}将升级至 Lv.{definition.TargetLevel}\n农业 +1　商业 +1　城防 +2　文化 +1{unlock}\n\n消耗：金 {definition.Gold:N0}　粮 {definition.Food:N0}　本城城务 1\n工期：{definition.Months}个月\n负责武将：{SelectedOfficerName(_cityUpgradeOfficer)}";
+        _cityUpgradeDialog.PopupCentered(new Vector2I(560, 330));
+    }
+
+    private void ConfirmCityUpgrade()
+    {
+        if (_runtime.UpgradeCity(_cityId, Selected(_cityUpgradeOfficer))) Refresh();
+    }
+
+    private void BeginCancelCityUpgrade()
+    {
+        var city = _runtime.City(_cityId);
+        if (city?.ConstructionQueue is not { Kind: "city-upgrade" } queue) return;
+        _cancelCityUpgradeDialog.DialogText = $"确认取消{city.Name}升至 Lv.{queue.TargetCityLevel} 的工程？\n\n将全额返还：金 {queue.GoldCost:N0}　粮 {queue.FoodCost:N0}\n本月已消耗的城务额度不返还，施工进度将清零。";
+        _cancelCityUpgradeDialog.PopupCentered(new Vector2I(540, 280));
+    }
+
+    private void ConfirmCancelCityUpgrade()
+    {
+        if (_runtime.CancelCityUpgrade(_cityId)) Refresh();
     }
 
     private void BeginOrConfirmBuild()
@@ -305,14 +390,15 @@ public partial class CityManagementView : Control
     private void FillOfficers(CityData city)
     {
         var previous = _officer.Selected >= 0 ? Selected(_officer) : string.Empty;
-        _officer.Clear(); _builderChoice.Clear();
+        var previousUpgrade = _cityUpgradeOfficer.Selected >= 0 ? Selected(_cityUpgradeOfficer) : string.Empty;
+        _officer.Clear(); _builderChoice.Clear(); _cityUpgradeOfficer.Clear();
         foreach (var officer in _runtime.PlayerOfficers().Where(item => item.InitialState.CityId == city.Id && item.InitialState.Status == "serving"))
         {
             var used = city.MonthlyOfficerActionIds.Count(id => id == officer.Profile.Id);
             var label = $"Lv.{officer.InitialState.Level} {officer.Profile.Name} · 政{_runtime.EffectiveAbility(officer, "politics", "civil")} 智{_runtime.EffectiveAbility(officer, "intelligence", "civil")}{(used > 0 ? $" · 已行动{used}" : "")}";
-            AddChoice(_officer, label, officer.Profile.Id); AddChoice(_builderChoice, label, officer.Profile.Id);
+            AddChoice(_officer, label, officer.Profile.Id); AddChoice(_builderChoice, label, officer.Profile.Id); AddChoice(_cityUpgradeOfficer, label, officer.Profile.Id);
         }
-        SelectByMetadata(_officer, previous); SelectByMetadata(_builderChoice, previous); RefreshCommandPreviews();
+        SelectByMetadata(_officer, previous); SelectByMetadata(_builderChoice, previous); SelectByMetadata(_cityUpgradeOfficer, previousUpgrade); RefreshCommandPreviews();
     }
 
     private void RefreshCommandButtons()
@@ -333,6 +419,7 @@ public partial class CityManagementView : Control
     private IEnumerable<CityData> PlayerCities() => _runtime.State.Cities.Where(item => item.OwnerFactionId == _runtime.State.PlayerFactionId);
     private static int CitySortScore(CityData city) => city.Status switch { "shortage" => 0, "unrest" => 1, "integrating" => 2, "frontline" => 3, _ => 10 };
     private static string Selected(OptionButton option) => option.Selected < 0 ? string.Empty : option.GetItemMetadata(option.Selected).AsString();
+    private string SelectedOfficerName(OptionButton option) => _runtime.Officer(Selected(option))?.Profile.Name ?? "未选择";
     private static void AddChoice(OptionButton option, string label, string value) { option.AddItem(label); option.SetItemMetadata(option.ItemCount - 1, value); }
     private static OptionButton Choice(float width, params (string Label, string Value)[] entries) { var option = new OptionButton { CustomMinimumSize = new Vector2(width, 38), MouseDefaultCursorShape = CursorShape.PointingHand }; foreach (var entry in entries) AddChoice(option, entry.Label, entry.Value); return option; }
     private static HFlowContainer FlowRow(int separation) { var row = new HFlowContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; row.AddThemeConstantOverride("h_separation", separation); row.AddThemeConstantOverride("v_separation", 7); return row; }

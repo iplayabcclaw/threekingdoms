@@ -130,7 +130,7 @@ public partial class TalentView : FeatureScreen
         _progression = new Label { CustomMinimumSize = new Vector2(0, 112), AutowrapMode = TextServer.AutowrapMode.WordSmart }; _progression.AddThemeColorOverride("font_color", GameTheme.Muted); _progression.AddThemeConstantOverride("line_spacing", 4); progressionBox.AddChild(_progression); page.AddChild(Panel(progressionBox));
         _promotionOfficer.ItemSelected += _ => RefreshProgression();
         var courtTitle = new Label { Text = "朝堂官职树", CustomMinimumSize = new Vector2(0, 44), VerticalAlignment = VerticalAlignment.Center }; courtTitle.AddThemeFontSizeOverride("font_size", 22); courtTitle.AddThemeColorOverride("font_color", GameTheme.Paper); page.AddChild(courtTitle);
-        var courtHelp = Text("主公统领三系主官，每系下辖三席。官阶决定基础俸禄，朝堂职位追加月俸与专属有效属性。", 1200); courtHelp.AddThemeColorOverride("font_color", GameTheme.Muted); page.AddChild(courtHelp);
+        var courtHelp = Text("主公统领三系主官，每系下辖三席。职位决定势力加成方向，任职者能力决定基础强度，个人与名将特性会转化为额外势力光环。", 1200); courtHelp.AddThemeColorOverride("font_color", GameTheme.Muted); page.AddChild(courtHelp);
         _officeTree = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; _officeTree.AddThemeConstantOverride("separation", 8); page.AddChild(_officeTree);
         page.MoveChild(courtTitle, 0); page.MoveChild(courtHelp, 1); page.MoveChild(_officeTree, 2);
     }
@@ -262,21 +262,28 @@ public partial class TalentView : FeatureScreen
     private Control CourtOfficeCard(CourtOfficeDefinition office)
     {
         var holder = Runtime.PlayerOfficers().FirstOrDefault(item => item.InitialState.CourtOfficeId == office.Id);
+        var previewHolder = holder;
+        if (previewHolder is null && _courtDraftSelections.TryGetValue(office.Id, out var draftId)) previewHolder = Runtime.Officer(draftId);
         var border = office.Tier == 1 ? GameTheme.Gold : GameTheme.Bronze;
-        var panel = new PanelContainer { CustomMinimumSize = new Vector2(400, office.Tier == 1 ? 155 : 145) }; panel.AddThemeStyleboxOverride("panel", GameTheme.Box(new Color(GameTheme.PanelRaised, .96f), border, 8, office.Tier == 1 ? 2 : 1, 12, 9));
+        var panel = new PanelContainer { CustomMinimumSize = new Vector2(400, office.Tier == 1 ? 190 : 178) }; panel.AddThemeStyleboxOverride("panel", GameTheme.Box(new Color(GameTheme.PanelRaised, .96f), border, 8, office.Tier == 1 ? 2 : 1, 12, 9));
         var layout = new VBoxContainer(); layout.AddThemeConstantOverride("separation", 4); panel.AddChild(layout);
         var titleRow = new HBoxContainer(); layout.AddChild(titleRow);
         var title = new Label { Text = office.Name, SizeFlagsHorizontal = SizeFlags.ExpandFill }; title.AddThemeFontSizeOverride("font_size", office.Tier == 1 ? 19 : 17); title.AddThemeColorOverride("font_color", office.Tier == 1 ? GameTheme.Gold : GameTheme.Paper); titleRow.AddChild(title);
         var salary = new Label { Text = $"津贴 +{office.SalaryAllowance}金/月" }; salary.AddThemeColorOverride("font_color", GameTheme.Gold); titleRow.AddChild(salary);
-        var current = new Label { Text = holder is null ? "当前空缺" : $"现任：{holder.Profile.Name} · 总俸{OfficerProgressionRules.Salary(holder)}金" }; current.AddThemeColorOverride("font_color", holder is null ? GameTheme.Muted : GameTheme.Paper); layout.AddChild(current);
-        var effect = new Label { Text = $"{office.Effect}　·　门槛 {OfficerProgressionRules.OfficeName(office.Track, office.MinimumRank)}", AutowrapMode = TextServer.AutowrapMode.WordSmart }; effect.AddThemeColorOverride("font_color", GameTheme.Muted); layout.AddChild(effect);
+        var current = new Label { Text = holder is not null ? $"现任：{holder.Profile.Name} · 总俸{OfficerProgressionRules.Salary(holder)}金" : previewHolder is not null ? $"任命预览：{previewHolder.Profile.Name} · 任后总俸{OfficerProgressionRules.Salary(previewHolder) + office.SalaryAllowance}金" : "当前空缺" }; current.AddThemeColorOverride("font_color", previewHolder is null ? GameTheme.Muted : GameTheme.Paper); layout.AddChild(current);
+        var influence = previewHolder is null ? office.Effect : OfficerProgressionRules.CourtInfluenceSummary(previewHolder, office);
+        var effect = new Label { Text = $"{influence}\n门槛：{OfficerProgressionRules.OfficeName(office.Track, office.MinimumRank)}", AutowrapMode = TextServer.AutowrapMode.WordSmart }; effect.AddThemeColorOverride("font_color", GameTheme.Muted); layout.AddChild(effect);
         var controls = new HBoxContainer(); controls.AddThemeConstantOverride("separation", 8); layout.AddChild(controls);
         if (holder is null)
         {
             var choice = Choice(240);
             AddChoice(choice, "请选择武将", "");
             var reservedByOtherOffices = _courtDraftSelections.Where(item => item.Key != office.Id && !string.IsNullOrEmpty(item.Value)).Select(item => item.Value).ToHashSet();
-            foreach (var officer in Runtime.PlayerOfficers().Where(item => item.InitialState.Appointment != "ruler" && item.InitialState.Status == "serving" && string.IsNullOrEmpty(item.InitialState.CourtOfficeId) && !reservedByOtherOffices.Contains(item.Profile.Id) && item.InitialState.OfficeTrack == office.Track && item.InitialState.OfficeRank >= office.MinimumRank).OrderByDescending(item => item.InitialState.OfficeRank).ThenByDescending(item => item.InitialState.Merit)) AddChoice(choice, $"{officer.Profile.Name} · {OfficerProgressionRules.OfficeName(officer.InitialState.OfficeTrack, officer.InitialState.OfficeRank)}", officer.Profile.Id);
+            foreach (var officer in Runtime.PlayerOfficers().Where(item => item.InitialState.Appointment != "ruler" && item.InitialState.Status == "serving" && string.IsNullOrEmpty(item.InitialState.CourtOfficeId) && !reservedByOtherOffices.Contains(item.Profile.Id) && item.InitialState.OfficeTrack == office.Track && item.InitialState.OfficeRank >= office.MinimumRank).OrderByDescending(item => item.InitialState.OfficeRank).ThenByDescending(item => item.InitialState.Merit))
+            {
+                var traits = OfficerProgressionRules.AllTraits(officer).Take(2).ToList();
+                AddChoice(choice, $"{officer.Profile.Name} · {OfficerProgressionRules.OfficeName(officer.InitialState.OfficeTrack, officer.InitialState.OfficeRank)}{(traits.Count == 0 ? "" : $" · {string.Join('、', traits)}")}", officer.Profile.Id);
+            }
             if (_courtDraftSelections.TryGetValue(office.Id, out var draftOfficerId)) SelectByMetadata(choice, draftOfficerId);
             choice.ItemSelected += _ =>
             {
@@ -433,7 +440,7 @@ public partial class ExpeditionView : FeatureScreen
 {
     public event Action<string, int>? ArmyMovementRequested;
 
-    private OptionButton _source = null!, _target = null!, _commander = null!, _deputy1 = null!, _deputy2 = null!, _specialTroop = null!; private SpinBox _food = null!, _infantry = null!, _spears = null!, _archers = null!, _cavalry = null!, _siege = null!, _specialCount = null!; private VBoxContainer _armyList = null!; private Label _specialEquipment = null!, _compositionTotal = null!; private string _presetTargetId = string.Empty, _presetArmyTargetId = string.Empty; private bool _refreshingOfficerChoices;
+    private OptionButton _source = null!, _target = null!, _commander = null!, _deputy1 = null!, _deputy2 = null!, _specialTroop = null!; private SpinBox _food = null!, _infantry = null!, _spears = null!, _archers = null!, _cavalry = null!, _siege = null!, _specialCount = null!; private VBoxContainer _armyList = null!; private Label _compositionTotal = null!; private string _presetTargetId = string.Empty, _presetArmyTargetId = string.Empty; private bool _refreshingOfficerChoices;
     protected override void Build()
     {
         ContentScroll.OffsetBottom = -154;
@@ -444,7 +451,7 @@ public partial class ExpeditionView : FeatureScreen
         var officers = Row(); officers.AddChild(Text("出战武将", 100)); _deputy1 = Choice(260); _deputy2 = Choice(260); officers.AddChild(_deputy1); officers.AddChild(_deputy2); var officerHint = Text("主将在上方选择；本栏可配置至多两名副将。", 650); officerHint.AddThemeColorOverride("font_color", GameTheme.Muted); officers.AddChild(officerHint);
         Body.AddChild(Panel(officers));
         var composition = Row(); composition.AddChild(Text("实际阵型", 92)); _infantry = Number("步", 0, 1000000, 500, 2500); _spears = Number("枪", 0, 1000000, 500, 1000); _archers = Number("弓", 0, 1000000, 500, 500); _cavalry = Number("骑", 0, 1000000, 500, 0); _siege = Number("器械", 0, 1000000, 500, 0); foreach (var control in CompositionControls()) { control.CustomMinimumSize = new Vector2(132, 40); control.ValueChanged += _ => RefreshCapacity(); composition.AddChild(control); } var full = GameTheme.Button("全城出击"); full.Pressed += FillWholeGarrison; composition.AddChild(full); var recommended = GameTheme.Button("推荐编制"); recommended.Pressed += ApplyRecommendedComposition; composition.AddChild(recommended); _compositionTotal = Text("合计 4,000", 210); composition.AddChild(_compositionTotal); Body.AddChild(Panel(composition));
-        var elite = Row(); elite.AddChild(Text("特殊部队", 92)); _specialTroop = Choice(280); _specialCount = Number("精锐人数", 0, 100000, 500, 0); elite.AddChild(_specialTroop); elite.AddChild(_specialCount); _specialEquipment = Text("需军备 0 / 中央现有 0", 400); elite.AddChild(_specialEquipment); var eliteHint = Text("计入对应基础兵种；达到军团20%时可触发专属特性。", 620); eliteHint.AddThemeColorOverride("font_color", GameTheme.Muted); elite.AddChild(eliteHint); var elitePanel = Panel(elite); elitePanel.Visible = false; Body.AddChild(elitePanel);
+        var elite = Row(); elite.AddChild(Text("特殊部队", 92)); _specialTroop = Choice(280); _specialCount = Number("精锐人数", 0, 100000, 500, 0); elite.AddChild(_specialTroop); elite.AddChild(_specialCount); var eliteHint = Text("计入对应基础兵种；达到军团20%时可触发专属特性。", 620); eliteHint.AddThemeColorOverride("font_color", GameTheme.Muted); elite.AddChild(eliteHint); var elitePanel = Panel(elite); elitePanel.Visible = false; Body.AddChild(elitePanel);
         _specialTroop.ItemSelected += _ => RefreshCapacity(); _specialCount.ValueChanged += _ => RefreshCapacity();
         _source.ItemSelected += _ => RefreshSource();
         _commander.ItemSelected += _ => RefreshCommanders(); _deputy1.ItemSelected += _ => RefreshCommanders(); _deputy2.ItemSelected += _ => RefreshCommanders();
@@ -584,14 +591,10 @@ public partial class ExpeditionView : FeatureScreen
     }
     private void RefreshCapacity()
     {
-        if (_specialEquipment is null || _compositionTotal is null) return; var total = CompositionTotal(); var source = Runtime.City(Selected(_source));
+        if (_compositionTotal is null) return; var total = CompositionTotal(); var source = Runtime.City(Selected(_source));
         var special = OfficerProgressionRules.SpecialTroops.GetValueOrDefault(Selected(_specialTroop));
         if (special is null) { _specialCount.MaxValue = 0; _specialCount.Value = 0; }
         else { var baseCount = special.BaseTroopType switch { "cavalry" => (int)_cavalry.Value, "infantry" => (int)_infantry.Value, "spears" => (int)_spears.Value, "archers" => (int)_archers.Value, _ => (int)_siege.Value }; _specialCount.MaxValue = baseCount; if (_specialCount.Value > baseCount) _specialCount.Value = baseCount / 500 * 500; }
-        var equipment = special is null ? 0 : Runtime.SpecialTroopEquipmentCost(special.Id, (int)_specialCount.Value);
-        var rate = special is null ? "" : $"（每500人{special.EquipmentPerFiveHundred}）";
-        _specialEquipment.Text = $"需军备 {equipment:N0}{rate} / 中央现有 {Runtime.State.Resources.Equipment:N0}";
-        _specialEquipment.AddThemeColorOverride("font_color", equipment > Runtime.State.Resources.Equipment ? GameTheme.Danger : GameTheme.Paper);
         _compositionTotal.Text = $"合计 {total:N0} / 城中 {source?.Garrison ?? 0:N0}"; _compositionTotal.AddThemeColorOverride("font_color", source is not null && total > source.Garrison ? GameTheme.Danger : GameTheme.Paper);
     }
     private void RefreshCommanders()
@@ -636,32 +639,13 @@ public partial class ExpeditionView : FeatureScreen
     private static void Restore(OptionButton option, string value) { for (var i = 0; i < option.ItemCount; i++) if (option.GetItemMetadata(i).AsString() == value) option.Select(i); }
 }
 
-public partial class AiCouncilView : FeatureScreen
-{
-    private CheckButton _enabled = null!, _domestic = null!, _talent = null!, _diplomacy = null!, _military = null!; private OptionButton _risk = null!, _speed = null!, _limit = null!; private SpinBox _gold = null!, _food = null!, _garrison = null!; private Label _history = null!;
-    protected override void Build()
-    {
-        var row = Row(); _enabled = Check("启用AI代理"); _domestic = Check("内政"); _talent = Check("人才"); _diplomacy = Check("外交"); _military = Check("军事"); _risk = Choice(130); AddChoice(_risk, "稳健", "low"); AddChoice(_risk, "均衡", "medium"); AddChoice(_risk, "进取", "high"); _gold = Number("最低金", 0, 100000, 500, 3000); _food = Number("最低粮", 0, 200000, 1000, 10000); _garrison = Number("最低守军", 1000, 50000, 500, 3500);
-        foreach (var c in new Control[] { _enabled, _domestic, _talent, _diplomacy, _military, _risk, _gold, _food, _garrison }) row.AddChild(c); var apply = GameTheme.Button("应用托管"); apply.Pressed += Apply; row.AddChild(apply); Body.AddChild(Panel(row));
-        var evolution = Row(); evolution.AddChild(Text("全势力自动演进", 160)); _speed = Choice(130); AddChoice(_speed, "慢速", "slow"); AddChoice(_speed, "正常", "normal"); AddChoice(_speed, "快速", "fast"); _limit = Choice(150); AddChoice(_limit, "120回合", "120"); AddChoice(_limit, "240回合", "240"); AddChoice(_limit, "600回合", "600"); evolution.AddChild(_speed); evolution.AddChild(_limit); var start = GameTheme.Button("启动/继续"); start.Pressed += () => Runtime.ConfigureAutoEvolution(true, Selected(_speed), int.Parse(Selected(_limit))); evolution.AddChild(start); var pause = GameTheme.Button("暂停演进"); pause.Pressed += () => Runtime.ConfigureAutoEvolution(false, Selected(_speed), int.Parse(Selected(_limit))); evolution.AddChild(pause); Body.AddChild(Panel(evolution));
-        _history = new Label { CustomMinimumSize = new Vector2(0, 480), AutowrapMode = TextServer.AutowrapMode.WordSmart }; _history.AddThemeColorOverride("font_color", GameTheme.Muted); Body.AddChild(Panel(_history));
-    }
-    public override void Refresh()
-    {
-        if (_enabled is null) return; var a = Runtime.State.Automation; _enabled.ButtonPressed = a.Enabled; _domestic.ButtonPressed = a.Domestic; _talent.ButtonPressed = a.Talent; _diplomacy.ButtonPressed = a.Diplomacy; _military.ButtonPressed = a.Military; _gold.Value = a.MinGoldReserve; _food.Value = a.MinFoodReserve; _garrison.Value = a.MinCityGarrison;
-        _history.Text = $"自动演进：{Runtime.State.AutoEvolution.Status}　速度 {Runtime.State.AutoEvolution.Speed}　上限 {Runtime.State.AutoEvolution.MaxTurns} 回合\n\n最近决策与结算\n\n" + string.Join('\n', Runtime.State.Log.Where(item => item.Category is "ai" or "ai-strategy" or "turn").TakeLast(30).Reverse().Select(item => $"第{item.Turn}回合　{item.Message}"));
-    }
-    private void Apply() => Runtime.ConfigureAutomation(_enabled.ButtonPressed, _domestic.ButtonPressed, _talent.ButtonPressed, _diplomacy.ButtonPressed, _military.ButtonPressed, Selected(_risk), (int)_gold.Value, (int)_food.Value, (int)_garrison.Value);
-    private static CheckButton Check(string text) => new() { Text = text, ButtonPressed = true, CustomMinimumSize = new Vector2(105, 40) };
-}
-
 public partial class BattleView : FeatureScreen
 {
     public event Action? BattleCompleted;
 
     private BattlefieldCanvas _battlefield = null!;
     private HBoxContainer _officers = null!;
-    private PanelContainer _planningPanel = null!, _battlefieldPanel = null!, _commandPanel = null!, _doctrinePanel = null!, _officersPanel = null!;
+    private PanelContainer _planningPanel = null!, _battlefieldPanel = null!, _commandPanel = null!, _officersPanel = null!;
     private OptionButton _formation = null!, _infantryOrder = null!, _spearOrder = null!, _archerOrder = null!, _cavalryOrder = null!, _siegeOrder = null!, _speed = null!, _battleStance = null!, _battleTactic = null!;
     private Label _tacticBrief = null!;
     private Label _commandStatus = null!;
@@ -675,30 +659,30 @@ public partial class BattleView : FeatureScreen
 
     protected override void Build()
     {
-        var planning = Row(); planning.AddChild(Text("全军阵型", 82)); _formation = Choice(140); foreach (var item in new[] { ("goose", "雁行阵"), ("wedge", "锋矢阵"), ("crane", "鹤翼阵"), ("shield", "盾阵"), ("siege-array", "攻城阵") }) AddChoice(_formation, item.Item2, item.Item1); planning.AddChild(_formation);
+        Body.AddThemeConstantOverride("separation", 10);
+        var planning = new VBoxContainer(); planning.AddThemeConstantOverride("separation", 8);
+        var planSummary = Row(); planSummary.AddChild(Text("阵型与军略", 92)); _formation = Choice(126); foreach (var item in new[] { ("goose", "雁行阵"), ("wedge", "锋矢阵"), ("crane", "鹤翼阵"), ("shield", "盾阵"), ("siege-array", "攻城阵") }) AddChoice(_formation, item.Item2, item.Item1); planSummary.AddChild(_formation);
         _infantryOrder = Choice(125); _spearOrder = Choice(125); _archerOrder = Choice(125); _cavalryOrder = Choice(125); _siegeOrder = Choice(135);
         FillOrder(_infantryOrder, "步", [("shield-line", "盾墙"), ("loose-line", "疏阵"), ("assault-column", "突击纵队")]);
         FillOrder(_spearOrder, "枪", [("spear-wall", "密集枪阵"), ("support-line", "支援横阵"), ("spear-column", "推进纵阵")]);
         FillOrder(_archerOrder, "弓", [("rear-double", "后排双列"), ("wing-fire", "翼侧射列"), ("skirmish", "前出散射")]);
         FillOrder(_cavalryOrder, "骑", [("wing-column", "两翼纵队"), ("cavalry-wedge", "锋矢冲锋"), ("reserve", "中央预备")]);
         FillOrder(_siegeOrder, "械", [("protected-siege", "保护列"), ("gate-column", "攻门列"), ("wall-pressure", "压墙列")]);
-        foreach (var option in new[] { _infantryOrder, _spearOrder, _archerOrder, _cavalryOrder, _siegeOrder }) planning.AddChild(option);
-        _speed = Choice(90); AddChoice(_speed, "×1", "1"); AddChoice(_speed, "×2", "2"); _speed.ItemSelected += _ => _playbackSpeed = double.TryParse(Selected(_speed), out var speed) ? speed : 1; planning.AddChild(_speed);
-        _skip = GameTheme.Button("跳过演算"); _skip.Pressed += SkipBattle; planning.AddChild(_skip);
+        _battleStance = Choice(112); AddChoice(_battleStance, "稳健", "cautious"); AddChoice(_battleStance, "标准", "standard"); AddChoice(_battleStance, "激进", "aggressive"); planSummary.AddChild(_battleStance);
+        _battleTactic = Choice(160); FillTactics(_battleTactic); planSummary.AddChild(_battleTactic);
         _formation.ItemSelected += _ => PreviewBattlePlan();
         foreach (var option in new[] { _infantryOrder, _spearOrder, _archerOrder, _cavalryOrder, _siegeOrder }) option.ItemSelected += _ => PreviewBattlePlan();
+        _tacticBrief = Text("选择主战术查看收益、风险和兵种条件。", 760); planSummary.AddChild(_tacticBrief);
+        _battleStance.ItemSelected += _ => RefreshTacticBrief(); _battleTactic.ItemSelected += _ => RefreshTacticBrief();
+        planning.AddChild(planSummary);
+        var troopOrders = Row(); troopOrders.AddChild(Text("兵种阵位", 92));
+        foreach (var option in new[] { _infantryOrder, _spearOrder, _archerOrder, _cavalryOrder, _siegeOrder }) troopOrders.AddChild(option);
+        planning.AddChild(troopOrders);
         _planningPanel = Panel(planning); Body.AddChild(_planningPanel);
 
-        var doctrine = Row(); doctrine.AddChild(Text("临战军略", 82));
-        _battleStance = Choice(130); AddChoice(_battleStance, "稳健", "cautious"); AddChoice(_battleStance, "标准", "standard"); AddChoice(_battleStance, "激进", "aggressive"); doctrine.AddChild(_battleStance);
-        _battleTactic = Choice(180); FillTactics(_battleTactic); doctrine.AddChild(_battleTactic);
-        _tacticBrief = Text("选择主战术查看正式收益、风险和兵种条件。", 900); doctrine.AddChild(_tacticBrief);
-        _battleStance.ItemSelected += _ => RefreshTacticBrief(); _battleTactic.ItemSelected += _ => RefreshTacticBrief();
-        _doctrinePanel = Panel(doctrine); Body.AddChild(_doctrinePanel);
-
-        _officers = new HBoxContainer { CustomMinimumSize = new Vector2(0, 134), Alignment = BoxContainer.AlignmentMode.Center }; _officers.AddThemeConstantOverride("separation", 12); _officersPanel = Panel(_officers); Body.AddChild(_officersPanel);
+        _officers = new HBoxContainer { CustomMinimumSize = new Vector2(0, 100), Alignment = BoxContainer.AlignmentMode.Center }; _officers.AddThemeConstantOverride("separation", 8); _officersPanel = Panel(_officers); Body.AddChild(_officersPanel);
         _battlefield = new BattlefieldCanvas();
-        _battlefield.CustomMinimumSize = new Vector2(0, 610);
+        _battlefield.CustomMinimumSize = new Vector2(0, 560);
         _battlefield.FriendlySelectionChanged += _ => UpdateCommandStatus();
         _battlefield.EnemySelectionChanged += _ => UpdateCommandStatus();
         _battlefield.AttackCommandIssued += (groups, target) => Runtime.IssueBattleCommand(groups, "attack", target);
@@ -748,8 +732,12 @@ public partial class BattleView : FeatureScreen
     private void BuildCommandPanel()
     {
         var commands = Row();
-        _commandStatus = Text("未选择军团", 360); commands.AddChild(_commandStatus);
+        _speed = Choice(86); AddChoice(_speed, "速度 ×1", "1"); AddChoice(_speed, "速度 ×2", "2"); _speed.ItemSelected += _ => _playbackSpeed = double.TryParse(Selected(_speed), out var speed) ? speed : 1; commands.AddChild(_speed);
+        _skip = GameTheme.Button("跳过演算"); _skip.Pressed += SkipBattle; commands.AddChild(_skip);
+        _commandStatus = Text("未选择军团", 300); commands.AddChild(_commandStatus);
         var centerCamera = GameTheme.Button("镜头归中"); centerCamera.Pressed += _battlefield.ResetCameraView; commands.AddChild(centerCamera);
+        var zoomOut = GameTheme.Button("战场－"); zoomOut.Pressed += _battlefield.ZoomOut; commands.AddChild(zoomOut);
+        var zoomIn = GameTheme.Button("战场＋"); zoomIn.Pressed += _battlefield.ZoomIn; commands.AddChild(zoomIn);
         var selectAll = GameTheme.Button("全选我军"); selectAll.Pressed += _battlefield.SelectAllPlayerGroups; commands.AddChild(selectAll);
         _attackTarget = GameTheme.Button("攻击目标"); _attackTarget.Pressed += _battlefield.IssueAttackOnSelectedEnemy; commands.AddChild(_attackTarget);
         var auto = GameTheme.Button("自由进攻"); auto.Pressed += () => IssueSelectedCommand("auto"); commands.AddChild(auto);
@@ -758,7 +746,7 @@ public partial class BattleView : FeatureScreen
         _innerCity = GameTheme.Button("退守内城"); _innerCity.Pressed += () => IssueSelectedCommand("inner-city"); commands.AddChild(_innerCity);
         _sortie = GameTheme.Button("出城突袭"); _sortie.Pressed += () => IssueSelectedCommand("sortie"); commands.AddChild(_sortie);
         _reserveLine = GameTheme.Button("保存预备队"); _reserveLine.Pressed += () => IssueSelectedCommand("reserve-line"); commands.AddChild(_reserveLine);
-        commands.AddChild(Text("滚轮缩放　中键拖动　左键框选　右键移动/集火", 340));
+        commands.AddChild(Text("页面滚轮滚动　Ctrl+滚轮缩放战场　中键拖动", 330));
         _commandPanel = Panel(commands); _commandPanel.Visible = false; Body.AddChild(_commandPanel);
     }
 
@@ -792,7 +780,6 @@ public partial class BattleView : FeatureScreen
         if (_battlefield is null) return;
         var pending = Runtime.State.PendingBattle;
         _planningPanel.Visible = pending?.Status == "planning";
-        _doctrinePanel.Visible = pending?.Status == "planning";
         _commandPanel.Visible = pending?.Status == "running";
         _officersPanel.Visible = pending is not null;
         _battlefieldPanel.Visible = pending is not null;
@@ -934,10 +921,10 @@ public partial class BattleView : FeatureScreen
         var battlefield = pending.BattleType == "field"
             ? $"敌左　·　{Runtime.City(pending.CityId)?.Region}野战　·　我右\n两军列阵，正面交锋"
             : $"敌左　·　{Runtime.City(pending.CityId)?.Name}　·　我右\n外墙{pending.WallBefore}%　城门{pending.GateBefore}%　内城{pending.InnerBefore}%";
-        var center = Text(battlefield, 430); center.HorizontalAlignment = HorizontalAlignment.Center; center.AddThemeColorOverride("font_color", GameTheme.Gold); _officers.AddChild(center);
+        var center = Text(battlefield, 350); center.HorizontalAlignment = HorizontalAlignment.Center; center.AddThemeColorOverride("font_color", GameTheme.Gold); _officers.AddChild(center);
         foreach (var id in player) _officers.AddChild(OfficerCard(id, pending, true));
         _start = GameTheme.Button("下令开战\n全军出击");
-        _start.CustomMinimumSize = new Vector2(154, 78);
+        _start.CustomMinimumSize = new Vector2(140, 68);
         _start.AddThemeFontSizeOverride("font_size", 18);
         _start.AddThemeColorOverride("font_color", GameTheme.OnAccent);
         _start.AddThemeColorOverride("font_hover_color", GameTheme.OnAccent);
@@ -950,10 +937,10 @@ public partial class BattleView : FeatureScreen
 
     private Control OfficerCard(string officerId, PendingBattleData pending, bool player)
     {
-        var officer = Runtime.Officer(officerId); var box = new VBoxContainer { CustomMinimumSize = new Vector2(108, 122) };
+        var officer = Runtime.Officer(officerId); var box = new VBoxContainer { CustomMinimumSize = new Vector2(82, 92) };
         box.SetMeta("officer_id", officerId);
         var concealed = !player && pending.Status == "planning" && !HasPreciseBattleIntel(pending);
-        var portrait = new TextureRect { Texture = concealed ? null : GD.Load<Texture2D>(AssetPaths.OfficerPortrait(officerId)), CustomMinimumSize = new Vector2(100, 84), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered, MouseFilter = MouseFilterEnum.Ignore }; box.AddChild(portrait);
+        var portrait = new TextureRect { Texture = concealed ? null : GD.Load<Texture2D>(AssetPaths.OfficerPortrait(officerId)), CustomMinimumSize = new Vector2(76, 60), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered, MouseFilter = MouseFilterEnum.Ignore }; box.AddChild(portrait);
         var color = player ? GameTheme.Success : GameTheme.Danger;
         var name = new Label { Text = concealed ? "敌将未明" : officer?.Profile.Name, HorizontalAlignment = HorizontalAlignment.Center, MouseFilter = MouseFilterEnum.Ignore };
         name.AddThemeFontSizeOverride("font_size", 11); name.AddThemeColorOverride("font_color", color); box.AddChild(name);

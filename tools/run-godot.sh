@@ -27,6 +27,10 @@ case "$MODE" in
   ui-test) exec "$GODOT" --headless --path "$PROJECT" -- --ui-visual-test ;;
   ui-visual-test) exec "$GODOT" --path "$PROJECT" -- --ui-visual-test ;;
   battle-visual-test) exec "$GODOT" --path "$PROJECT" -- --battle-visual-test ;;
+  cli)
+    shift
+    exec "$GODOT" --headless --path "$PROJECT" -- --game-cli "$@"
+    ;;
   editor) exec "$GODOT" --editor --path "$PROJECT" ;;
   run) exec "$GODOT" --path "$PROJECT" ;;
   *)

@@ -7,6 +7,10 @@ public sealed partial class GameRuntime
 {
     public const int TradeIncomePerMonth = 300;
     public const int SubversionLoyaltyLimit = 60;
+    public const int MinCityLevel = 1;
+    public const int MaxCityLevel = 8;
+    public const int MinFacilitySlots = 4;
+    public const int MaxFacilitySlots = 8;
     private static readonly HashSet<string> SupportedDiplomacyTypes = ["trade", "truce", "captive-exchange"];
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
     private readonly Random _random = new(194);
@@ -68,10 +72,57 @@ public sealed partial class GameRuntime
         return ExecutePlayerFacilityMaintenance(cityId, instanceId, upgrade);
     }
 
-    public bool TransferTreasury(string cityId, bool toCity, int gold, int food)
+    public bool UpgradeCity(string cityId, string officerId)
     {
-        return ExecutePlayerTreasuryTransfer(cityId, toCity, gold, food);
+        return ExecutePlayerCityUpgrade(cityId, officerId);
     }
+
+    public bool CancelCityUpgrade(string cityId)
+    {
+        return ExecutePlayerCityUpgradeCancellation(cityId);
+    }
+
+    public bool ReassignCityUpgrade(string cityId, string officerId)
+    {
+        var city = City(cityId);
+        var officer = Officer(officerId);
+        if (city?.OwnerFactionId != State.PlayerFactionId || city.ConstructionQueue?.Kind != "city-upgrade") return Fail("当前城池没有可改派的升级工程。");
+        if (officer?.InitialState.FactionId != State.PlayerFactionId || officer.InitialState.CityId != city.Id || officer.InitialState.Status != "serving" || !officer.InitialState.Alive)
+            return Fail($"负责武将必须在{city.Name}驻城且当前可用。");
+        city.ConstructionQueue.OfficerId = officer.Profile.Id;
+        var message = $"{officer.Profile.Name}已接管{city.Name}的城池升级工程。";
+        RecordCityLedger(city, "city-upgrade", 0, 0, message);
+        return Success(message, "city");
+    }
+
+    public static int FacilitySlotsForCityLevel(int level) => Math.Min(MaxFacilitySlots, MinFacilitySlots + Math.Clamp(level, MinCityLevel, MaxCityLevel) / 2);
+
+    public static int NextFacilitySlotUnlockLevel(int level)
+    {
+        var normalized = Math.Clamp(level, MinCityLevel, MaxCityLevel);
+        if (normalized >= MaxCityLevel) return 0;
+        return normalized % 2 == 0 ? normalized + 2 : normalized + 1;
+    }
+
+    public static CityUpgradeDefinition? CityUpgradeForTargetLevel(int targetLevel) => CityUpgradeCatalog.GetValueOrDefault(targetLevel);
+
+    public string CityUpgradePauseReason(CityData city)
+    {
+        if (city.ConstructionQueue is not { Kind: "city-upgrade" } queue) return string.Empty;
+        if (IsCityUnderSiege(city)) return "城池正在被围，工程暂停";
+        var builder = Officer(queue.OfficerId);
+        if (builder?.InitialState.FactionId != city.OwnerFactionId || builder.InitialState.CityId != city.Id || builder.InitialState.Status != "serving" || !builder.InitialState.Alive)
+            return "负责武将不在城中或当前不可用，工程暂停";
+        return string.Empty;
+    }
+
+    public static string ConstructionLabel(ConstructionData queue) => queue.Kind switch
+    {
+        "city-upgrade" => $"城池升级至 Lv.{queue.TargetCityLevel}",
+        "upgrade" => $"升级{FacilityName(queue.DefinitionId)}",
+        "repair" => $"修缮{FacilityName(queue.DefinitionId)}",
+        _ => $"建设{FacilityName(queue.DefinitionId)}",
+    };
 
     public bool AppointOfficer(string officerId, string appointment)
     {
@@ -197,11 +248,6 @@ public sealed partial class GameRuntime
         _ => 0,
     };
 
-    public int SpecialTroopEquipmentCost(string specialTroopId, int count) =>
-        OfficerProgressionRules.SpecialTroops.TryGetValue(specialTroopId, out var definition) && count > 0
-            ? count / 500 * definition.EquipmentPerFiveHundred
-            : 0;
-
     private static int RecruitmentIdealBonus(ScenarioOfficerData actor, ScenarioOfficerData candidate) =>
         Math.Min(6, actor.Profile.Ideals.Intersect(candidate.Profile.Ideals).Distinct().Count() * 3);
 
@@ -231,18 +277,14 @@ public sealed partial class GameRuntime
         if (activeTroops.Count > 3 || activeTroops.Any(item => item.Value < 500)) return Fail("军团最多混编三种兵种，每种至少500人。");
         if (activeTroops.Count == 1 && activeTroops[0].Key == "siege") return Fail("攻城器械不能成为唯一兵种。");
         specialTroops ??= [];
-        var specialEquipment = 0;
         foreach (var entry in specialTroops.Where(item => item.Value > 0))
         {
             if (!OfficerProgressionRules.SpecialTroops.TryGetValue(entry.Key, out var definition)) return Fail("特殊部队类型无效。");
             if (!definition.FactionIds.Contains(State.PlayerFactionId)) return Fail($"当前势力不能编成{definition.Name}。");
             if (entry.Value < 500 || entry.Value % 500 != 0 || entry.Value > composition.GetValueOrDefault(definition.BaseTroopType)) return Fail($"{definition.Name}必须以500人为单位，且不能超过对应基础兵种人数。");
-            specialEquipment += SpecialTroopEquipmentCost(entry.Key, entry.Value);
         }
         if (specialTroops.Count(item => item.Value > 0) > 1) return Fail("首版每支军团最多编成一种特殊部队。");
-        if (State.Resources.Equipment < specialEquipment) return Fail($"编成特殊部队需要军备{specialEquipment:N0}，势力军备不足。");
         source.Garrison -= soldiers; treasury.Food -= food;
-        State.Resources.Equipment -= specialEquipment;
         commander.InitialState.Status = "deployed";
         foreach (var deputyId in deputyIds) Officer(deputyId)!.InitialState.Status = "deployed";
         var travelDays = Math.Max(1, route.Sum(id => State.Roads.First(road => road.Id == id).TravelDays));
@@ -330,7 +372,7 @@ public sealed partial class GameRuntime
         var destination = City(destinationCityId);
         if (destination?.OwnerFactionId != army.FactionId) return Fail("撤兵目标必须是己方城市。");
         destination.Garrison += army.Soldiers;
-        Treasury(army.FactionId).Food += army.Food;
+        ReturnArmyFoodToTreasury(army);
         ReleaseArmyOfficers(army, destination.Id);
         army.LastMarchTurn = State.Turn;
         army.Status = "withdrawn";
@@ -389,22 +431,6 @@ public sealed partial class GameRuntime
         return Success($"已{(accepted ? "接受" : "拒绝")}{Faction(proposal.FromFactionId)?.Name}提出的{DiplomacyLabel(proposal.Type)}。", "diplomacy");
     }
 
-    public void ConfigureAutomation(bool enabled, bool domestic, bool talent, bool diplomacy, bool military, string risk, int goldReserve, int foodReserve, int garrison)
-    {
-        State.Automation = new AutomationSettings { Enabled = enabled, Domestic = domestic, Talent = talent, Diplomacy = diplomacy, Military = military, RiskTolerance = risk, MinGoldReserve = goldReserve, MinFoodReserve = foodReserve, MinCityGarrison = garrison };
-        Success($"AI势力代理已{(enabled ? "启用" : "停用")}。", "ai");
-    }
-
-    public void ConfigureAutoEvolution(bool enabled, string speed, int maxTurns)
-    {
-        State.AutoEvolution.Enabled = enabled;
-        State.AutoEvolution.Status = enabled ? "running" : "paused";
-        State.AutoEvolution.Speed = speed;
-        State.AutoEvolution.MaxTurns = maxTurns;
-        if (enabled && State.AutoEvolution.StartedTurn < 0) State.AutoEvolution.StartedTurn = State.Turn;
-        Notify(enabled ? $"自动演进已启动，上限{maxTurns}回合。" : "自动演进已暂停。", true);
-    }
-
     public bool ChooseEvent(string choiceId)
     {
         var pending = State.PendingEvent;
@@ -458,7 +484,6 @@ public sealed partial class GameRuntime
             Gold = preview.State.Resources.Gold,
             Food = preview.State.Resources.Food,
             Prestige = preview.State.Resources.Prestige,
-            Equipment = preview.State.Resources.Equipment,
         };
 
         preview.ResolveConstruction();
@@ -469,7 +494,6 @@ public sealed partial class GameRuntime
             Gold = preview.State.Resources.Gold - before.Gold,
             Food = preview.State.Resources.Food - before.Food,
             Prestige = preview.State.Resources.Prestige - before.Prestige,
-            Equipment = preview.State.Resources.Equipment - before.Equipment,
         };
     }
 
@@ -545,16 +569,45 @@ public sealed partial class GameRuntime
         foreach (var city in State.Cities.Where(city => city.ConstructionQueue is not null))
         {
             var queue = city.ConstructionQueue!;
+            if (queue.Kind == "city-upgrade")
+            {
+                var pauseReason = CityUpgradePauseReason(city);
+                if (!string.IsNullOrEmpty(pauseReason))
+                {
+                    State.Log.Add(new LogEntryData { Turn = State.Turn, Category = "city", Message = $"{city.Name}{pauseReason}。" });
+                    continue;
+                }
+            }
             queue.RemainingMonths--;
             if (queue.RemainingMonths > 0) continue;
-            if (queue.Kind == "build") city.Facilities.Add(new FacilityInstanceData { Id = $"{city.Id}-{queue.DefinitionId}-{State.Turn}", DefinitionId = queue.DefinitionId, SlotIndex = queue.TargetSlotIndex, Level = 1, Condition = 100 });
+            if (queue.Kind == "city-upgrade")
+            {
+                if (queue.TargetCityLevel != city.CityLevel + 1 || !CityUpgradeCatalog.ContainsKey(queue.TargetCityLevel))
+                {
+                    State.Log.Add(new LogEntryData { Turn = State.Turn, Category = "city", Message = $"{city.Name}城池升级目标无效，工程已停止。" });
+                    city.ConstructionQueue = null;
+                    continue;
+                }
+                city.CityLevel = queue.TargetCityLevel;
+                city.Agriculture = Clamp100(city.Agriculture + 1);
+                city.Commerce = Clamp100(city.Commerce + 1);
+                city.Defense = Clamp100(city.Defense + 2);
+                city.Culture = Clamp100(city.Culture + 1);
+                var previousSlots = city.FacilitySlots;
+                city.FacilitySlots = FacilitySlotsForCityLevel(city.CityLevel);
+                var unlock = city.FacilitySlots > previousSlots ? $"，解锁第{city.FacilitySlots}个建造位置" : $"，下一位置将在 Lv.{NextFacilitySlotUnlockLevel(city.CityLevel)} 解锁";
+                var message = $"{city.Name}已升至 Lv.{city.CityLevel}：农业+1、商业+1、城防+2、文化+1{unlock}。";
+                RecordCityLedger(city, "city-upgrade-complete", 0, 0, message);
+                State.Log.Add(new LogEntryData { Turn = State.Turn, Category = "city", Message = message });
+            }
+            else if (queue.Kind == "build") city.Facilities.Add(new FacilityInstanceData { Id = $"{city.Id}-{queue.DefinitionId}-{State.Turn}", DefinitionId = queue.DefinitionId, SlotIndex = queue.TargetSlotIndex, Level = 1, Condition = 100 });
             else
             {
                 var target = city.Facilities.FirstOrDefault(item => item.Id == queue.TargetInstanceId);
                 if (target is not null) { if (queue.Kind == "upgrade") target.Level = Math.Min(3, target.Level + 1); target.Condition = 100; }
             }
             var builder = Officer(queue.OfficerId);
-            if (builder is not null) AwardOfficerExperience(builder, 30, queue.Kind == "build" ? "完成设施建设" : "完成设施维护", "construction");
+            if (builder is not null) AwardOfficerExperience(builder, 30, queue.Kind switch { "city-upgrade" => "完成城池升级", "build" => "完成设施建设", _ => "完成设施维护" }, "construction");
             city.ConstructionQueue = null;
         }
     }
@@ -572,7 +625,8 @@ public sealed partial class GameRuntime
     private void AdvanceArmy(ArmyData army)
     {
         var beforeRemainingDays = army.RemainingDays;
-        army.Food = Math.Max(0, army.Food - Math.Max(100, army.Soldiers / 25));
+        var foodConsumption = Math.Max(100, (int)Math.Round(army.Soldiers / 25d * OfficerProgressionRules.CourtLogisticsMultiplier(State, army.FactionId)));
+        army.Food = Math.Max(0, army.Food - foodConsumption);
         army.Fatigue = Math.Clamp(army.Fatigue + (army.Status == "besieging" ? 8 : 5), 0, 100);
         army.Morale = Math.Clamp(army.Morale + (army.Food == 0 ? -12 : -1), 0, 100);
         army.RemainingDays = Math.Max(0, army.RemainingDays - (army.Food == 0 ? 18 : 30));
@@ -777,6 +831,11 @@ public sealed partial class GameRuntime
 
         if (pending.Result == "victory")
         {
+            if (city.ConstructionQueue is { Kind: "city-upgrade" })
+            {
+                city.ConstructionQueue = null;
+                State.Log.Add(new LogEntryData { Turn = State.Turn, Category = "city", Message = $"{city.Name}易主，进行中的城池升级工程中止且不返还资源。" });
+            }
             city.OwnerFactionId = army.FactionId;
             var capturedGovernor = pending.AttackerOfficerIds
                 .Select(Officer)
@@ -796,6 +855,7 @@ public sealed partial class GameRuntime
             city.GovernancePolicy = "integration";
             city.MonthlyOfficerActionIds.Clear();
             ReleaseArmyOfficers(army, city.Id);
+            ReturnArmyFoodToTreasury(army);
             army.Status = "victorious";
             var retreatCity = State.Cities.FirstOrDefault(item => item.OwnerFactionId == formerOwner && item.Id != city.Id);
             foreach (var defender in State.Officers.Where(item => item.InitialState.FactionId == formerOwner && item.InitialState.CityId == city.Id && item.InitialState.Status != "deployed"))
@@ -812,6 +872,7 @@ public sealed partial class GameRuntime
         {
             var source = City(army.SourceCityId); if (source is not null) source.Garrison += army.Soldiers;
             ReleaseArmyOfficers(army, army.SourceCityId);
+            ReturnArmyFoodToTreasury(army);
             army.Status = "defeated";
         }
         else
@@ -948,7 +1009,7 @@ public sealed partial class GameRuntime
         if (destination is not null)
         {
             destination.Garrison += army.Soldiers;
-            Treasury(army.FactionId).Food += army.Food;
+            ReturnArmyFoodToTreasury(army);
             ReleaseArmyOfficers(army, destination.Id);
         }
         army.Status = status;
@@ -974,6 +1035,13 @@ public sealed partial class GameRuntime
             officer.InitialState.Status = "serving";
             officer.InitialState.ArmyId = null;
         }
+    }
+
+    private void ReturnArmyFoodToTreasury(ArmyData army)
+    {
+        if (army.Food <= 0) return;
+        Treasury(army.FactionId).Food += army.Food;
+        army.Food = 0;
     }
 
     private void ResolveEconomy()
@@ -1018,7 +1086,7 @@ public sealed partial class GameRuntime
         if (destination is not null)
         {
             destination.Garrison += army.Soldiers;
-            Treasury(army.FactionId).Food += army.Food;
+            ReturnArmyFoodToTreasury(army);
             ReleaseArmyOfficers(army, destination.Id);
         }
         army.Status = "recalled";
@@ -1074,12 +1142,6 @@ public sealed partial class GameRuntime
                 State.Outcome = "victory";
                 State.OutcomeMessage = $"九城归心：已控制至少{GameSession.StrategicVictoryCityCount}城并连续维持{GameSession.StrategicVictoryRequiredMonths}个月。";
             }
-        }
-        if (State.Outcome == "ongoing" && State.AutoEvolution.Enabled && State.Turn - State.AutoEvolution.StartedTurn >= State.AutoEvolution.MaxTurns)
-        {
-            var leader = State.Cities.GroupBy(city => city.OwnerFactionId).OrderByDescending(group => group.Count()).First();
-            State.AutoEvolution.Enabled = false; State.AutoEvolution.Status = "completed"; State.AutoEvolution.WinnerFactionId = leader.Key;
-            State.Outcome = "victory"; State.OutcomeMessage = $"自动演进结束：{Faction(leader.Key)?.Name}以{leader.Count()}城居首。";
         }
     }
 
@@ -1215,7 +1277,7 @@ public sealed partial class GameRuntime
     private void ApplyResource(CityData city, string resource, int amount)
     {
         var treasury = Treasury(city.OwnerFactionId);
-        switch (resource) { case "gold": treasury.Gold = Math.Max(0, treasury.Gold + amount); break; case "food": treasury.Food = Math.Max(0, treasury.Food + amount); break; case "prestige": treasury.Prestige = Math.Max(0, treasury.Prestige + amount); break; case "equipment": treasury.Equipment = Math.Max(0, treasury.Equipment + amount); break; }
+        switch (resource) { case "gold": treasury.Gold = Math.Max(0, treasury.Gold + amount); break; case "food": treasury.Food = Math.Max(0, treasury.Food + amount); break; case "prestige": treasury.Prestige = Math.Max(0, treasury.Prestige + amount); break; }
         if (resource is "gold" or "food") RecordCityLedger(city, "event", resource == "gold" ? amount : 0, resource == "food" ? amount : 0, $"城市事件影响{resource}：{amount:+#,0;-#,0;0}。");
     }
 
@@ -1250,7 +1312,6 @@ public sealed partial class GameRuntime
         "irrigation" => "提升农桑城务成效，并增加每月粮食产出。",
         "granary" => "提升农桑与赈济成效，并增加每月粮食产出。",
         "market" => "提升商业城务成效，并增加每月金钱产出。",
-        "workshop" => "每月产出军备，供全势力统一使用。",
         "barracks" => "强化征募与驻军整备。",
         "drill-ground" => "提升操练兵马的城务成效。",
         "walls" => "提升修缮城防成效，增强守城韧性。",
@@ -1261,15 +1322,29 @@ public sealed partial class GameRuntime
     };
     public static readonly Dictionary<string, FacilityDefinition> FacilityCatalog = new()
     {
-        ["irrigation"] = new("灌溉渠", 800, 300, 2), ["granary"] = new("粮仓", 1000, 400, 2), ["market"] = new("市集", 900, 150, 2), ["workshop"] = new("工坊", 1200, 250, 3), ["barracks"] = new("兵营", 1300, 500, 3), ["drill-ground"] = new("校场", 1100, 450, 2), ["walls"] = new("城墙", 1600, 600, 3), ["academy"] = new("学宫", 1400, 250, 3), ["clinic"] = new("医馆", 1000, 300, 2), ["administration"] = new("郡府", 1500, 200, 3),
+        ["irrigation"] = new("灌溉渠", 800, 300, 2), ["granary"] = new("粮仓", 1000, 400, 2), ["market"] = new("市集", 900, 150, 2), ["barracks"] = new("兵营", 1300, 500, 3), ["drill-ground"] = new("校场", 1100, 450, 2), ["walls"] = new("城墙", 1600, 600, 3), ["academy"] = new("学宫", 1400, 250, 3), ["clinic"] = new("医馆", 1000, 300, 2), ["administration"] = new("郡府", 1500, 200, 3),
+    };
+    public static readonly Dictionary<int, CityUpgradeDefinition> CityUpgradeCatalog = new()
+    {
+        [2] = new(2, 2400, 800, 2),
+        [3] = new(3, 3600, 1200, 2),
+        [4] = new(4, 5200, 1800, 3),
+        [5] = new(5, 7200, 2500, 3),
+        [6] = new(6, 9600, 3400, 4),
+        [7] = new(7, 12600, 4600, 4),
+        [8] = new(8, 16000, 6000, 5),
     };
 }
 
 public sealed record FacilityDefinition(string Name, int Gold, int Food, int Months);
+public sealed record CityUpgradeDefinition(int TargetLevel, int Gold, int Food, int Months)
+{
+    public bool UnlocksFacilitySlot => TargetLevel % 2 == 0;
+}
 
 public sealed class GameSession
 {
-    public const int CurrentSchemaVersion = 7;
+    public const int CurrentSchemaVersion = 9;
     public const int StrategicVictoryCityCount = 9;
     public const int StrategicVictoryRequiredMonths = 3;
 
@@ -1296,8 +1371,6 @@ public sealed class GameSession
     public List<DiplomacyRelationData> Diplomacy { get; set; } = [];
     public List<FactionDiplomacyData> FactionDiplomacy { get; set; } = [];
     public List<AiDiplomaticProposalData> AiDiplomaticProposals { get; set; } = [];
-    public AutomationSettings Automation { get; set; } = new();
-    public AutoEvolutionData AutoEvolution { get; set; } = new();
     public PendingEventData? PendingEvent { get; set; }
     public PendingBattleData? PendingBattle { get; set; }
     public bool TurnResolutionPending { get; set; }
@@ -1342,17 +1415,13 @@ public sealed class GameSession
 
     private static ResourceData BaseTreasury(ScenarioData scenario, string factionId)
     {
-        if (factionId == scenario.PlayerFactionId)
-        {
-            return new ResourceData { Gold = scenario.Resources.Gold, Food = scenario.Resources.Food, Equipment = scenario.Resources.Equipment, Prestige = scenario.Resources.Prestige };
-        }
         var cities = scenario.Cities.Where(city => city.OwnerFactionId == factionId).ToList();
         return new ResourceData
         {
-            Gold = 2500 + cities.Count * 1200,
-            Food = 8000 + cities.Sum(city => city.Garrison / 3),
-            Equipment = 900 + cities.Count * 450,
-            Prestige = 20 + cities.Count * 3,
+            // 共享府库由开局所辖城池库存汇总而来；城市数据不再成为未使用的死数字。
+            Gold = cities.Sum(city => city.Gold),
+            Food = cities.Sum(city => city.Food),
+            Prestige = factionId == scenario.PlayerFactionId ? scenario.Resources.Prestige : 20 + cities.Count * 3,
         };
     }
 
@@ -1363,7 +1432,6 @@ public sealed class GameSession
         {
             Gold = (int)Math.Round(source.Gold * resourceMultiplier),
             Food = (int)Math.Round(source.Food * resourceMultiplier),
-            Equipment = (int)Math.Round(source.Equipment * resourceMultiplier),
             Prestige = source.Prestige,
         };
     }
@@ -1389,11 +1457,13 @@ public sealed class GameSession
             if (!FactionTreasuries.ContainsKey(faction.Id))
             {
                 var cityCount = Cities.Count(city => city.OwnerFactionId == faction.Id);
-                FactionTreasuries[faction.Id] = new ResourceData { Gold = 2500 + cityCount * 1200, Food = 8000 + cityCount * 3000, Equipment = 900 + cityCount * 450, Prestige = 20 };
+                FactionTreasuries[faction.Id] = new ResourceData { Gold = 2500 + cityCount * 1200, Food = 8000 + cityCount * 3000, Prestige = 20 };
             }
         }
         foreach (var city in Cities)
         {
+            city.CityLevel = Math.Clamp(city.CityLevel, GameRuntime.MinCityLevel, GameRuntime.MaxCityLevel);
+            city.FacilitySlots = GameRuntime.FacilitySlotsForCityLevel(city.CityLevel);
             city.ActionCapacity = city.ActionCapacity <= 0 ? 2 : Math.Clamp(city.ActionCapacity, 1, 4);
             city.ActionSlots = Math.Clamp(city.ActionSlots, 0, city.ActionCapacity);
             city.GovernanceMode = string.IsNullOrWhiteSpace(city.GovernanceMode) ? "manual" : city.GovernanceMode;
@@ -1431,13 +1501,5 @@ public sealed class DiplomacyRelationData
     public string FactionId { get; set; } = string.Empty; public int Relation { get; set; } public int Trust { get; set; } public int LastProposalTurn { get; set; } = -1; public Dictionary<string, int> Treaties { get; set; } = [];
 }
 public sealed class AiDiplomaticProposalData { public string Id { get; set; } = string.Empty; public string FromFactionId { get; set; } = string.Empty; public string Type { get; set; } = "trade"; public int DurationMonths { get; set; } = 6; public string Status { get; set; } = "pending"; }
-public sealed class AutomationSettings
-{
-    public bool Enabled { get; set; } public bool Domestic { get; set; } = true; public bool Talent { get; set; } = true; public bool Diplomacy { get; set; } = true; public bool Military { get; set; } = true; public string RiskTolerance { get; set; } = "medium"; public int MinGoldReserve { get; set; } = 3000; public int MinFoodReserve { get; set; } = 10000; public int MinCityGarrison { get; set; } = 3500;
-}
-public sealed class AutoEvolutionData
-{
-    public bool Enabled { get; set; } public string Status { get; set; } = "idle"; public string Speed { get; set; } = "normal"; public int MaxTurns { get; set; } = 240; public int StartedTurn { get; set; } = -1; public string? WinnerFactionId { get; set; }
-}
 public sealed class PendingEventData { public string Id { get; set; } = string.Empty; public string DefinitionId { get; set; } = string.Empty; public string CityId { get; set; } = string.Empty; }
 public sealed class LogEntryData { public int Turn { get; set; } public string Category { get; set; } = string.Empty; public string Message { get; set; } = string.Empty; }

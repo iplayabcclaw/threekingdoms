@@ -28,7 +28,6 @@ public sealed class ResourceData
     public int Gold { get; set; }
     public int Food { get; set; }
     public int Prestige { get; set; }
-    public int Equipment { get; set; }
 }
 
 public sealed class FactionData
@@ -59,6 +58,7 @@ public sealed class CityData
     public int Culture { get; set; }
     public int Fatigue { get; set; }
     public int Training { get; set; }
+    public int CityLevel { get; set; } = 1;
     public int FacilitySlots { get; set; } = 4;
     public List<FacilityInstanceData> Facilities { get; set; } = [];
     public ConstructionData? ConstructionQueue { get; set; }
@@ -109,6 +109,9 @@ public sealed class ConstructionData
     public string Kind { get; set; } = "build";
     public string? TargetInstanceId { get; set; }
     public int TargetSlotIndex { get; set; } = -1;
+    public int TargetCityLevel { get; set; }
+    public int GoldCost { get; set; }
+    public int FoodCost { get; set; }
 }
 
 public sealed class ScenarioOfficerData

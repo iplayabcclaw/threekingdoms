@@ -44,14 +44,14 @@ public sealed partial class GameRuntime
                     .Where(army => army.TargetCityId == source.Id && army.FactionId != factionId && army.Status is "marching" or "besieging" or "awaiting-battle")
                     .Sum(army => army.Soldiers);
                 var borderPressure = enemyNeighbors.Select(city => city!.Garrison).DefaultIfEmpty(0).Max();
-                var reserve = Math.Max(4000, (int)Math.Ceiling((borderPressure + incomingPressure) * .4)) + Math.Max(0, enemyNeighbors.Count - 1) * 600;
-                var soldiers = Math.Min(7000, Math.Max(0, source.Garrison - reserve));
+                var reserve = Math.Max(1800, (int)Math.Ceiling((borderPressure + incomingPressure) * .28)) + Math.Max(0, enemyNeighbors.Count - 1) * 300;
+                var soldiers = Math.Min(4500, Math.Max(0, source.Garrison - reserve));
                 var factionFoodUpkeep = cities.Sum(item => CityMonthlyForecast(item).FoodUpkeep);
                 var foodReserve = Math.Max(4_000, factionFoodUpkeep * 4);
                 var food = Math.Max(1200, soldiers * (road.TravelDays + 30) / 120);
                 var foodCoverage = (treasury.Food - food) / (double)Math.Max(1, factionFoodUpkeep);
-                var forceRatio = soldiers / (double)Math.Max(1, target.Garrison + target.Defense * 22);
-                var minimumForceRatio = target.Status == "integrating" ? .62 : .72;
+                var forceRatio = soldiers / (double)Math.Max(1, target.Garrison + target.Defense * 10);
+                var minimumForceRatio = target.Status == "integrating" ? .50 : .58;
                 var composition = BuildAiArmyComposition(soldiers, target, road, commander);
                 var stance = SelectAiArmyStance(forceRatio);
                 var tactic = SelectAiArmyTactic(composition, target, commander);
@@ -79,7 +79,7 @@ public sealed partial class GameRuntime
                 else if (State.Armies.Any(army => army.FactionId == factionId && army.TargetCityId == target.Id && army.Status is "marching" or "besieging" or "awaiting-battle")) reason = "已有军团进攻该目标";
                 else if (commander is null) reason = "出发城没有可用主将";
                 else if (availableOfficers.Count < 2) reason = "出发城至少需要保留一名可用守将";
-                else if (soldiers < 2500) reason = $"留足{reserve:N0}守军后可用兵力不足";
+                else if (soldiers < 1600) reason = $"留足{reserve:N0}守军后可用兵力不足";
                 else if (forceRatio < minimumForceRatio) reason = $"攻守兵力比{forceRatio:0.00}低于{minimumForceRatio:0.00}安全线";
                 else if (treasury.Food - food < foodReserve) reason = $"携粮后势力粮草将低于{foodReserve:N0}安全储备";
                 else if (goldCoverage < 1.5) reason = "势力财政不足以支撑新战线";
@@ -187,7 +187,6 @@ public sealed partial class GameRuntime
         InitializeStrategicAiState();
         ResolveStrategicMilitaryAi();
         ResolveStrategicDiplomacyAi();
-        ResolvePlayerAutomationStrategically();
     }
 
     private void ResolveStrategicMilitaryAi()
@@ -236,23 +235,6 @@ public sealed partial class GameRuntime
         }
     }
 
-    private void ResolvePlayerAutomationStrategically()
-    {
-        if (!State.Automation.Enabled) return;
-        if (State.Automation.Diplomacy && !State.AiDiplomaticProposals.Any(proposal => proposal.Status == "pending"))
-        {
-            var candidate = EvaluateStrategicDiplomacyCandidates(State.PlayerFactionId)
-                .FirstOrDefault(item => item.Eligible && item.Score >= DiplomacyActionThreshold && item.Type == "trade");
-            if (candidate is not null && State.Resources.Gold >= State.Automation.MinGoldReserve + 250) ProposeDiplomacy(candidate.TargetFactionId, candidate.Type, 250);
-        }
-        if (State.Automation.Military)
-        {
-            var riskModifier = State.Automation.RiskTolerance switch { "high" => -8, "low" => 10, _ => 0 };
-            var candidate = EvaluateStrategicMilitaryCandidates(State.PlayerFactionId).FirstOrDefault(item => item.Eligible && item.Score >= MilitaryActionThreshold + riskModifier);
-            if (candidate is not null) ExecuteStrategicExpedition(candidate);
-        }
-    }
-
     private bool ExecuteStrategicExpedition(StrategicMilitaryCandidate candidate)
     {
         var source = City(candidate.SourceCityId);
@@ -268,7 +250,7 @@ public sealed partial class GameRuntime
             && officer.InitialState.Alive
             && officer.Profile.Id != commander.Profile.Id
             && !candidate.DeputyIds.Contains(officer.Profile.Id));
-        var currentForceRatio = candidate.Soldiers / (double)Math.Max(1, target.Garrison + target.Defense * 22);
+        var currentForceRatio = candidate.Soldiers / (double)Math.Max(1, target.Garrison + target.Defense * 10);
         if (deputies.Count != candidate.DeputyIds.Count
             || deputies.Any(officer => officer.InitialState.Status != "serving" || officer.InitialState.CityId != source.Id || officer.InitialState.FactionId != candidate.FactionId)
             || remainingOfficers < 1
@@ -298,8 +280,7 @@ public sealed partial class GameRuntime
         if (special is not null)
         {
             var count = Math.Min(candidate.Composition.GetValueOrDefault(special.BaseTroopType), candidate.Soldiers / 4) / 500 * 500;
-            var equipmentCost = count / 500 * special.EquipmentPerFiveHundred;
-            if (count >= 500 && treasury.Equipment >= equipmentCost) { specialTroops[special.Id] = count; treasury.Equipment -= equipmentCost; }
+            if (count >= 500) specialTroops[special.Id] = count;
         }
         var commandCapacity = Math.Clamp(3000 + EffectiveAbility(commander, "leadership", "military") * 120
             + deputies.Sum(officer => EffectiveAbility(officer, "leadership", "military") * 30), 5000, 25000);

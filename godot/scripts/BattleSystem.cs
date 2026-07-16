@@ -493,6 +493,8 @@ public static class BattleCalculator
             var sideMorale = group.Side == "attacker"
                 ? army.Morale
                 : defenderArmy?.Morale ?? Math.Clamp(58 + city.Defense / 4, 45, 88);
+            var factionId = group.Side == "attacker" ? pending.AttackerFactionId : pending.DefenderFactionId;
+            sideMorale = Math.Clamp((int)Math.Round(sideMorale + OfficerProgressionRules.CourtMoraleBonus(state, factionId)), 0, 100);
             if (group.Side == "defender" && pending.DefenderOfficerIds.Count == 0) sideMorale = Math.Min(sideMorale, 55);
             group.InitialMorale = sideMorale;
             group.Morale = sideMorale;
@@ -513,12 +515,12 @@ public static class BattleCalculator
         pending.PhaseResults.Clear();
         pending.Timeline.Clear();
         pending.Stance = army.Stance;
-        pending.DecisionSummary = $"攻方执行“{BattleCatalog.TacticName(pending.PrimaryTactic)}”；守方执行“{BattleCatalog.TacticName(pending.DefenderPrimaryTactic)}”";
+        pending.DecisionSummary = $"攻方执行“{BattleCatalog.TacticName(pending.PrimaryTactic)}”；守方执行“{BattleCatalog.TacticName(pending.DefenderPrimaryTactic)}”；双方朝堂任命已计入全军战力、战术、士气与武将体力";
         pending.Result = string.Empty;
         pending.Summary = string.Empty;
         pending.Elapsed = 0;
         pending.SimulationAccumulator = 0;
-        pending.Duration = 60;
+        pending.Duration = 50;
         pending.WallIntegrity = pending.WallBefore;
         pending.GateIntegrity = pending.GateBefore;
         pending.WallAfter = pending.WallBefore;
@@ -540,8 +542,8 @@ public static class BattleCalculator
             : StateMultiplier(defenderArmy.Training, defenderArmy.Morale, defenderArmy.Fatigue, defenderArmy.Food > 0));
         foreach (var stage in new[] { "远程压制", "正面接战", "决胜", "攻城与内城" })
         {
-            pending.AttackerStageMultipliers[stage] = attackerState * AttackerTrait(stage);
-            pending.DefenderStageMultipliers[stage] = defenderState * DefenderTrait(stage);
+            pending.AttackerStageMultipliers[stage] = attackerState * AttackerTrait(stage) * OfficerProgressionRules.CourtBattleMultiplier(state, pending.AttackerFactionId, stage);
+            pending.DefenderStageMultipliers[stage] = defenderState * DefenderTrait(stage) * OfficerProgressionRules.CourtBattleMultiplier(state, pending.DefenderFactionId, stage);
         }
         pending.Timeline.Add(new BattleTimelineEventData
         {
@@ -619,6 +621,8 @@ public static class BattleCalculator
                 TryRallyGroup(state, pending, source);
                 if (source.Morale < 25 || source.IsRouted)
                 {
+                    var pursuers = source.Side == "attacker" ? defenders : attackers;
+                    ApplyPursuitLosses(pending, source, pursuers);
                     var withdrawalX = source.Side == "attacker" ? 972f : 28f;
                     MoveGroup(pending, source, withdrawalX, source.Y, delta);
                     source.State = source.IsRouted ? "routed" : "retreat";
@@ -742,6 +746,27 @@ public static class BattleCalculator
             $"{officer.Profile.Name}收拢所属战斗队，士气恢复至{group.Morale:F0}", 0, 0);
     }
 
+    private static void ApplyPursuitLosses(PendingBattleData pending, BattleUnitGroupData routed, List<BattleUnitGroupData> enemies)
+    {
+        if (routed.FinalSoldiers <= 0 || routed.AttackCooldown > 0) return;
+        var nearby = enemies
+            .Where(item => item.FinalSoldiers > 0 && !item.IsRouted)
+            .Where(item => BattleDistance(item, routed) <= (item.TroopType == "cavalry" ? 340 : item.TroopType == "archers" ? 250 : 190))
+            .OrderBy(item => BattleDistance(item, routed))
+            .ToList();
+        if (nearby.Count == 0) return;
+        var pressure = nearby.Sum(item => item.FinalSoldiers * (item.TroopType == "cavalry" ? 1.45 : item.TroopType == "archers" ? .45 : .85));
+        var pressureRatio = Math.Clamp(pressure / Math.Max(1d, routed.FinalSoldiers), .65, 2.4);
+        var lossRate = routed.IsRouted ? .025 : .013;
+        var losses = Math.Clamp((int)Math.Ceiling(routed.FinalSoldiers * lossRate * pressureRatio), 1, Math.Max(1, (int)Math.Ceiling(routed.FinalSoldiers * .10)));
+        losses = Math.Min(losses, routed.FinalSoldiers);
+        routed.FinalSoldiers -= losses;
+        routed.AttackCooldown = .9;
+        var lead = nearby[0];
+        AddRealtimeEvent(pending, routed.IsRouted ? "溃军追击" : "撤退追击", "damage", routed.Side, routed, lead,
+            $"{BattleCatalog.TroopName(lead.TroopType)}追击，−{losses}", losses, 0);
+    }
+
     private static List<BattleOfficerUnitData> BuildMountedOfficerUnits(GameSession state, PendingBattleData pending)
     {
         var result = new List<BattleOfficerUnitData>();
@@ -765,8 +790,10 @@ public static class BattleCalculator
                     ?? pending.Groups.Where(item => item.Side == side).OrderByDescending(item => item.InitialSoldiers).FirstOrDefault();
                 if (anchor is null) continue;
                 var rearOffset = side == "attacker" ? 30 : -30;
-                var maxHitPoints = MountedOfficerMaxHitPoints(leadership, might);
-                var morale = MountedOfficerInitialMorale(leadership, charisma, officer.InitialState.Fatigue);
+                var courtHealth = OfficerProgressionRules.CourtOfficerHealthMultiplier(state, officer.InitialState.FactionId ?? string.Empty);
+                var maxHitPoints = (int)Math.Round(MountedOfficerMaxHitPoints(leadership, might) * courtHealth);
+                var morale = Math.Min(100, MountedOfficerInitialMorale(leadership, charisma, officer.InitialState.Fatigue)
+                    + OfficerProgressionRules.CourtMoraleBonus(state, officer.InitialState.FactionId ?? string.Empty));
                 result.Add(new BattleOfficerUnitData
                 {
                     OfficerId = officerId,
@@ -1052,7 +1079,7 @@ public static class BattleCalculator
             ? pending.AttackerStageMultipliers.GetValueOrDefault(stage, 1)
             : pending.DefenderStageMultipliers.GetValueOrDefault(stage, 1);
         var formation = source.Side == "attacker" ? pending.AttackerFormation.FormationId : pending.DefenderFormation.FormationId;
-        var rate = source.TroopType switch { "archers" => .0050, "cavalry" => .0055, "spears" => .0047, "infantry" => .0045, _ => .0020 };
+        var rate = source.TroopType switch { "archers" => .0080, "cavalry" => .0095, "spears" => .0080, "infantry" => .0075, _ => .0030 };
         var power = source.FinalSoldiers * rate
             * TroopPower.GetValueOrDefault(source.TroopType, 1)
             * StageTroopPower(source.TroopType, stage)
@@ -1379,9 +1406,28 @@ public static class BattleCalculator
         if (total <= 0) return [];
         var valid = composition.Where(item => item.Value > 0).OrderByDescending(item => item.Value).ToList();
         if (valid.Count == 0) valid = [new KeyValuePair<string, int>("infantry", total)];
-        var groupCount = ExpectedGroupCount(total);
-        var counts = valid.ToDictionary(item => item.Key, _ => 0);
-        for (var index = 0; index < groupCount; index++)
+        var compositionTotal = valid.Sum(item => item.Value);
+        if (compositionTotal != total)
+        {
+            var scaled = valid
+                .Select(item => new
+                {
+                    item.Key,
+                    Exact = item.Value * total / (double)Math.Max(1, compositionTotal),
+                })
+                .Select(item => new { item.Key, item.Exact, Count = (int)Math.Floor(item.Exact) })
+                .ToList();
+            var remainder = total - scaled.Sum(item => item.Count);
+            var extras = scaled.OrderByDescending(item => item.Exact - item.Count).ThenBy(item => item.Key).Take(remainder).Select(item => item.Key).ToHashSet();
+            valid = scaled
+                .Select(item => new KeyValuePair<string, int>(item.Key, item.Count + (extras.Contains(item.Key) ? 1 : 0)))
+                .Where(item => item.Value > 0)
+                .OrderByDescending(item => item.Value)
+                .ToList();
+        }
+        var groupCount = Math.Max(ExpectedGroupCount(total), valid.Count);
+        var counts = valid.ToDictionary(item => item.Key, _ => 1);
+        for (var index = valid.Count; index < groupCount; index++)
         {
             var selected = valid.OrderByDescending(item => item.Value / (double)(counts[item.Key] + 1)).First();
             counts[selected.Key]++;

@@ -71,8 +71,8 @@ public partial class NewGameSetupView : Control
         selectors.AddChild(FieldLabel("游戏难度"));
         _difficulty = Choice();
         AddChoice(_difficulty, "标准 · 原始资源", "standard");
-        AddChoice(_difficulty, "宽松 · 初始钱粮装备 +20%", "relaxed");
-        AddChoice(_difficulty, "艰难 · 初始钱粮装备 -15%", "hard");
+        AddChoice(_difficulty, "宽松 · 初始钱粮 +20%", "relaxed");
+        AddChoice(_difficulty, "艰难 · 初始钱粮 -15%", "hard");
         selectors.AddChild(_difficulty);
 
         selectors.AddChild(FieldLabel("自动存档"));
@@ -113,9 +113,12 @@ public partial class NewGameSetupView : Control
         var faction = _scenario.Factions.First(item => item.Id == factionId);
         var cities = _scenario.Cities.Where(city => city.OwnerFactionId == factionId).ToList();
         var officers = _scenario.Officers.Where(officer => officer.InitialState.FactionId == factionId && officer.InitialState.Alive).ToList();
-        var resources = GameSession.PreviewInitialResources(_scenario, factionId, Selected(_difficulty));
-        _factionDetails.Text = $"{faction.Name}　君主 {faction.RulerName}\n初始城池：{string.Join('、', cities.Select(city => city.Name))}\n人才 {officers.Count} 人　势力府库：金 {resources.Gold:N0} / 粮 {resources.Food:N0} / 装备 {resources.Equipment:N0} / 威望 {resources.Prestige:N0}";
-        _ruleDetails.Text = $"胜利：统一天下立即获胜；或控制至少{GameSession.StrategicVictoryCityCount}城并连续维持{GameSession.StrategicVictoryRequiredMonths}个月。　失败：失去全部城池。\n难度：{DifficultyLabel(Selected(_difficulty))}　自动存档：{AutoSaveLabel(Selected(_autoSave))}";
+        var difficulty = Selected(_difficulty);
+        var resources = GameSession.PreviewInitialResources(_scenario, factionId, difficulty);
+        var preview = new GameRuntime(_scenario, new NewGameOptions { PlayerFactionId = factionId, Difficulty = difficulty, AutoSaveFrequency = "off" });
+        var monthly = preview.PreviewEndTurnResourceDelta();
+        _factionDetails.Text = $"{faction.Name}　君主 {faction.RulerName}\n初始城池：{string.Join('、', cities.Select(city => city.Name))}\n人才 {officers.Count} 人　势力府库：金 {resources.Gold:N0} / 粮 {resources.Food:N0} / 威望 {resources.Prestige:N0}";
+        _ruleDetails.Text = $"胜利：统一天下立即获胜；或控制至少{GameSession.StrategicVictoryCityCount}城并连续维持{GameSession.StrategicVictoryRequiredMonths}个月。　失败：失去全部城池。\n开局府库按所辖城池库存汇总；预计首月金 {Signed(monthly.Gold)}、粮 {Signed(monthly.Food)}。　难度：{DifficultyLabel(difficulty)}　自动存档：{AutoSaveLabel(Selected(_autoSave))}";
     }
 
     private void Start()
@@ -164,4 +167,5 @@ public partial class NewGameSetupView : Control
 
     private static string DifficultyLabel(string value) => value switch { "relaxed" => "宽松", "hard" => "艰难", _ => "标准" };
     private static string AutoSaveLabel(string value) => value switch { "quarterly" => "每三个月", "yearly" => "每年", "off" => "关闭", _ => "每月" };
+    private static string Signed(int value) => value.ToString("+#,0;-#,0;0");
 }

@@ -24,11 +24,17 @@ public partial class Main : Control
     private int _trackIndex;
     private bool _smokeMode;
     private bool _transitioning;
-    private double _autoTimer;
 
     public override void _Ready()
     {
         var userArgs = OS.GetCmdlineUserArgs();
+        var cliIndex = Array.IndexOf(userArgs, "--game-cli");
+        if (cliIndex >= 0)
+        {
+            var exitCode = GameCli.Run(_scenario, userArgs.Skip(cliIndex + 1).ToArray());
+            GetTree().Quit(exitCode);
+            return;
+        }
         if (userArgs.Contains("--runtime-self-test"))
         {
             RuntimeSelfTest.Run(_scenario);
@@ -73,7 +79,6 @@ public partial class Main : Control
         AddFeature(sceneHost, "expedition", _expedition, "军事出征", "配置混合兵种与出战武将；军团抵达后进入战前布阵和正式战斗画面。");
         AddFeature(sceneHost, "diplomacy", new DiplomacyView(), "纵横捭阖", "通商带来持续收益，停战约束双方出征，俘虏交换需要双方均有可释放武将。");
         AddFeature(sceneHost, "talent", new TalentView(), "人才府", "登庸、劝降、策反、任命与武将调动共用完整武将状态。");
-        AddFeature(sceneHost, "ai", new AiCouncilView(), "军师府 · AI 托管", "分别控制内政、人才、外交和军事代理，也可启动全势力自动演进。");
         _battleView = new BattleView();
         AddFeature(sceneHost, "battle", _battleView, "沙场演武", "这里只进行战前布阵和实时战斗；战斗结束后会自动切换到独立战报界面。");
         _battleReportView = new BattleReportView();
@@ -102,17 +107,6 @@ public partial class Main : Control
         else if (_smokeMode) CallDeferred(nameof(QuitSmoke));
     }
 
-    public override void _Process(double delta)
-    {
-        if (_runtime is null) return;
-        if (!_runtime.State.AutoEvolution.Enabled || _runtime.State.PendingEvent is not null || _runtime.State.PendingBattle is not null || _runtime.State.Outcome != "ongoing") return;
-        _autoTimer += delta;
-        var interval = _runtime.State.AutoEvolution.Speed switch { "slow" => 1.5, "fast" => .18, _ => .65 };
-        if (_autoTimer < interval) return;
-        _autoTimer = 0;
-        _runtime.EndTurn();
-    }
-
     private void AddScreen(Control host, string id, Control screen)
     {
         screen.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); host.AddChild(screen); _screens[id] = screen;
@@ -129,7 +123,7 @@ public partial class Main : Control
         panel.AddThemeStyleboxOverride("panel", GameTheme.RaisedBox(9)); AddChild(panel);
         var margin = new MarginContainer(); margin.AddThemeConstantOverride("margin_left", 6); margin.AddThemeConstantOverride("margin_right", 6); margin.AddThemeConstantOverride("margin_top", 5); margin.AddThemeConstantOverride("margin_bottom", 5); panel.AddChild(margin);
         var row = new HFlowContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; row.AddThemeConstantOverride("h_separation", 6); row.AddThemeConstantOverride("v_separation", 5); margin.AddChild(row);
-        foreach (var item in new[] { ("world", "天下"), ("city", "内政"), ("talent", "人才"), ("diplomacy", "外交"), ("expedition", "出征"), ("battle", "战斗"), ("battle-report", "战报"), ("ai", "军师"), ("save", "存档") })
+        foreach (var item in new[] { ("world", "天下"), ("city", "内政"), ("talent", "人才"), ("diplomacy", "外交"), ("expedition", "出征"), ("battle", "战斗"), ("battle-report", "战报"), ("save", "存档") })
         {
             var button = GameTheme.Button(item.Item2); button.CustomMinimumSize = new Vector2(88, 40); button.ToggleMode = true; var id = item.Item1; button.Pressed += () => { if (id == "city") _cityManagement.ShowOverview(); Navigate(id); }; _navigationButtons[id] = button; row.AddChild(button);
         }
@@ -190,14 +184,14 @@ public partial class Main : Control
     private async void RunBattleVisualTest()
     {
         var fieldSource = _runtime.State.Cities
-            .Where(city => city.OwnerFactionId == _runtime.State.PlayerFactionId && city.Garrison >= 7000)
+            .Where(city => city.OwnerFactionId == _runtime.State.PlayerFactionId && city.Garrison >= 3000)
             .First(city => _runtime.State.Roads.Any(road => (road.FromCityId == city.Id && _runtime.City(road.ToCityId)?.OwnerFactionId != _runtime.State.PlayerFactionId) || (road.ToCityId == city.Id && _runtime.City(road.FromCityId)?.OwnerFactionId != _runtime.State.PlayerFactionId)));
         var enemyCity = _runtime.State.Cities.First(city => city.OwnerFactionId != _runtime.State.PlayerFactionId && _runtime.State.Officers.Any(officer => officer.InitialState.FactionId == city.OwnerFactionId && officer.InitialState.CityId == city.Id && officer.InitialState.Status == "serving"));
         var enemyCommander = _runtime.State.Officers.First(officer => officer.InitialState.FactionId == enemyCity.OwnerFactionId && officer.InitialState.CityId == enemyCity.Id && officer.InitialState.Status == "serving");
         var enemyArmy = new ArmyData { Id = "visual-enemy-army", FactionId = enemyCity.OwnerFactionId!, SourceCityId = enemyCity.Id, TargetCityId = fieldSource.Id, CommanderId = enemyCommander.Profile.Id, Soldiers = 3700, Food = 6000, Training = 70, Morale = 72, Composition = new Dictionary<string, int> { ["infantry"] = 2200, ["archers"] = 1000, ["cavalry"] = 500 }, Status = "marching", RemainingDays = 12, TotalDays = 60 };
         enemyCommander.InitialState.Status = "deployed"; enemyCommander.InitialState.ArmyId = enemyArmy.Id; _runtime.State.Armies.Add(enemyArmy);
         var fieldCommander = _runtime.PlayerOfficers().Where(item => item.InitialState.CityId == fieldSource.Id && item.InitialState.Status == "serving").OrderByDescending(item => _runtime.EffectiveAbility(item, "leadership", "military")).First();
-        _runtime.CreateExpedition(fieldSource.Id, fieldSource.Id, fieldCommander.Profile.Id, 4000, 6000, [], new Dictionary<string, int> { ["infantry"] = 2500, ["spears"] = 750, ["archers"] = 750 }, [], enemyArmy.Id);
+        _runtime.CreateExpedition(fieldSource.Id, fieldSource.Id, fieldCommander.Profile.Id, 3000, 3000, [], new Dictionary<string, int> { ["infantry"] = 2000, ["spears"] = 500, ["archers"] = 500 }, [], enemyArmy.Id);
         Navigate("battle");
         await ToSignal(GetTree().CreateTimer(.7), SceneTreeTimer.SignalName.Timeout);
         _runtime.ConfigurePendingBattle("goose", new Dictionary<string, string> { ["infantry"] = "shield-line", ["spears"] = "spear-wall", ["archers"] = "rear-double" });
@@ -300,12 +294,12 @@ public partial class Main : Control
             talent.ShowTabForVisualTest(tab);
             await SaveUiFrame($"talent-{tab}");
         }
-        foreach (var id in new[] { "diplomacy", "ai", "save" })
+        foreach (var id in new[] { "diplomacy", "save" })
         {
             Navigate(id);
             await SaveUiFrame(id);
         }
-        GD.Print("[UiVisualTest] world/expedition/city/city-overview-ledger/city-buildings/city-governance/talent-tabs/diplomacy/ai/save screenshots saved");
+        GD.Print("[UiVisualTest] world/expedition/city/city-overview-ledger/city-buildings/city-governance/talent-tabs/diplomacy/save screenshots saved");
         GetTree().Quit();
     }
 

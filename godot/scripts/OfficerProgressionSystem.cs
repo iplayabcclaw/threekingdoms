@@ -19,7 +19,6 @@ public sealed record SpecialTroopDefinition(
     string BaseTroopType,
     string[] FactionIds,
     string CompatibleTrait,
-    int EquipmentPerFiveHundred,
     string Description);
 
 public sealed record CourtOfficeDefinition(
@@ -30,10 +29,20 @@ public sealed record CourtOfficeDefinition(
     string Track,
     int MinimumRank,
     int SalaryAllowance,
-    string Ability,
-    int AbilityBonus,
-    string Context,
     string Effect);
+
+public sealed class FactionCourtEffects
+{
+    public double GoldIncomeRate { get; set; }
+    public double FoodIncomeRate { get; set; }
+    public double DomesticActionRate { get; set; }
+    public double CombatRate { get; set; }
+    public double OfficerHealthRate { get; set; }
+    public double TacticRate { get; set; }
+    public double TrainingRate { get; set; }
+    public double MoraleRate { get; set; }
+    public double LogisticsSavingRate { get; set; }
+}
 
 public static class OfficerProgressionRules
 {
@@ -46,18 +55,18 @@ public static class OfficerProgressionRules
 
     public static readonly IReadOnlyList<CourtOfficeDefinition> CourtOffices =
     [
-        new("grand-general", "大将军", "", 1, "military", 3, 100, "leadership", 6, "military", "统摄诸军：军事统率 +6"),
-        new("chancellor", "丞相", "", 1, "civil", 3, 100, "politics", 6, "civil", "总理政务：内政政治 +6"),
-        new("strategist-general", "军师将军", "", 1, "civil", 3, 90, "intelligence", 6, "all", "参赞军国：智力 +6"),
-        new("front-general", "前将军", "grand-general", 2, "military", 2, 50, "leadership", 4, "military", "前军节制：军事统率 +4"),
-        new("left-general", "左将军", "grand-general", 2, "military", 2, 45, "might", 4, "military", "攻坚先登：军事武力 +4"),
-        new("right-general", "右将军", "grand-general", 2, "military", 2, 45, "charisma", 4, "military", "整军励士：军事魅力 +4"),
-        new("secretariat-director", "尚书令", "chancellor", 2, "civil", 2, 50, "politics", 4, "civil", "综理章奏：内政政治 +4"),
-        new("administration-aide", "治中从事", "chancellor", 2, "civil", 2, 40, "charisma", 4, "civil", "察举百官：内政魅力 +4"),
-        new("provincial-aide", "别驾从事", "chancellor", 2, "civil", 2, 40, "intelligence", 4, "civil", "巡行郡国：内政智力 +4"),
-        new("central-strategist", "中军师", "strategist-general", 2, "civil", 2, 45, "intelligence", 4, "all", "中军谋划：智力 +4"),
-        new("army-protector", "护军", "strategist-general", 2, "military", 2, 45, "leadership", 3, "military", "督护诸营：军事统率 +3"),
-        new("army-major", "军司马", "strategist-general", 2, "military", 2, 40, "intelligence", 3, "military", "参谋军务：军事智力 +3"),
+        new("grand-general", "大将军", "", 1, "military", 3, 100, "统摄诸军：提升全势力军队战力、训练与士气"),
+        new("chancellor", "丞相", "", 1, "civil", 3, 100, "总理政务：提升全势力钱粮收入与城务效率"),
+        new("strategist-general", "军师将军", "", 1, "civil", 3, 90, "参赞军国：提升全势力战术与计策效果"),
+        new("front-general", "前将军", "grand-general", 2, "military", 2, 50, "前军节制：强化全军进攻与训练"),
+        new("left-general", "左将军", "grand-general", 2, "military", 2, 45, "攻坚先登：强化全军正面战力"),
+        new("right-general", "右将军", "grand-general", 2, "military", 2, 45, "整军励士：强化全军士气与稳定"),
+        new("secretariat-director", "尚书令", "chancellor", 2, "civil", 2, 50, "综理章奏：强化城务与金钱收入"),
+        new("administration-aide", "治中从事", "chancellor", 2, "civil", 2, 40, "察举百官：强化治理与粮食收入"),
+        new("provincial-aide", "别驾从事", "chancellor", 2, "civil", 2, 40, "巡行郡国：强化商贸与地方输送"),
+        new("central-strategist", "中军师", "strategist-general", 2, "civil", 2, 45, "中军谋划：强化全军战术效果"),
+        new("army-protector", "护军", "strategist-general", 2, "military", 2, 45, "督护诸营：提高武将体力与军心"),
+        new("army-major", "军司马", "strategist-general", 2, "military", 2, 40, "参谋军务：提高训练并降低军粮维护"),
     ];
 
     public static readonly Dictionary<string, TraitDefinition> Traits = new()
@@ -99,11 +108,11 @@ public static class OfficerProgressionRules
 
     public static readonly Dictionary<string, SpecialTroopDefinition> SpecialTroops = new()
     {
-        ["white-horse"] = new("white-horse", "白马义从", "cavalry", ["faction-gongsun-zan"], "白马将军", 45, "骑射、侦察与侧翼机动"),
-        ["trap-camp"] = new("trap-camp", "陷阵营", "infantry", ["faction-lu-bu"], "陷阵之志", 55, "正面突破与低士气维持"),
-        ["xiliang-cavalry"] = new("xiliang-cavalry", "西凉铁骑", "cavalry", ["faction-ma-teng", "faction-li-jue", "faction-zhang-xiu"], "西凉骁骑", 50, "平原冲击与追击"),
-        ["danyang-veterans"] = new("danyang-veterans", "丹阳兵", "infantry", ["faction-liu-bei", "faction-sun-ce"], "江东英略", 40, "山地与复杂地形作战"),
-        ["tiger-guard"] = new("tiger-guard", "虎卫", "infantry", ["faction-cao-cao"], "虎卫之勇", 50, "护卫主将与稳定正面"),
+        ["white-horse"] = new("white-horse", "白马义从", "cavalry", ["faction-gongsun-zan"], "白马将军", "骑射、侦察与侧翼机动"),
+        ["trap-camp"] = new("trap-camp", "陷阵营", "infantry", ["faction-lu-bu"], "陷阵之志", "正面突破与低士气维持"),
+        ["xiliang-cavalry"] = new("xiliang-cavalry", "西凉铁骑", "cavalry", ["faction-ma-teng", "faction-li-jue", "faction-zhang-xiu"], "西凉骁骑", "平原冲击与追击"),
+        ["danyang-veterans"] = new("danyang-veterans", "丹阳兵", "infantry", ["faction-liu-bei", "faction-sun-ce"], "江东英略", "山地与复杂地形作战"),
+        ["tiger-guard"] = new("tiger-guard", "虎卫", "infantry", ["faction-cao-cao"], "虎卫之勇", "护卫主将与稳定正面"),
     };
 
     public static void EnsureDefaults(ScenarioOfficerData officer, int scenarioYear)
@@ -173,8 +182,179 @@ public static class OfficerProgressionRules
             if (ability == "leadership") value += PrimaryOfficeBonuses[rank];
             if (ability == "might") value += SecondaryOfficeBonuses[rank];
         }
-        value += CourtAbilityBonus(officer, ability, context);
         return Math.Clamp(value, 1, 110);
+    }
+
+    public static FactionCourtEffects FactionCourtInfluence(GameSession state, string factionId)
+    {
+        var result = new FactionCourtEffects();
+        foreach (var officer in state.Officers.Where(item => item.InitialState.FactionId == factionId && !string.IsNullOrEmpty(item.InitialState.CourtOfficeId)))
+        {
+            var office = CourtOffice(officer.InitialState.CourtOfficeId);
+            if (office is not null) ApplyCourtInfluence(result, officer, office, true);
+        }
+        CapCourtInfluence(result);
+        return result;
+    }
+
+    public static string CourtInfluenceSummary(ScenarioOfficerData officer, CourtOfficeDefinition office)
+    {
+        var result = new FactionCourtEffects();
+        var activeTraits = ApplyCourtInfluence(result, officer, office, true);
+        CapCourtInfluence(result);
+        var effects = CourtEffectParts(result);
+        var traitText = activeTraits.Count == 0 ? "无可转化特性" : $"特性转化：{string.Join('、', activeTraits)}";
+        return $"势力效果：{string.Join("，", effects)}\n{traitText}";
+    }
+
+    public static double CourtBattleMultiplier(GameSession state, string factionId, string stage)
+    {
+        var effect = FactionCourtInfluence(state, factionId);
+        var tactic = stage is "远程压制" or "决胜" or "攻城与内城" ? effect.TacticRate : 0;
+        return 1 + effect.CombatRate + tactic;
+    }
+
+    public static double CourtOfficerHealthMultiplier(GameSession state, string factionId) =>
+        1 + FactionCourtInfluence(state, factionId).OfficerHealthRate;
+
+    public static double CourtMoraleBonus(GameSession state, string factionId) =>
+        FactionCourtInfluence(state, factionId).MoraleRate * 100;
+
+    public static double CourtIncomeMultiplier(GameSession state, string factionId, string resource) =>
+        1 + (resource == "food" ? FactionCourtInfluence(state, factionId).FoodIncomeRate : FactionCourtInfluence(state, factionId).GoldIncomeRate);
+
+    public static double CourtDomesticMultiplier(GameSession state, string factionId, string focus)
+    {
+        var effect = FactionCourtInfluence(state, factionId);
+        return 1 + (focus is "defense" or "recruit" or "train" ? effect.TrainingRate : effect.DomesticActionRate);
+    }
+
+    public static double CourtLogisticsMultiplier(GameSession state, string factionId) =>
+        1 - FactionCourtInfluence(state, factionId).LogisticsSavingRate;
+
+    private static List<string> ApplyCourtInfluence(FactionCourtEffects result, ScenarioOfficerData officer, CourtOfficeDefinition office, bool includeTraits)
+    {
+        var ability = office.Id switch
+        {
+            "grand-general" or "front-general" or "army-protector" => PermanentAbility(officer, "leadership"),
+            "left-general" => PermanentAbility(officer, "might"),
+            "right-general" or "administration-aide" => PermanentAbility(officer, "charisma"),
+            "chancellor" or "secretariat-director" => PermanentAbility(officer, "politics"),
+            _ => PermanentAbility(officer, "intelligence"),
+        };
+        var abilityScale = Math.Clamp(.75 + (ability - 50) * .01, .70, 1.25);
+        switch (office.Id)
+        {
+            case "grand-general": Add(result, office, "combat", .020 * abilityScale); Add(result, office, "training", .040 * abilityScale); Add(result, office, "morale", .020 * abilityScale); break;
+            case "front-general": Add(result, office, "combat", .012 * abilityScale); Add(result, office, "training", .012 * abilityScale); break;
+            case "left-general": Add(result, office, "combat", .016 * abilityScale); break;
+            case "right-general": Add(result, office, "combat", .005 * abilityScale); Add(result, office, "morale", .030 * abilityScale); break;
+            case "chancellor": Add(result, office, "gold", .030 * abilityScale); Add(result, office, "food", .030 * abilityScale); Add(result, office, "domestic", .030 * abilityScale); break;
+            case "secretariat-director": Add(result, office, "gold", .012 * abilityScale); Add(result, office, "domestic", .022 * abilityScale); break;
+            case "administration-aide": Add(result, office, "food", .012 * abilityScale); Add(result, office, "domestic", .020 * abilityScale); break;
+            case "provincial-aide": Add(result, office, "gold", .016 * abilityScale); Add(result, office, "food", .010 * abilityScale); break;
+            case "strategist-general": Add(result, office, "combat", .010 * abilityScale); Add(result, office, "tactic", .045 * abilityScale); break;
+            case "central-strategist": Add(result, office, "tactic", .028 * abilityScale); break;
+            case "army-protector": Add(result, office, "health", .040 * abilityScale); Add(result, office, "morale", .018 * abilityScale); break;
+            case "army-major": Add(result, office, "training", .028 * abilityScale); Add(result, office, "logistics", .025 * abilityScale); Add(result, office, "tactic", .010 * abilityScale); break;
+        }
+
+        var activeTraits = new List<string>();
+        if (!includeTraits) return activeTraits;
+        var tierScale = office.Tier == 1 ? 1d : .55;
+        foreach (var trait in AllTraits(officer))
+        {
+            var before = CourtEffectTotal(result);
+            switch (trait)
+            {
+                case "忠义": Add(result, office, "morale", .015 * tierScale); break;
+                case "豪勇": Add(result, office, "combat", .020 * tierScale); Add(result, office, "health", .010 * tierScale); break;
+                case "谨慎": Add(result, office, "health", .020 * tierScale); Add(result, office, "logistics", .010 * tierScale); break;
+                case "善谋": Add(result, office, "tactic", .025 * tierScale); Add(result, office, "domestic", .010 * tierScale); break;
+                case "善政": Add(result, office, "gold", .015 * tierScale); Add(result, office, "food", .015 * tierScale); Add(result, office, "domestic", .020 * tierScale); break;
+                case "沉着": Add(result, office, "morale", .015 * tierScale); Add(result, office, "health", .015 * tierScale); Add(result, office, "domestic", .010 * tierScale); break;
+                case "爱民": Add(result, office, "food", .020 * tierScale); Add(result, office, "domestic", .020 * tierScale); break;
+                case "野心": Add(result, office, "training", .015 * tierScale); break;
+                case "多疑": Add(result, office, "tactic", .012 * tierScale); break;
+                case "贪财": Add(result, office, "gold", .018 * tierScale); break;
+                case "仁德之主": Add(result, office, "food", .050 * tierScale); Add(result, office, "domestic", .040 * tierScale); Add(result, office, "morale", .030 * tierScale); break;
+                case "武圣": Add(result, office, "combat", .050 * tierScale); Add(result, office, "morale", .030 * tierScale); break;
+                case "万人敌": Add(result, office, "combat", .060 * tierScale); Add(result, office, "health", .080 * tierScale); break;
+                case "常胜护军": Add(result, office, "health", .080 * tierScale); Add(result, office, "morale", .040 * tierScale); break;
+                case "奸雄": Add(result, office, "gold", .030 * tierScale); Add(result, office, "combat", .030 * tierScale); Add(result, office, "tactic", .030 * tierScale); break;
+                case "王佐之才": Add(result, office, "gold", .060 * tierScale); Add(result, office, "food", .060 * tierScale); Add(result, office, "domestic", .050 * tierScale); break;
+                case "鬼谋": Add(result, office, "tactic", .080 * tierScale); break;
+                case "飞将": Add(result, office, "combat", .070 * tierScale); Add(result, office, "health", .060 * tierScale); break;
+                case "陷阵之志": Add(result, office, "combat", .050 * tierScale); Add(result, office, "health", .080 * tierScale); break;
+                case "白马将军": Add(result, office, "combat", .050 * tierScale); Add(result, office, "training", .030 * tierScale); break;
+                case "西凉骁骑": Add(result, office, "combat", .055 * tierScale); Add(result, office, "morale", .025 * tierScale); break;
+                case "江东英略": Add(result, office, "combat", .045 * tierScale); Add(result, office, "tactic", .025 * tierScale); break;
+                case "火计都督": Add(result, office, "tactic", .070 * tierScale); break;
+                case "虎卫之勇": Add(result, office, "health", .100 * tierScale); Add(result, office, "morale", .025 * tierScale); break;
+            }
+            if (CourtEffectTotal(result) > before + .00001) activeTraits.Add(trait);
+        }
+        return activeTraits;
+    }
+
+    private static bool AllowsCourtEffect(CourtOfficeDefinition office, string key)
+    {
+        var root = office.Tier == 1 ? office.Id : office.ParentId;
+        return root switch
+        {
+            "grand-general" => key is "combat" or "health" or "training" or "morale" or "logistics" or "tactic",
+            "chancellor" => key is "gold" or "food" or "domestic",
+            "strategist-general" => key is "combat" or "health" or "training" or "morale" or "logistics" or "tactic",
+            _ => false,
+        };
+    }
+
+    private static void Add(FactionCourtEffects result, CourtOfficeDefinition office, string key, double value)
+    {
+        if (!AllowsCourtEffect(office, key)) return;
+        switch (key)
+        {
+            case "gold": result.GoldIncomeRate += value; break;
+            case "food": result.FoodIncomeRate += value; break;
+            case "domestic": result.DomesticActionRate += value; break;
+            case "combat": result.CombatRate += value; break;
+            case "health": result.OfficerHealthRate += value; break;
+            case "tactic": result.TacticRate += value; break;
+            case "training": result.TrainingRate += value; break;
+            case "morale": result.MoraleRate += value; break;
+            case "logistics": result.LogisticsSavingRate += value; break;
+        }
+    }
+
+    private static double CourtEffectTotal(FactionCourtEffects value) =>
+        value.GoldIncomeRate + value.FoodIncomeRate + value.DomesticActionRate + value.CombatRate + value.OfficerHealthRate + value.TacticRate + value.TrainingRate + value.MoraleRate + value.LogisticsSavingRate;
+
+    private static void CapCourtInfluence(FactionCourtEffects value)
+    {
+        value.GoldIncomeRate = Math.Min(.20, value.GoldIncomeRate);
+        value.FoodIncomeRate = Math.Min(.20, value.FoodIncomeRate);
+        value.DomesticActionRate = Math.Min(.20, value.DomesticActionRate);
+        value.CombatRate = Math.Min(.18, value.CombatRate);
+        value.OfficerHealthRate = Math.Min(.25, value.OfficerHealthRate);
+        value.TacticRate = Math.Min(.15, value.TacticRate);
+        value.TrainingRate = Math.Min(.15, value.TrainingRate);
+        value.MoraleRate = Math.Min(.12, value.MoraleRate);
+        value.LogisticsSavingRate = Math.Min(.15, value.LogisticsSavingRate);
+    }
+
+    private static List<string> CourtEffectParts(FactionCourtEffects value)
+    {
+        var parts = new List<string>();
+        if (value.GoldIncomeRate > 0) parts.Add($"金钱收入 +{value.GoldIncomeRate:P0}");
+        if (value.FoodIncomeRate > 0) parts.Add($"粮食收入 +{value.FoodIncomeRate:P0}");
+        if (value.DomesticActionRate > 0) parts.Add($"城务效果 +{value.DomesticActionRate:P0}");
+        if (value.CombatRate > 0) parts.Add($"全军战力 +{value.CombatRate:P0}");
+        if (value.OfficerHealthRate > 0) parts.Add($"武将体力 +{value.OfficerHealthRate:P0}");
+        if (value.TacticRate > 0) parts.Add($"战术效果 +{value.TacticRate:P0}");
+        if (value.TrainingRate > 0) parts.Add($"整军训练 +{value.TrainingRate:P0}");
+        if (value.MoraleRate > 0) parts.Add($"战斗士气 +{value.MoraleRate:P0}");
+        if (value.LogisticsSavingRate > 0) parts.Add($"军粮维护 -{value.LogisticsSavingRate:P0}");
+        return parts.Count == 0 ? ["暂无有效加成"] : parts;
     }
 
     public static (double Modifier, string Description) DomesticTraitModifier(ScenarioOfficerData officer, string focus)
@@ -255,11 +435,6 @@ public static class OfficerProgressionRules
     }
     public static CourtOfficeDefinition? CourtOffice(string id) => CourtOffices.FirstOrDefault(item => item.Id == id);
     public static string CourtOfficeName(string id) => CourtOffice(id)?.Name ?? "未入朝堂";
-    public static int CourtAbilityBonus(ScenarioOfficerData officer, string ability, string context)
-    {
-        var office = CourtOffice(officer.InitialState.CourtOfficeId);
-        return office is not null && office.Ability == ability && (office.Context == "all" || office.Context == context) ? office.AbilityBonus : 0;
-    }
     public static int NextLevelExperience(int level) => level >= 20 ? ExperienceThresholds[^1] : ExperienceThresholds[Math.Clamp(level, 1, 19)];
     public static string OfficeName(string track, int rank) => track switch
     {
@@ -368,7 +543,7 @@ public sealed partial class GameRuntime
         if (currentHolder is not null) return Fail($"{office.Name}已有{currentHolder.Profile.Name}任职，请先卸任现任。");
         if (previousOffice is not null) return Fail($"{officer.Profile.Name}已担任{previousOffice.Name}，请先卸任后再改任。");
         officer.InitialState.CourtOfficeId = office.Id;
-        return Success($"{officer.Profile.Name}出任{office.Name}；月俸增至{OfficerProgressionRules.Salary(officer)}金，{office.Effect}。", "talent");
+        return Success($"{officer.Profile.Name}出任{office.Name}；月俸增至{OfficerProgressionRules.Salary(officer)}金。{OfficerProgressionRules.CourtInfluenceSummary(officer, office).Replace('\n', ' ')}", "talent");
     }
 
     public bool VacateCourtOffice(string officerId)
@@ -547,9 +722,8 @@ public sealed partial class GameRuntime
     private void ResolveAiPromotions()
     {
         if (State.Turn % 3 != 0) return;
-        foreach (var faction in State.Factions)
+        foreach (var faction in State.Factions.Where(item => item.Id != State.PlayerFactionId))
         {
-            if (faction.Id == State.PlayerFactionId && !(State.Automation.Enabled && State.Automation.Talent || State.AutoEvolution.Enabled)) continue;
             var candidate = State.Officers
                 .Where(item => item.InitialState.FactionId == faction.Id && item.InitialState.Appointment != "ruler" && item.InitialState.Status == "serving")
                 .OrderByDescending(item => item.InitialState.Merit)

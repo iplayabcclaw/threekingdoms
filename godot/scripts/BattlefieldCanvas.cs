@@ -44,8 +44,8 @@ public partial class BattlefieldCanvas : Control
 
     public BattlefieldCanvas()
     {
-        CustomMinimumSize = new Vector2(0, 610);
-        MouseFilter = MouseFilterEnum.Stop;
+        CustomMinimumSize = new Vector2(0, 560);
+        MouseFilter = MouseFilterEnum.Pass;
         MouseDefaultCursorShape = CursorShape.Cross;
         ClipContents = true;
     }
@@ -101,17 +101,8 @@ public partial class BattlefieldCanvas : Control
         }
 
         ClampCamera();
+        DrawBattlefieldBackground();
         ApplyWorldTransform();
-        if (_background is not null)
-        {
-            if (_battle?.PlayerSide == "defender")
-            {
-                DrawSetTransform(_worldOrigin + new Vector2(WorldWidth * _cameraZoom, 0), 0, new Vector2(-_cameraZoom, _cameraZoom));
-                DrawTextureRect(_background, new Rect2(0, 0, WorldWidth, WorldHeight), false, new Color(.98f, .98f, .95f, 1));
-                ApplyWorldTransform();
-            }
-            else DrawTextureRect(_background, new Rect2(0, 0, WorldWidth, WorldHeight), false, new Color(.98f, .98f, .95f, 1));
-        }
         DrawRect(new Rect2(0, 0, WorldWidth, WorldHeight), new Color(.035f, .04f, .025f, .055f));
 
         BuildActiveEventCache();
@@ -129,6 +120,40 @@ public partial class BattlefieldCanvas : Control
         if (_dragSelecting) DrawSelectionBox();
     }
 
+    private void DrawBattlefieldBackground()
+    {
+        if (_background is null) return;
+
+        var viewport = BattlefieldViewportRect();
+        var textureSize = _background.GetSize();
+        var source = new Rect2(Vector2.Zero, textureSize);
+        var targetAspect = viewport.Size.X / Math.Max(1, viewport.Size.Y);
+        var sourceAspect = textureSize.X / Math.Max(1, textureSize.Y);
+        if (sourceAspect > targetAspect)
+        {
+            var width = textureSize.Y * targetAspect;
+            source = new Rect2((textureSize.X - width) / 2, 0, width, textureSize.Y);
+        }
+        else
+        {
+            var height = textureSize.X / targetAspect;
+            source = new Rect2(0, (textureSize.Y - height) / 2, textureSize.X, height);
+        }
+
+        var tint = new Color(.98f, .98f, .95f, 1);
+        if (_battle?.PlayerSide == "defender")
+        {
+            DrawSetTransform(viewport.Position + new Vector2(viewport.Size.X, 0), 0, new Vector2(-1, 1));
+            DrawTextureRectRegion(_background, new Rect2(Vector2.Zero, viewport.Size), source, tint);
+        }
+        else
+        {
+            DrawSetTransform(Vector2.Zero, 0, Vector2.One);
+            DrawTextureRectRegion(_background, viewport, source, tint);
+        }
+        DrawSetTransform(Vector2.Zero, 0, Vector2.One);
+    }
+
     public void ResetCameraView()
     {
         _cameraZoom = .58f;
@@ -136,6 +161,10 @@ public partial class BattlefieldCanvas : Control
         ClampCamera();
         QueueRedraw();
     }
+
+    public void ZoomIn() => ZoomCamera(BattlefieldViewportRect().GetCenter(), 1.18f);
+
+    public void ZoomOut() => ZoomCamera(BattlefieldViewportRect().GetCenter(), 1 / 1.18f);
 
     public void SelectAllPlayerGroups()
     {
@@ -159,7 +188,7 @@ public partial class BattlefieldCanvas : Control
         if (_battle is null) return;
         switch (inputEvent)
         {
-            case InputEventMouseButton button when (button.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown) && button.Pressed:
+            case InputEventMouseButton button when (button.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown) && button.Pressed && button.CtrlPressed:
                 ZoomCamera(button.Position, button.ButtonIndex == MouseButton.WheelUp ? 1.12f : 1 / 1.12f);
                 QueueRedraw();
                 AcceptEvent();
@@ -542,20 +571,19 @@ public partial class BattlefieldCanvas : Control
         var frameSize = new Vector2(textureSize.X / 4f, textureSize.Y / 2f);
         var source = new Rect2(new Vector2(frame % 4 * frameSize.X, frame / 4 * frameSize.Y), frameSize);
         var people = Math.Clamp(1 + (int)Math.Ceiling(group.InitialSoldiers / 150d), 1, 6);
+        var visiblePeople = Math.Clamp((int)Math.Ceiling(people * current / (double)Math.Max(1, group.InitialSoldiers)), 1, people);
         var color = group.Side == "attacker" ? Color.FromHtml("#99cdb0") : Color.FromHtml("#d58c72");
         if (_battle!.PlayerSide == "defender") color = group.Side == "defender" ? Color.FromHtml("#99cdb0") : Color.FromHtml("#d58c72");
         if (group.IsRouted || group.State == "retreat") color = color.Lerp(Colors.Gray, .58f);
         DrawWorldEllipse(position + new Vector2(2, 22 * depthScale), new Vector2(54, 13) * depthScale, new Color(.015f, .02f, .012f, .30f));
         if (moving && !_reducedMotion) DrawMovementDust(position, depthScale, group.Side == _battle.PlayerSide);
-        for (var index = 0; index < people; index++)
+        for (var index = 0; index < visiblePeople; index++)
         {
-            var row = index / 3; var column = index % 3;
-            var offset = new Vector2((column - 1) * 27 + row * 5, row * 18) * depthScale;
+            var offset = VisibleTroopOffset(index, visiblePeople) * depthScale;
             var baseSize = group.TroopType == "cavalry" ? new Vector2(82, 70) : group.TroopType == "siege" ? new Vector2(92, 68) : new Vector2(62, 68);
             var size = baseSize * depthScale;
             var destination = new Rect2(position - size / 2 + offset, size);
-            var alpha = index >= Math.Ceiling(people * current / (double)Math.Max(1, group.InitialSoldiers)) ? .2f : group.IsRouted ? .42f : 1;
-            var colorModulate = new Color(1, 1, 1, alpha);
+            var colorModulate = new Color(1, 1, 1, group.IsRouted ? .42f : 1);
             DrawTroopFrame(texture, destination, source, colorModulate, group.Side == _battle.PlayerSide);
         }
         var barWidth = 78 * depthScale;
@@ -571,6 +599,15 @@ public partial class BattlefieldCanvas : Control
         DrawString(GetThemeDefaultFont(), new Vector2(position.X - 39 * depthScale, flagTop + 13 * depthScale), ShortName(group.TroopType), HorizontalAlignment.Center, 14 * depthScale, Math.Max(9, (int)(11 * depthScale)), GameTheme.OnAccent);
         if (group.IsRouted || group.State == "retreat")
             DrawString(GetThemeDefaultFont(), new Vector2(position.X - 42, flagTop - 8), group.IsRouted ? "溃散" : "后撤", HorizontalAlignment.Center, 84, 11, moraleColor);
+    }
+
+    private static Vector2 VisibleTroopOffset(int index, int count)
+    {
+        if (count <= 3) return new Vector2((index - (count - 1) / 2f) * 27, 0);
+        if (index < 3) return new Vector2((index - 1) * 27, 0);
+        var rearCount = count - 3;
+        var rearIndex = index - 3;
+        return new Vector2((rearIndex - (rearCount - 1) / 2f) * 27 + 5, 18);
     }
 
     private void DrawMountedOfficer(BattleOfficerUnitData officer)
@@ -855,7 +892,7 @@ public partial class BattlefieldCanvas : Control
 
     private void DrawCameraHelp()
     {
-        var text = $"高质量2.5D大战场　敌军在左 · 我军在右　视野 {_cameraZoom * 100:0}% · 滚轮缩放 · 中键拖动";
+        var text = $"高质量2.5D大战场　敌军在左 · 我军在右　视野 {_cameraZoom * 100:0}% · Ctrl+滚轮缩放 · 中键拖动";
         var width = Math.Min(430, Math.Max(240, Size.X - 270));
         var rect = new Rect2(14, Size.Y - 43, width, 29);
         DrawRect(rect, new Color(.025f, .035f, .025f, .82f));

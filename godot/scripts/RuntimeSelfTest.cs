@@ -9,7 +9,7 @@ public static class RuntimeSelfTest
         var runtime = new GameRuntime(scenario);
         Require(runtime.State.Cities.Count == 33, "剧本城市数量");
         Require(runtime.State.Cities.Sum(city => city.Population) == 2_502_000 && runtime.State.Cities.All(city => city.Population is >= 43_000 and <= 128_000), "战乱时期城池人口规模");
-        Require(runtime.State.Cities.Sum(city => city.Garrison) == 358_000 && runtime.State.Cities.All(city => city.Garrison is >= 6_900 and <= 14_700), "初始守军规模");
+        Require(runtime.State.Cities.Sum(city => city.Garrison) == 197_100 && runtime.State.Cities.All(city => city.Garrison is >= 3_800 and <= 8_100), "初始守军规模");
         Require(runtime.State.Officers.Count >= 100, "武将数据载入");
         Require(runtime.State.Events.Count == 40, "事件定义载入");
         Require(runtime.State.Officers.All(officer => ResourceLoader.Exists(AssetPaths.OfficerPortrait(officer.Profile.Id))), "全部武将肖像绑定");
@@ -40,12 +40,42 @@ public static class RuntimeSelfTest
         var alternateExpected = GameSession.PreviewInitialResources(scenario, alternateFaction.Id, "hard");
         Require(alternate.State.PlayerFactionId == alternateFaction.Id && alternate.State.Difficulty == "hard" && alternate.State.AutoSaveFrequency == "quarterly", "新游戏势力、难度与自动存档设置写入会话");
         Require(alternate.State.Resources.Gold == alternateExpected.Gold && alternate.State.Resources.Food == alternateExpected.Food && !alternate.State.FactionTreasuries.ContainsKey(alternateFaction.Id) && alternate.State.FactionTreasuries.ContainsKey(scenario.PlayerFactionId), "改选势力后中央府库归属正确");
+        var standardResources = GameSession.PreviewInitialResources(scenario, scenario.PlayerFactionId, "standard");
+        Require(standardResources.Gold == scenario.Cities.Where(item => item.OwnerFactionId == scenario.PlayerFactionId).Sum(item => item.Gold)
+            && standardResources.Food == scenario.Cities.Where(item => item.OwnerFactionId == scenario.PlayerFactionId).Sum(item => item.Food), "初始势力府库按所辖城池库存汇总");
+        var foodBalance = new GameRuntime(scenario);
+        var foodCities = foodBalance.State.Cities.Where(item => item.OwnerFactionId == foodBalance.State.PlayerFactionId).ToList();
+        var baseFoodIncome = foodCities.Sum(item => foodBalance.CityMonthlyForecast(item).FoodIncome);
+        var baseFoodUpkeep = foodCities.Sum(item => foodBalance.CityMonthlyForecast(item).FoodUpkeep);
+        var facilityTestCity = foodCities.First(item => item.Facilities.Count == 0);
+        var facilityFoodBefore = foodBalance.CityMonthlyForecast(facilityTestCity).FoodIncome;
+        facilityTestCity.Facilities.Add(new FacilityInstanceData { Id = "self-test-irrigation", DefinitionId = "irrigation", Level = 1, Condition = 100 });
+        var facilityFoodGain = foodBalance.CityMonthlyForecast(facilityTestCity).FoodIncome - facilityFoodBefore;
+        Require(baseFoodIncome >= baseFoodUpkeep / 2 && baseFoodIncome < baseFoodUpkeep
+            && facilityFoodGain == GameRuntime.FoodFacilityIncomePerLevel
+            && Math.Abs(baseFoodIncome + facilityFoodGain * foodCities.Count - baseFoodUpkeep) <= baseFoodUpkeep / 10,
+            "初始自然产粮承担主要维护且每城一座一级粮食设施后接近平衡");
         Require(alternate.State.Diplomacy.Count == scenario.Factions.Count - 1 && alternate.State.Diplomacy.All(item => item.FactionId != alternateFaction.Id), "改选势力后外交关系重新初始化");
         Require(!SaveService.ShouldWriteAuto(new GameSession { Turn = 2, AutoSaveFrequency = "quarterly" }) && SaveService.ShouldWriteAuto(new GameSession { Turn = 4, AutoSaveFrequency = "quarterly" }) && !SaveService.ShouldWriteAuto(new GameSession { Turn = 13, AutoSaveFrequency = "off" }), "自动存档频率规则");
         var legacyDefaults = GameSession.Create(scenario);
         legacyDefaults.SchemaVersion = 3; legacyDefaults.Difficulty = ""; legacyDefaults.AutoSaveFrequency = ""; legacyDefaults.NineCityControlMonths = -1; legacyDefaults.EnsureDomesticDefaults();
         Require(legacyDefaults.SchemaVersion == GameSession.CurrentSchemaVersion && legacyDefaults.Difficulty == "standard" && legacyDefaults.AutoSaveFrequency == "monthly" && legacyDefaults.NineCityControlMonths == 0, "旧档补齐新游戏与胜利进度默认值");
-        Require(GameSession.CurrentSchemaVersion == 7 && legacyDefaults.Officers.All(item => item.InitialState.Level is >= 1 and <= 20 && item.Profile.GrowthPlan.Count == 23 && item.Profile.AbilityPotential.Leadership >= item.Profile.Abilities.Leadership && item.InitialState.CourtOfficeId is not null), "schema v7 包含成长、朝堂职位与武将调动状态");
+        Require(GameSession.CurrentSchemaVersion == 9
+            && legacyDefaults.Cities.All(item => item.CityLevel is >= GameRuntime.MinCityLevel and <= GameRuntime.MaxCityLevel)
+            && legacyDefaults.Officers.All(item => item.InitialState.Level is >= 1 and <= 20 && item.Profile.GrowthPlan.Count == 23 && item.Profile.AbilityPotential.Leadership >= item.Profile.Abilities.Leadership && item.InitialState.CourtOfficeId is not null),
+            "schema v9 包含城池升级、武将成长、朝堂职位、武将调动与单城治理状态");
+        Require(legacyDefaults.Cities.All(item => item.CityLevel == 1 && item.FacilitySlots == 4)
+            && Enumerable.Range(1, 8).Select(GameRuntime.FacilitySlotsForCityLevel).SequenceEqual(new[] { 4, 5, 5, 6, 6, 7, 7, 8 }),
+            "城池等级与4/5/5/6/6/7/7/8建造位置规则");
+        Require(typeof(GameSession).GetProperty("Automation") is null
+            && typeof(GameSession).GetProperty("AutoEvolution") is null
+            && typeof(GameRuntime).GetMethod("ConfigureAutomation") is null
+            && typeof(GameRuntime).GetMethod("ConfigureAutoEvolution") is null,
+            "全局玩家托管与全 AI 演进状态及运行入口已移除");
+        Require(typeof(ResourceData).GetProperty("Equipment") is null
+            && typeof(GameRuntime).GetMethod("TransferTreasury") is null
+            && !GameRuntime.FacilityCatalog.ContainsKey("workshop"),
+            "独立军备资源、工坊产出与府库调拨入口已移除");
         Require(legacyDefaults.Officers.All(item => item.InitialState.Health == 100), "武将战略健康固定保持100");
 
         var resourceForecast = new GameRuntime(scenario);
@@ -54,14 +84,13 @@ public static class RuntimeSelfTest
             Gold = resourceForecast.State.Resources.Gold,
             Food = resourceForecast.State.Resources.Food,
             Prestige = resourceForecast.State.Resources.Prestige,
-            Equipment = resourceForecast.State.Resources.Equipment,
         };
         var forecastDelta = resourceForecast.PreviewEndTurnResourceDelta();
+        Require(forecastDelta.Gold >= 300, "开局月度金钱收入与建筑成本处于同一量级");
         Require(resourceForecast.EndTurn() &&
             resourceForecast.State.Resources.Gold - forecastBefore.Gold == forecastDelta.Gold &&
             resourceForecast.State.Resources.Food - forecastBefore.Food == forecastDelta.Food &&
-            resourceForecast.State.Resources.Prestige - forecastBefore.Prestige == forecastDelta.Prestige &&
-            resourceForecast.State.Resources.Equipment - forecastBefore.Equipment == forecastDelta.Equipment,
+            resourceForecast.State.Resources.Prestige - forecastBefore.Prestige == forecastDelta.Prestige,
             "右上角资源预估与实际月末结算一致");
 
         var recruitment = new GameRuntime(scenario);
@@ -103,14 +132,32 @@ public static class RuntimeSelfTest
         var court = new GameRuntime(scenario);
         var chancellor = court.PlayerOfficers().First(item => item.InitialState.Appointment != "ruler" && item.InitialState.Status == "serving" && item.InitialState.OfficeTrack == "civil");
         chancellor.InitialState.OfficeRank = 3; chancellor.InitialState.CourtOfficeId = string.Empty;
+        chancellor.Profile.Traits = ["善政"];
         var courtSalaryBefore = OfficerProgressionRules.Salary(chancellor);
         var courtPoliticsBefore = court.EffectiveAbility(chancellor, "politics", "civil");
-        Require(court.AppointCourtOffice(chancellor.Profile.Id, "chancellor") && OfficerProgressionRules.Salary(chancellor) == courtSalaryBefore + 100 && court.EffectiveAbility(chancellor, "politics", "civil") == courtPoliticsBefore + 6, "朝堂职位提供唯一任命、专属效果与俸禄津贴");
+        var courtCity = court.State.Cities.First(item => item.OwnerFactionId == court.State.PlayerFactionId && court.CityMonthlyForecast(item).GoldIncome > 0 && court.CityMonthlyForecast(item).FoodIncome > 0);
+        var courtForecastBefore = court.CityMonthlyForecast(courtCity);
+        Require(court.AppointCourtOffice(chancellor.Profile.Id, "chancellor") && OfficerProgressionRules.Salary(chancellor) == courtSalaryBefore + 100 && court.EffectiveAbility(chancellor, "politics", "civil") == courtPoliticsBefore, "朝堂职位改为势力光环并保留真实俸禄成本");
+        var chancellorInfluence = OfficerProgressionRules.FactionCourtInfluence(court.State, court.State.PlayerFactionId);
+        var courtForecastAfter = court.CityMonthlyForecast(courtCity);
+        Require(chancellorInfluence.GoldIncomeRate > .03 && chancellorInfluence.FoodIncomeRate > .03 && chancellorInfluence.DomesticActionRate > .03
+            && courtForecastAfter.GoldIncome > courtForecastBefore.GoldIncome && courtForecastAfter.FoodIncome > courtForecastBefore.FoodIncome
+            && OfficerProgressionRules.CourtInfluenceSummary(chancellor, OfficerProgressionRules.CourtOffice("chancellor")!).Contains("善政"), "丞相能力与善政特性转化为全势力钱粮及城务加成");
         var successor = court.PlayerOfficers().First(item => item.Profile.Id != chancellor.Profile.Id && item.InitialState.Appointment != "ruler" && item.InitialState.Status == "serving" && item.InitialState.OfficeTrack == "civil");
-        successor.InitialState.OfficeRank = 3; successor.InitialState.CourtOfficeId = string.Empty;
+        successor.InitialState.OfficeRank = 3; successor.InitialState.CourtOfficeId = string.Empty; successor.Profile.Traits = ["贪财"];
+        Require(OfficerProgressionRules.CourtInfluenceSummary(chancellor, OfficerProgressionRules.CourtOffice("chancellor")!) != OfficerProgressionRules.CourtInfluenceSummary(successor, OfficerProgressionRules.CourtOffice("chancellor")!), "同一职位因任职者能力与特性产生不同势力效果");
         Require(!court.AppointCourtOffice(successor.Profile.Id, "chancellor") && chancellor.InitialState.CourtOfficeId == "chancellor" && string.IsNullOrEmpty(successor.InitialState.CourtOfficeId), "已占用的朝堂职位不能直接替换人选");
         Require(!court.AppointCourtOffice(chancellor.Profile.Id, "strategist-general") && chancellor.InitialState.CourtOfficeId == "chancellor", "已任朝堂职位的武将不能同时选择其他职位");
         Require(court.VacateCourtOffice(chancellor.Profile.Id) && court.AppointCourtOffice(successor.Profile.Id, "chancellor") && string.IsNullOrEmpty(chancellor.InitialState.CourtOfficeId) && successor.InitialState.CourtOfficeId == "chancellor", "先卸任后才能重新任命朝堂职位");
+
+        var militaryCourt = new GameRuntime(scenario);
+        var zhaoYun = militaryCourt.Officer("officer-zhao-yun")!;
+        zhaoYun.InitialState.OfficeTrack = "military"; zhaoYun.InitialState.OfficeRank = 3; zhaoYun.InitialState.Status = "serving"; zhaoYun.InitialState.CourtOfficeId = string.Empty;
+        Require(militaryCourt.AppointCourtOffice(zhaoYun.Profile.Id, "grand-general")
+            && OfficerProgressionRules.CourtBattleMultiplier(militaryCourt.State, militaryCourt.State.PlayerFactionId, "正面接战") > 1.02
+            && OfficerProgressionRules.CourtOfficerHealthMultiplier(militaryCourt.State, militaryCourt.State.PlayerFactionId) >= 1.08
+            && OfficerProgressionRules.CourtMoraleBonus(militaryCourt.State, militaryCourt.State.PlayerFactionId) >= 4,
+            "名将常胜护军通过大将军职位提升全军战力、武将体力与士气");
 
         var progression = new GameRuntime(scenario);
         var growingOfficer = progression.PlayerOfficers().First(item => item.InitialState.Appointment != "ruler" && item.Profile.Abilities.Leadership < 100);
@@ -177,7 +224,6 @@ public static class RuntimeSelfTest
         Require(domestic.DevelopCity(firstCity.Id, domesticOfficer.Profile.Id, "agriculture"), "本地城务命令");
         Require(domestic.State.Resources.Gold < factionGold, "普通城务扣除势力共用府库");
         Require(secondCity.ActionSlots == secondSlots, "一城行动不消耗另一城城务额度");
-        Require(!domestic.TransferTreasury(firstCity.Id, true, 100, 200), "共用府库不再需要城市调拨");
         var construction = new GameRuntime(scenario);
         var constructionCity = construction.State.Cities.First(item => item.OwnerFactionId == construction.State.PlayerFactionId);
         var builder = construction.PlayerOfficers().First(item => item.InitialState.CityId == constructionCity.Id && item.InitialState.Status == "serving");
@@ -187,11 +233,76 @@ public static class RuntimeSelfTest
             && constructionCity.ConstructionQueue is { DefinitionId: "market", TargetSlotIndex: 2 }
             && !GameRuntime.FacilitiesBySlot(constructionCity).ContainsKey(2),
             "设施开工后绑定所选空地并以建造中状态占位");
-        Require(domestic.ConfigureCityGovernance(secondCity.Id, "delegated", "agriculture", "granary"), "逐城设置太守委任方针");
+
+        var cancelledUpgrade = new GameRuntime(scenario);
+        var cancelledCity = cancelledUpgrade.State.Cities
+            .Where(item => item.OwnerFactionId == cancelledUpgrade.State.PlayerFactionId)
+            .First(item => cancelledUpgrade.PlayerOfficers().Count(officer => officer.InitialState.CityId == item.Id && officer.InitialState.Status == "serving") >= 2);
+        var cancelledBuilders = cancelledUpgrade.PlayerOfficers().Where(item => item.InitialState.CityId == cancelledCity.Id && item.InitialState.Status == "serving").Take(2).ToList();
+        cancelledUpgrade.State.Resources.Gold = 100_000; cancelledUpgrade.State.Resources.Food = 100_000;
+        var cancelledGold = cancelledUpgrade.State.Resources.Gold; var cancelledFood = cancelledUpgrade.State.Resources.Food; var cancelledActions = cancelledCity.ActionSlots;
+        Require(cancelledUpgrade.UpgradeCity(cancelledCity.Id, cancelledBuilders[0].Profile.Id)
+            && cancelledCity.ConstructionQueue is { Kind: "city-upgrade", TargetCityLevel: 2, GoldCost: 2400, FoodCost: 800 }
+            && cancelledUpgrade.State.Resources.Gold == cancelledGold - 2400 && cancelledUpgrade.State.Resources.Food == cancelledFood - 800,
+            "城池升级开工扣除资源并进入独立工程类型");
+        cancelledBuilders[0].InitialState.Status = "marching";
+        Require(cancelledUpgrade.CityUpgradePauseReason(cancelledCity).Contains("负责武将")
+            && cancelledUpgrade.ReassignCityUpgrade(cancelledCity.Id, cancelledBuilders[1].Profile.Id)
+            && string.IsNullOrEmpty(cancelledUpgrade.CityUpgradePauseReason(cancelledCity)),
+            "负责武将不可用时城池升级暂停并可改派驻城武将");
+        Require(cancelledUpgrade.CancelCityUpgrade(cancelledCity.Id)
+            && cancelledUpgrade.State.Resources.Gold == cancelledGold && cancelledUpgrade.State.Resources.Food == cancelledFood
+            && cancelledCity.ActionSlots == cancelledActions - 1 && cancelledCity.ConstructionQueue is null,
+            "主动取消城池升级全额返还金粮但不返还城务额度");
+        var refundedGold = cancelledUpgrade.State.Resources.Gold; var refundedFood = cancelledUpgrade.State.Resources.Food;
+        Require(!cancelledUpgrade.CancelCityUpgrade(cancelledCity.Id)
+            && cancelledUpgrade.State.Resources.Gold == refundedGold && cancelledUpgrade.State.Resources.Food == refundedFood,
+            "重复取消不会重复返还资源");
+
+        var completedUpgrade = new GameRuntime(scenario);
+        completedUpgrade.State.Roads.Clear(); completedUpgrade.State.Events.Clear();
+        var completedCity = completedUpgrade.State.Cities.First(item => item.OwnerFactionId == completedUpgrade.State.PlayerFactionId);
+        var completedBuilder = completedUpgrade.PlayerOfficers().First(item => item.InitialState.CityId == completedCity.Id && item.InitialState.Status == "serving");
+        completedUpgrade.State.Resources.Gold = 100_000; completedUpgrade.State.Resources.Food = 100_000;
+        var agricultureBeforeUpgrade = completedCity.Agriculture; var commerceBeforeUpgrade = completedCity.Commerce; var defenseBeforeUpgrade = completedCity.Defense; var cultureBeforeUpgrade = completedCity.Culture;
+        Require(completedUpgrade.UpgradeCity(completedCity.Id, completedBuilder.Profile.Id)
+            && completedUpgrade.EndTurn() && completedCity.ConstructionQueue is { Kind: "city-upgrade", RemainingMonths: 1 }
+            && completedUpgrade.EndTurn()
+            && completedCity.CityLevel == 2 && completedCity.FacilitySlots == 5
+            && completedCity.Agriculture == Math.Min(100, agricultureBeforeUpgrade + 1)
+            && completedCity.Commerce == Math.Min(100, commerceBeforeUpgrade + 1)
+            && completedCity.Defense == Math.Min(100, defenseBeforeUpgrade + 2)
+            && completedCity.Culture == Math.Min(100, cultureBeforeUpgrade + 1),
+            "城池升级按工期完成并提升基础属性与解锁第5个位置");
+
+        var maxUpgrade = new GameRuntime(scenario);
+        maxUpgrade.State.Roads.Clear(); maxUpgrade.State.Events.Clear();
+        var maxCity = maxUpgrade.State.Cities.First(item => item.OwnerFactionId == maxUpgrade.State.PlayerFactionId);
+        var maxBuilder = maxUpgrade.PlayerOfficers().First(item => item.InitialState.CityId == maxCity.Id && item.InitialState.Status == "serving");
+        maxCity.CityLevel = 7; maxCity.FacilitySlots = GameRuntime.FacilitySlotsForCityLevel(maxCity.CityLevel);
+        maxUpgrade.State.Resources.Gold = 100_000; maxUpgrade.State.Resources.Food = 100_000;
+        Require(maxUpgrade.UpgradeCity(maxCity.Id, maxBuilder.Profile.Id) && maxCity.ConstructionQueue is { Kind: "city-upgrade" }, "Lv.7城池可开始最高级升级");
+        var maxQueue = maxCity.ConstructionQueue!;
+        maxQueue.RemainingMonths = 1;
+        Require(maxUpgrade.EndTurn() && maxCity.CityLevel == 8 && maxCity.FacilitySlots == 8 && !maxUpgrade.UpgradeCity(maxCity.Id, maxBuilder.Profile.Id),
+            "Lv.8解锁第8个位置且不能继续升级");
+
+        var aiUpgrade = new GameRuntime(scenario);
+        aiUpgrade.State.Roads.Clear(); aiUpgrade.State.Events.Clear();
+        var aiCity = aiUpgrade.State.Cities.First(item => item.OwnerFactionId != aiUpgrade.State.PlayerFactionId
+            && aiUpgrade.State.Officers.Any(officer => officer.InitialState.FactionId == item.OwnerFactionId && officer.InitialState.CityId == item.Id && officer.InitialState.Status == "serving"));
+        aiCity.Status = "stable"; aiCity.PublicOrder = 80; aiCity.IntegrationMonthsRemaining = 0; aiCity.CityLevel = 1; aiCity.FacilitySlots = 4;
+        aiCity.Facilities = GameRuntime.FacilityCatalog.Keys.Take(4).Select((id, index) => new FacilityInstanceData { Id = $"ai-upgrade-{index}", DefinitionId = id, SlotIndex = index }).ToList();
+        aiUpgrade.State.FactionTreasuries[aiCity.OwnerFactionId] = new ResourceData { Gold = 100_000, Food = 100_000, Prestige = 20 };
+        Require(aiUpgrade.EndTurn() && aiCity.ConstructionQueue is { Kind: "city-upgrade", TargetCityLevel: 2 }, "AI在设施已满且储备充足时使用同规则升级城池");
+        Require(domestic.ConfigureCityGovernance(secondCity.Id, "delegated", "agriculture", "granary"), "逐城设置方针委任与城市定位");
         Require(domestic.EndTurn(), "智能内政月度结算");
         Require(domestic.State.Cities.All(item => item.ActionCapacity is >= 1 and <= 4 && item.ActionSlots == item.ActionCapacity), "逐城城务额度独立重置");
+        Require(secondCity.LedgerEntries.Any(entry => entry.Category == "command"), "方针委任城在月末自动使用本城额度执行城务");
         Require(domestic.State.Cities.Any(item => item.OwnerFactionId != domestic.State.PlayerFactionId && item.LedgerEntries.Any(entry => entry.Category == "command")), "AI 使用同规则执行城务并写入台账");
         Require(domestic.State.Log.Any(item => item.Category == "ai" && item.Message.Contains("评估")), "AI 多因素评估记录");
+        var manualOnly = new GameRuntime(scenario);
+        Require(manualOnly.EndTurn() && manualOnly.State.Cities.Where(item => item.OwnerFactionId == manualOnly.State.PlayerFactionId).All(item => item.LedgerEntries.All(entry => entry.Category != "command")), "亲自治理城在月末不会自动执行城务");
 
         var adaptiveDomestic = new GameRuntime(scenario);
         var adaptiveCity = adaptiveDomestic.State.Cities.First(city => city.OwnerFactionId != adaptiveDomestic.State.PlayerFactionId
@@ -304,8 +415,6 @@ public static class RuntimeSelfTest
             "目标已由己方控制时敌方军团会撤回，不会卡在零日行军状态");
 
         var simulation = new GameRuntime(scenario);
-        simulation.ConfigureAutomation(true, true, true, false, true, "medium", 3000, 10000, 5000);
-        foreach (var delegatedCity in simulation.State.Cities.Where(item => item.OwnerFactionId == simulation.State.PlayerFactionId)) delegatedCity.GovernanceMode = "delegated";
         var targetTurn = simulation.State.Turn + 60;
         var guard = 0;
         while (simulation.State.Turn < targetTurn && guard++ < 500)
@@ -324,7 +433,7 @@ public static class RuntimeSelfTest
             }
             simulation.EndTurn();
         }
-        Require(simulation.State.Turn == targetTurn, "60回合智能内政压力演进");
+        Require(simulation.State.Turn == targetTurn, "60回合长期压力运行");
         Require(simulation.State.Resources.Gold >= 0 && simulation.State.Resources.Food >= 0 && simulation.State.Cities.All(item => item.ActionCapacity is >= 1 and <= 4), "长期势力资源与城市额度不变量");
         Require(simulation.State.Cities.All(item => item.LedgerEntries.Count <= 80), "城市台账保留上限");
 
@@ -360,13 +469,10 @@ public static class RuntimeSelfTest
         var fullTargetId = fullRoad.FromCityId == fullSource.Id ? fullRoad.ToCityId : fullRoad.FromCityId;
         var fullCommander = fullSortie.PlayerOfficers().First(item => item.InitialState.CityId == fullSource.Id && item.InitialState.Status == "serving");
         var fullGarrison = fullSource.Garrison;
-        var equipmentBeforeSpecialTroop = fullSortie.State.Resources.Equipment;
         Require(fullSortie.CreateExpedition(fullSource.Id, fullTargetId, fullCommander.Profile.Id, fullGarrison, Math.Min(1000, fullSortie.State.Resources.Food), [], new Dictionary<string, int> { ["infantry"] = fullGarrison - 500, ["archers"] = 500 }, new Dictionary<string, int> { ["danyang-veterans"] = 500 }), "允许玩家按实际阵型全城出击并编成特殊部队");
         Require(fullSource.Garrison == 0 && fullSortie.State.Armies.Last().Soldiers == fullGarrison, "全城出击真实扣空驻军且军团兵力一致");
-        Require(fullSortie.State.Armies.Last().SpecialTroops.GetValueOrDefault("danyang-veterans") == 500
-            && fullSortie.SpecialTroopEquipmentCost("danyang-veterans", 500) == 40
-            && fullSortie.State.Resources.Equipment == equipmentBeforeSpecialTroop - fullSortie.SpecialTroopEquipmentCost("danyang-veterans", 500),
-            "特殊部队界面费用与出征实际扣除共用同一军备数字");
+        Require(fullSortie.State.Armies.Last().SpecialTroops.GetValueOrDefault("danyang-veterans") == 500,
+            "特殊部队按势力、兵种和人数条件正常编成");
 
         var withdrawal = new GameRuntime(scenario);
         var withdrawalSource = withdrawal.State.Cities.First(item => item.OwnerFactionId == withdrawal.State.PlayerFactionId && withdrawal.State.Roads.Any(road => road.TravelDays > 30 && ((road.FromCityId == item.Id && withdrawal.City(road.ToCityId)?.OwnerFactionId != withdrawal.State.PlayerFactionId) || (road.ToCityId == item.Id && withdrawal.City(road.FromCityId)?.OwnerFactionId != withdrawal.State.PlayerFactionId))));
@@ -439,8 +545,15 @@ public static class RuntimeSelfTest
         var leaderlessBattle = BattleCalculator.Create(campaign.State, army, targetCity);
         for (var index = 0; index < localDefenders.Count; index++) localDefenders[index].InitialState.Status = defenderStatuses[index];
         Require(leaderlessBattle.DefenderOfficerIds.Count == 0 && string.IsNullOrEmpty(leaderlessBattle.DefenderCommanderId), "守城只选择本城驻留可战武将，不调用调动中或异地武将");
-        var governorDefender = localDefenders.First(item => item.Profile.Id == targetCity.GovernorId);
-        var militaryDefender = localDefenders.First(item => item.Profile.Id != targetCity.GovernorId);
+        var defenderPool = campaign.State.Officers.Where(item => item.InitialState.FactionId == targetCity.OwnerFactionId && item.InitialState.Alive).Take(2).ToList();
+        var governorDefender = defenderPool[0];
+        targetCity.GovernorId = governorDefender.Profile.Id;
+        governorDefender.InitialState.FactionId = targetCity.OwnerFactionId;
+        governorDefender.InitialState.CityId = targetCity.Id;
+        governorDefender.InitialState.Status = "serving";
+        var militaryDefender = defenderPool[1];
+        militaryDefender.InitialState.CityId = targetCity.Id;
+        militaryDefender.InitialState.Status = "serving";
         var governorAbilities = (governorDefender.Profile.Abilities.Leadership, governorDefender.Profile.Abilities.Might, governorDefender.Profile.Abilities.Intelligence);
         var militaryAbilities = (militaryDefender.Profile.Abilities.Leadership, militaryDefender.Profile.Abilities.Might, militaryDefender.Profile.Abilities.Intelligence);
         governorDefender.Profile.Abilities.Leadership = governorDefender.Profile.Abilities.Might = governorDefender.Profile.Abilities.Intelligence = 1;
@@ -471,7 +584,11 @@ public static class RuntimeSelfTest
         var repeatBattle = CreateBattleVariant(campaign.State, army, targetCity, "standard", "steady-advance", "goose", new Dictionary<string, string> { ["infantry"] = "shield-line", ["archers"] = "rear-double" });
         Require(steadyBattle.PhaseResults.Count == 1 && steadyBattle.PhaseResults[0].Stage == "实时交战", "战斗按实时接敌生成最终汇总结算");
         Require(BattleSignature(steadyBattle) == BattleSignature(repeatBattle), "同输入战斗演算完全确定");
-        Require(steadyBattle.PhaseResults.All(phase => phase.Explanation.Contains("实时结算")) && steadyBattle.Timeline.Where(item => item.Action == "damage").Sum(item => item.Losses) == steadyBattle.AttackerLosses + steadyBattle.DefenderLosses, "实时事件与最终损耗一致");
+        var timelineTroopLosses = steadyBattle.Timeline.Where(item => item.Action == "damage").Sum(item => item.Losses);
+        var settledTroopLosses = steadyBattle.AttackerLosses + steadyBattle.DefenderLosses;
+        var groupTroopLosses = steadyBattle.Groups.Sum(item => item.InitialSoldiers - item.FinalSoldiers);
+        var timelineLossBreakdown = string.Join('、', steadyBattle.Timeline.Where(item => item.Losses > 0).GroupBy(item => item.Action).Select(group => $"{group.Key}:{group.Sum(item => item.Losses)}"));
+        Require(steadyBattle.PhaseResults.All(phase => phase.Explanation.Contains("实时结算")) && timelineTroopLosses == groupTroopLosses && groupTroopLosses == settledTroopLosses, $"实时事件与最终损耗一致（事件{timelineTroopLosses}/分队{groupTroopLosses}/结算{settledTroopLosses}；{timelineLossBreakdown}）");
         var aggressiveBattle = CreateBattleVariant(campaign.State, army, targetCity, "aggressive", "steady-advance", "goose", new Dictionary<string, string> { ["infantry"] = "shield-line", ["archers"] = "rear-double" });
         Require(aggressiveBattle.Stance == "aggressive" && aggressiveBattle.PhaseResults[0].Explanation.Contains("激进姿态") && BattleCalculator.StanceEffectSummary("aggressive") != BattleCalculator.StanceEffectSummary("standard"), "军团姿态进入实时攻防公式");
         var wedgeBattle = CreateBattleVariant(campaign.State, army, targetCity, "standard", "steady-advance", "wedge", new Dictionary<string, string> { ["infantry"] = "assault-column", ["archers"] = "rear-double" });
@@ -500,9 +617,13 @@ public static class RuntimeSelfTest
         var commandedGroup = campaign.State.PendingBattle!.Groups.First(item => item.Side == campaign.State.PendingBattle.PlayerSide && item.FinalSoldiers > 0);
         var commandedTarget = campaign.State.PendingBattle.Groups.First(item => item.Side != campaign.State.PendingBattle.PlayerSide && item.FinalSoldiers > 0);
         var commandMorale = commandedGroup.Morale;
-        commandedGroup.Morale = 9; commandedGroup.IsRouted = true;
+        commandedGroup.Morale = 9; commandedGroup.IsRouted = true; commandedGroup.RallyAttempted = true;
         Require(!campaign.IssueBattleCommand([commandedGroup.Id], "attack", commandedTarget.Id), "溃散战斗队不再接受集火军令");
-        commandedGroup.Morale = commandMorale; commandedGroup.IsRouted = false;
+        commandedGroup.X = commandedTarget.X + 10; commandedGroup.Y = commandedTarget.Y; commandedGroup.AttackCooldown = 0;
+        var routedSoldiers = commandedGroup.FinalSoldiers;
+        campaign.AdvancePendingBattle(.2);
+        Require(commandedGroup.FinalSoldiers < routedSoldiers && campaign.State.PendingBattle.Timeline.Any(item => item.Stage is "溃军追击" or "撤退追击"), "溃散战斗队撤离时仍会承受追击损失");
+        commandedGroup.Morale = commandMorale; commandedGroup.IsRouted = false; commandedGroup.RallyAttempted = false;
         Require(campaign.IssueBattleCommand([commandedGroup.Id], "attack", commandedTarget.Id)
             && commandedGroup.CommandMode == "attack" && commandedGroup.CommandTargetGroupId == commandedTarget.Id, "RTS指定敌军集火命令进入实时模拟");
         var commandStartX = commandedGroup.X;
@@ -532,6 +653,7 @@ public static class RuntimeSelfTest
         Require(completedReport.PhaseResults.Count == 1 && completedReport.PrimaryTactic == "steady-advance" && completedReport.PhaseResults.Sum(phase => phase.AttackerLosses) == completedReport.AttackerLosses, "战报持久保存实时结果与战术决策");
 
         RunSiegeSettlementTest(scenario);
+        RunSiegeDefeatFoodReturnTest(scenario);
         RunLargeBattleSmokeTest(scenario);
 
         var interception = new GameRuntime(scenario);
@@ -695,14 +817,53 @@ public static class RuntimeSelfTest
         foreach (var officerId in pending.AttackerOfficerIds.Concat(pending.DefenderOfficerIds)) runtime.Officer(officerId)!.InitialState.Loyalty = 50;
         runtime.State.TurnResolutionPending = false;
         var expectedGarrison = pending.AttackerAfter;
+        var treasuryFoodBefore = runtime.State.Resources.Food;
+        var carriedFood = army.Food;
+        var formerOwnerId = target.OwnerFactionId!;
+        var expectedLootFood = Math.Min(runtime.State.FactionTreasuries[formerOwnerId].Food / 10, 4000);
         Require(runtime.CompletePendingBattle() && target.OwnerFactionId == runtime.State.PlayerFactionId && target.Garrison == expectedGarrison,
             "攻陷城池只驻扎攻方幸存兵，不吸收守军残部");
+        Require(army.Food == 0 && runtime.State.Resources.Food == treasuryFoodBefore + carriedFood + expectedLootFood,
+            "攻城胜利后剩余军粮归还势力府库且不会重复保留在军团");
         Require(pending.AttackerOfficerIds.All(id => runtime.Officer(id)?.InitialState.Loyalty == 51)
             && pending.DefenderOfficerIds.All(id => runtime.Officer(id)?.InitialState.Loyalty == 49)
             && runtime.State.BattleReports.Last().Narrative.Contains("胜方参战武将忠诚+1，败方-1"),
             "攻城战胜方参战武将忠诚+1且败方-1并写入战报");
         Require(source.GovernorId == sourceGovernorId && target.GovernorId != commander.Profile.Id,
             "原任太守攻下新城后保留原职位，不被重复改任新城太守");
+    }
+
+    private static void RunSiegeDefeatFoodReturnTest(ScenarioData scenario)
+    {
+        var runtime = new GameRuntime(scenario);
+        var source = runtime.State.Cities.First(item => item.OwnerFactionId == runtime.State.PlayerFactionId
+            && runtime.Officer(item.GovernorId) is { InitialState.Status: "serving" });
+        var target = runtime.State.Cities.First(item => item.OwnerFactionId != runtime.State.PlayerFactionId);
+        var commander = runtime.Officer(source.GovernorId)!;
+        var army = new ArmyData
+        {
+            Id = "self-test-siege-defeat-food", FactionId = runtime.State.PlayerFactionId, SourceCityId = source.Id, TargetCityId = target.Id,
+            CommanderId = commander.Profile.Id, Soldiers = 3000, Food = 4200, Training = 70, Morale = 72,
+            Composition = new Dictionary<string, int> { ["infantry"] = 2000, ["archers"] = 1000 }, Status = "arrived",
+        };
+        commander.InitialState.Status = "deployed";
+        commander.InitialState.ArmyId = army.Id;
+        runtime.State.Armies.Add(army);
+        var pending = BattleCalculator.Create(runtime.State, army, target);
+        runtime.State.PendingBattle = pending;
+        BattleCalculator.Generate(runtime.State, pending);
+        foreach (var group in pending.Groups.Where(item => item.Side == "attacker")) group.FinalSoldiers = Math.Min(group.FinalSoldiers, 80);
+        pending.AttackerAfter = pending.Groups.Where(item => item.Side == "attacker").Sum(item => item.FinalSoldiers);
+        pending.DefenderAfter = pending.Groups.Where(item => item.Side == "defender").Sum(item => item.FinalSoldiers);
+        pending.AttackerLosses = pending.AttackerBefore - pending.AttackerAfter;
+        pending.DefenderLosses = pending.DefenderBefore - pending.DefenderAfter;
+        pending.Result = "defeat";
+        pending.Status = "resolved";
+        var treasuryFoodBefore = runtime.State.Resources.Food;
+        var carriedFood = army.Food;
+        Require(runtime.CompletePendingBattle() && army.Status == "defeated"
+            && army.Food == 0 && runtime.State.Resources.Food == treasuryFoodBefore + carriedFood,
+            "攻城失败后剩余军粮归还势力府库且不会重复保留在军团");
     }
 
     private static string BattleSignature(PendingBattleData battle) => string.Join('|', battle.PhaseResults.Select(phase => $"{phase.Stage}:{phase.Tactic}:{phase.AttackerAfter}:{phase.DefenderAfter}:{phase.PowerRatio:F3}:{phase.WallDamage}:{phase.GateDamage}:{phase.InnerDamage}"));

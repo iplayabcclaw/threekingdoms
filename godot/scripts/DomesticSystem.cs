@@ -2,6 +2,8 @@ namespace ThreeKingdomsSimulator.Godot;
 
 public sealed partial class GameRuntime
 {
+    public const double FoodPopulationDivisor = 27_000d;
+    public const int FoodFacilityIncomePerLevel = 120;
     private static readonly HashSet<string> GovernanceModes = ["manual", "delegated"];
     private static readonly HashSet<string> GovernancePolicies = ["balanced", "recovery", "commerce", "agriculture", "military", "integration"];
     private static readonly HashSet<string> CityRoles = ["unassigned", "granary", "market", "garrison", "academy", "hub"];
@@ -26,11 +28,17 @@ public sealed partial class GameRuntime
         var roleReady = city.RoleTransitionMonths == 0;
         var goldRole = roleReady && city.CityRole == "market" ? 1.15 : 1d;
         var foodRole = roleReady && city.CityRole == "granary" ? 1.15 : 1d;
-        var gold = (int)((city.Population * city.Commerce / 340_000d + city.Facilities.Where(item => item.DefinitionId == "market").Sum(item => 180 * item.Level)) * orderFactor * goldRole);
+        // 金钱与建筑统一使用“府库金”尺度：普通城每月应能贡献数百金，
+        // 而不是旧公式下的个位数，否则一座市集需要近百个月才能回本。
+        var gold = (int)((city.Population * city.Commerce / 12_000d + city.Facilities.Where(item => item.DefinitionId == "market").Sum(item => 180 * item.Level)) * orderFactor * goldRole
+            * OfficerProgressionRules.CourtIncomeMultiplier(State, city.OwnerFactionId, "gold"));
         var seasonalFood = State.Month is >= 8 and <= 10 ? 1.25 : State.Month is 1 or 2 ? .88 : 1d;
-        var food = (int)((city.Population * city.Agriculture / 135_000d + city.Facilities.Where(item => item.DefinitionId is "irrigation" or "granary").Sum(item => 260 * item.Level)) * seasonalFood * foodRole);
+        // 自然农业承担大部分驻军口粮，灌溉渠与粮仓用于补足缺口并放大长期建设，
+        // 避免一级设施的固定产出远高于整座城市的基础农业产出。
+        var food = (int)((city.Population * city.Agriculture / FoodPopulationDivisor + city.Facilities.Where(item => item.DefinitionId is "irrigation" or "granary").Sum(item => FoodFacilityIncomePerLevel * item.Level)) * seasonalFood * foodRole
+            * OfficerProgressionRules.CourtIncomeMultiplier(State, city.OwnerFactionId, "food"));
         var goldUpkeep = city.Facilities.Sum(item => 20 * item.Level);
-        var foodUpkeep = Math.Max(80, city.Garrison / 14);
+        var foodUpkeep = Math.Max(80, (int)Math.Round(city.Garrison / 14d * OfficerProgressionRules.CourtLogisticsMultiplier(State, city.OwnerFactionId)));
         return (Math.Max(0, gold), Math.Max(0, food), goldUpkeep, foodUpkeep);
     }
 
@@ -46,7 +54,7 @@ public sealed partial class GameRuntime
         if (city.PublicSupport < 40) return "民心低迷";
         if (threats > city.Garrison * .8) return "前线守备吃紧";
         if (treasury.Gold < goldUpkeep * 2) return "势力财政紧张";
-        if (city.ConstructionQueue is not null) return $"{FacilityName(city.ConstructionQueue.DefinitionId)}建设中";
+        if (city.ConstructionQueue is not null) return $"{ConstructionLabel(city.ConstructionQueue)}进行中";
         return city.GovernanceMode == "delegated" ? $"太守按{GovernancePolicyLabel(city.GovernancePolicy)}治理" : "等待本月安排";
     }
 
@@ -55,17 +63,19 @@ public sealed partial class GameRuntime
         var city = City(cityId);
         var officer = Officer(officerId);
         if (city is null || officer is null) return "请先选择当前城池的可用武将。";
-        if (!TryGetCommandCost(city, officer, focus, out var gold, out var food, out var equipment, out var population)) return "未知城务命令。";
+        if (!TryGetCommandCost(city, officer, focus, out var gold, out var food, out var population)) return "未知城务命令。";
         var ability = CommandAbility(officer, focus);
         var trait = OfficerProgressionRules.DomesticTraitModifier(officer, focus);
-        var gain = Math.Clamp((int)Math.Round((3 + ability / 18 + FacilityCommandBonus(city, focus) - city.Fatigue / 25) * trait.Modifier), 2, 12);
+        var courtModifier = OfficerProgressionRules.CourtDomesticMultiplier(State, city.OwnerFactionId, focus);
+        if (focus == "recruit") population = Math.Clamp((int)Math.Round(population * courtModifier), 500, 1400);
+        var gain = Math.Clamp((int)Math.Round((3 + ability / 18 + FacilityCommandBonus(city, focus) - city.Fatigue / 25) * trait.Modifier * courtModifier), 2, 14);
         var effect = focus switch
         {
             "recruit" => $"预计征募{population:N0}人，并降低民心与平均训练",
             "search" => "尝试发现人才；若无人才则小幅提升文化",
             _ => $"预计主要属性 +{Math.Max(2, gain - 1)}～{Math.Min(12, gain + 1)}",
         };
-        return $"{city.Name} · {FocusLabel(focus)}\n消耗：本城城务1、势力府库金{gold:N0}、粮{food:N0}{(equipment > 0 ? $"、军备{equipment:N0}" : "")}\n{effect}；有效能力{ability}；{trait.Description}；执行后本城余{Math.Max(0, city.ActionSlots - 1)}/{city.ActionCapacity}城务。";
+        return $"{city.Name} · {FocusLabel(focus)}\n消耗：本城城务1、势力府库金{gold:N0}、粮{food:N0}\n{effect}；有效能力{ability}；{trait.Description}；朝堂势力修正{courtModifier - 1:+0%;-0%;0%}；执行后本城余{Math.Max(0, city.ActionSlots - 1)}/{city.ActionCapacity}城务。";
     }
 
     public static string GovernanceModeLabel(string value) => value == "delegated" ? "方针委任" : "亲自治理";
@@ -74,7 +84,7 @@ public sealed partial class GameRuntime
         "recovery" => "休养生息",
         "commerce" => "富民通商",
         "agriculture" => "屯田积粮",
-        "military" => "整军备战",
+        "military" => "强军固防",
         "integration" => "巩固新土",
         _ => "均衡治理",
     };
@@ -111,11 +121,13 @@ public sealed partial class GameRuntime
     {
         message = string.Empty;
         if (!CanCityAct(city, officer, factionId, delegated, out message)) return false;
-        if (!TryGetCommandCost(city, officer, focus, out var goldCost, out var foodCost, out var equipmentCost, out var populationCost))
+        if (!TryGetCommandCost(city, officer, focus, out var goldCost, out var foodCost, out var populationCost))
         {
             message = "未知城务命令。";
             return false;
         }
+        var courtModifier = OfficerProgressionRules.CourtDomesticMultiplier(State, factionId, focus);
+        if (focus == "recruit") populationCost = Math.Clamp((int)Math.Round(populationCost * courtModifier), 500, 1400);
         var treasury = Treasury(factionId);
         if (treasury.Gold < goldCost)
         {
@@ -125,11 +137,6 @@ public sealed partial class GameRuntime
         if (treasury.Food < foodCost)
         {
             message = $"势力府库粮不足：需要{foodCost:N0}，现有{treasury.Food:N0}。";
-            return false;
-        }
-        if (treasury.Equipment < equipmentCost)
-        {
-            message = $"{Faction(factionId)?.ShortName ?? "势力"}军备不足：需要{equipmentCost:N0}。";
             return false;
         }
         if (populationCost > 0 && city.Population - populationCost < 5000)
@@ -144,9 +151,9 @@ public sealed partial class GameRuntime
         var governor = Officer(city.GovernorId);
         var governorBonus = !GovernorHoldsOffice(city, governor) || governor!.Profile.Id == officer.Profile.Id ? 0 : EffectiveAbility(governor, "politics", "civil") / 35;
         var trait = OfficerProgressionRules.DomesticTraitModifier(officer, focus);
-        var gain = Math.Clamp((int)Math.Round((3 + ability / 18 + facilityBonus + governorBonus - fatiguePenalty) * trait.Modifier), 2, 12);
-        if (focus == "recruit") populationCost = Math.Clamp((int)Math.Round(populationCost * trait.Modifier), 500, 1200);
-        var detail = $"有效能力{ability}，设施修正{facilityBonus:+#;-#;0}，疲敝修正{-fatiguePenalty:+#;-#;0}，{trait.Description}";
+        var gain = Math.Clamp((int)Math.Round((3 + ability / 18 + facilityBonus + governorBonus - fatiguePenalty) * trait.Modifier * courtModifier), 2, 14);
+        if (focus == "recruit") populationCost = Math.Clamp((int)Math.Round(populationCost * trait.Modifier), 500, 1600);
+        var detail = $"有效能力{ability}，设施修正{facilityBonus:+#;-#;0}，疲敝修正{-fatiguePenalty:+#;-#;0}，{trait.Description}，朝堂势力修正{courtModifier - 1:+0%;-0%;0%}";
 
         switch (focus)
         {
@@ -206,7 +213,6 @@ public sealed partial class GameRuntime
 
         treasury.Gold -= goldCost;
         treasury.Food -= foodCost;
-        treasury.Equipment -= equipmentCost;
         city.ActionSlots--;
         city.MonthlyOfficerActionIds.Add(officer.Profile.Id);
         city.Fatigue = Clamp100(city.Fatigue + (focus is "recruit" or "train" ? 4 : 2));
@@ -223,6 +229,66 @@ public sealed partial class GameRuntime
         var officer = Officer(officerId);
         if (!CanCityAct(city, officer, State.PlayerFactionId, false, out var error)) return Fail(error);
         if (!ExecuteFacilityBuild(city!, officer!, facilityId, State.PlayerFactionId, false, out var message, slotIndex)) return Fail(message);
+        return Success(message, "city");
+    }
+
+    private bool ExecutePlayerCityUpgrade(string cityId, string officerId)
+    {
+        var city = City(cityId);
+        var officer = Officer(officerId);
+        if (!ExecuteCityUpgrade(city, officer, State.PlayerFactionId, false, out var message)) return Fail(message);
+        return Success(message, "city");
+    }
+
+    private bool ExecuteCityUpgrade(CityData? city, ScenarioOfficerData? officer, string factionId, bool delegated, out string message)
+    {
+        message = string.Empty;
+        if (!CanCityAct(city, officer, factionId, delegated, out message)) return false;
+        if (city!.ConstructionQueue is not null) { message = $"{city.Name}已有建设工程：{ConstructionLabel(city.ConstructionQueue)}。"; return false; }
+        if (city.CityLevel >= MaxCityLevel) { message = $"{city.Name}已达最高等级 Lv.{MaxCityLevel}。"; return false; }
+        if (city.PublicOrder < 40) { message = $"{city.Name}治安低于40，不能升级城池。"; return false; }
+        if (city.Status == "integrating" || city.IntegrationMonthsRemaining > 0) { message = $"{city.Name}仍在整合中，不能升级城池。"; return false; }
+        if (IsCityUnderSiege(city)) { message = $"{city.Name}正在被围，不能开始升级城池。"; return false; }
+        var definition = CityUpgradeForTargetLevel(city.CityLevel + 1);
+        if (definition is null) { message = "城池升级配置不存在。"; return false; }
+        var treasury = Treasury(factionId);
+        if (treasury.Gold < definition.Gold || treasury.Food < definition.Food)
+        {
+            message = $"势力府库不足：{city.Name}升至 Lv.{definition.TargetLevel} 需要金{definition.Gold:N0}、粮{definition.Food:N0}。";
+            return false;
+        }
+        treasury.Gold -= definition.Gold;
+        treasury.Food -= definition.Food;
+        city.ActionSlots--;
+        city.MonthlyOfficerActionIds.Add(officer!.Profile.Id);
+        officer.InitialState.Fatigue = Clamp100(officer.InitialState.Fatigue + 8);
+        city.ConstructionQueue = new ConstructionData
+        {
+            Kind = "city-upgrade",
+            OfficerId = officer.Profile.Id,
+            TargetCityLevel = definition.TargetLevel,
+            RemainingMonths = definition.Months,
+            TotalMonths = definition.Months,
+            GoldCost = definition.Gold,
+            FoodCost = definition.Food,
+        };
+        var unlock = definition.UnlocksFacilitySlot ? $"，完成后解锁第{FacilitySlotsForCityLevel(definition.TargetLevel)}个建造位置" : string.Empty;
+        message = $"{city.Name}开始升级至 Lv.{definition.TargetLevel}，预计{definition.Months}个月{unlock}。本城余{city.ActionSlots}/{city.ActionCapacity}城务。";
+        RecordCityLedger(city, "city-upgrade", -definition.Gold, -definition.Food, message);
+        return true;
+    }
+
+    private bool ExecutePlayerCityUpgradeCancellation(string cityId)
+    {
+        var city = City(cityId);
+        if (city?.OwnerFactionId != State.PlayerFactionId) return Fail("只能取消己方城池的升级工程。");
+        if (city.ConstructionQueue is not { Kind: "city-upgrade" } queue) return Fail($"{city.Name}当前没有城池升级工程。");
+        var treasury = Treasury(State.PlayerFactionId);
+        treasury.Gold += queue.GoldCost;
+        treasury.Food += queue.FoodCost;
+        city.ConstructionQueue = null;
+        var message = $"已取消{city.Name}的城池升级，返还金{queue.GoldCost:N0}、粮{queue.FoodCost:N0}；本月已消耗的城务额度不返还。";
+        RecordCityLedger(city, "city-upgrade-cancel", queue.GoldCost, queue.FoodCost, message);
         return Success(message, "city");
     }
 
@@ -263,6 +329,7 @@ public sealed partial class GameRuntime
         if (city is null || facility is null) return Fail("设施不存在。");
         if (!CanCityAct(city, officer, State.PlayerFactionId, false, out var error)) return Fail(error);
         if (city.ConstructionQueue is not null) return Fail($"{city.Name}已有建设工程。");
+        if (upgrade && facility.Level >= 3) return Fail($"{FacilityName(facility.DefinitionId)}已达最高等级 Lv.3。");
         var cost = upgrade ? 900 * facility.Level : 300;
         var treasury = Treasury(State.PlayerFactionId);
         if (treasury.Gold < cost) return Fail($"势力府库金不足：需要{cost:N0}，现有{treasury.Gold:N0}。");
@@ -275,10 +342,9 @@ public sealed partial class GameRuntime
         return Success(message, "city");
     }
 
-    private bool ExecutePlayerTreasuryTransfer(string cityId, bool toCity, int gold, int food)
-    {
-        return Fail("金粮现为势力通用资源，不再需要中央与城池之间调拨。");
-    }
+    private bool IsCityUnderSiege(CityData city) =>
+        State.PendingBattle?.CityId == city.Id
+        || State.Armies.Any(army => army.TargetCityId == city.Id && army.FactionId != city.OwnerFactionId && army.Status is "besieging" or "awaiting-battle");
 
     private bool CanCityAct(CityData? city, ScenarioOfficerData? officer, string factionId, bool delegated, out string error)
     {
@@ -296,11 +362,10 @@ public sealed partial class GameRuntime
         return true;
     }
 
-    private bool TryGetCommandCost(CityData city, ScenarioOfficerData officer, string focus, out int gold, out int food, out int equipment, out int population)
+    private bool TryGetCommandCost(CityData city, ScenarioOfficerData officer, string focus, out int gold, out int food, out int population)
     {
         gold = focus switch { "recruit" => 500, "relief" => 350, _ => 250 };
         food = focus switch { "relief" => 1200, "train" => Math.Max(400, city.Garrison / 25), "recruit" => 600, _ => 0 };
-        equipment = focus == "recruit" ? 300 : 0;
         population = focus == "recruit" ? Math.Clamp(350 + EffectiveAbility(officer, "leadership", "military") * 7, 500, 1000) : 0;
         return focus is "agriculture" or "commerce" or "patrol" or "defense" or "recruit" or "train" or "search" or "relief";
     }
@@ -336,7 +401,7 @@ public sealed partial class GameRuntime
         if (factionId == State.PlayerFactionId) return State.Resources;
         if (!State.FactionTreasuries.TryGetValue(factionId, out var treasury))
         {
-            treasury = new ResourceData { Gold = 2500, Food = 8000, Equipment = 900, Prestige = 20 };
+            treasury = new ResourceData { Gold = 2500, Food = 8000, Prestige = 20 };
             State.FactionTreasuries[factionId] = treasury;
         }
         return treasury;
@@ -364,8 +429,6 @@ public sealed partial class GameRuntime
                 State.CampaignTimeline.Add($"第{State.Turn}回合 · {city.Name}粮荒 · 驻军与民心受损");
             }
             city.Status = DetermineCityStatus(city);
-            var equipmentOutput = city.Facilities.Where(item => item.DefinitionId == "workshop" && item.Condition >= 50).Sum(item => 80 * item.Level);
-            if (equipmentOutput > 0) Treasury(city.OwnerFactionId).Equipment += equipmentOutput;
             var governor = Officer(city.GovernorId);
             if (GovernorHoldsOffice(city, governor)) AwardOfficerExperience(governor!, 12, $"治理{city.Name}", "governor-month");
             city.LastMonthlyReport = $"贡献势力府库金{forecast.GoldIncome:N0}/粮{forecast.FoodIncome:N0}，维护金{goldPaid:N0}/粮{foodPaid:N0}，府库净变化金{treasury.Gold - goldBefore:+#,0;-#,0;0}/粮{treasury.Food - foodBefore:+#,0;-#,0;0}";
@@ -397,8 +460,8 @@ public sealed partial class GameRuntime
                 RunSmartDomestic(city, faction.Id, city.GovernancePolicy, true);
             }
         }
-        var delegatedCities = State.Cities.Where(city => city.OwnerFactionId == State.PlayerFactionId && (city.GovernanceMode == "delegated" || State.Automation.Enabled && State.Automation.Domestic));
-        foreach (var city in delegatedCities) RunSmartDomestic(city, State.PlayerFactionId, city.GovernancePolicy, false);
+        foreach (var city in State.Cities.Where(city => city.OwnerFactionId == State.PlayerFactionId && city.GovernanceMode == "delegated"))
+            RunSmartDomestic(city, State.PlayerFactionId, city.GovernancePolicy, false);
     }
 
     private string SelectAiGovernancePolicy(CityData city, string factionId)
@@ -411,7 +474,7 @@ public sealed partial class GameRuntime
         if (city.Status == "integrating") return "integration";
         if (city.PublicOrder < 48 || city.PublicSupport < 48 || city.Fatigue >= 55) return "recovery";
         if (foodCoverage < 4) return "agriculture";
-        if (pressure > city.Garrison * .55 || city.Garrison < 4000) return "military";
+        if (pressure > city.Garrison * .65 || city.Garrison < 2400) return "military";
         if (treasury.Gold < factionCities.Sum(item => CityMonthlyForecast(item).GoldUpkeep) * 3 || forecast.GoldIncome < forecast.GoldUpkeep * 2) return "commerce";
         var strategicBias = Math.Abs(factionId.Sum(character => character) + city.Id.Sum(character => character)) % 4;
         return strategicBias switch { 0 => "commerce", 1 => "agriculture", 2 when pressure > 0 => "military", _ => "balanced" };
@@ -430,7 +493,12 @@ public sealed partial class GameRuntime
     private void RunSmartDomestic(CityData city, string factionId, string policy, bool nonPlayer)
     {
         var attempted = new HashSet<string>();
-        if (TryChooseFacility(city, factionId, policy, out var facilityId, out var builder))
+        if (nonPlayer && TryChooseCityUpgrade(city, factionId, out var cityBuilder))
+        {
+            if (ExecuteCityUpgrade(city, cityBuilder, factionId, true, out var upgradeMessage))
+                State.Log.Add(new LogEntryData { Turn = State.Turn, Category = "ai", Message = $"{Faction(factionId)?.ShortName}·{city.Name}：{upgradeMessage}" });
+        }
+        else if (TryChooseFacility(city, factionId, policy, out var facilityId, out var builder))
         {
             ExecuteFacilityBuild(city, builder!, facilityId!, factionId, true, out _);
         }
@@ -455,11 +523,29 @@ public sealed partial class GameRuntime
         if (nonPlayer && city.ActionSlots > 0) State.Log.Add(new LogEntryData { Turn = State.Turn, Category = "ai", Message = $"{Faction(factionId)?.ShortName}·{city.Name}保留{city.ActionSlots}点城务：资源或武将条件不足。" });
     }
 
+    private bool TryChooseCityUpgrade(CityData city, string factionId, out ScenarioOfficerData? builder)
+    {
+        builder = null;
+        if (city.CityLevel >= MaxCityLevel || city.ConstructionQueue is not null || city.ActionSlots <= 0) return false;
+        if (city.Status is not ("stable" or "prosperous") || city.PublicOrder < 40 || city.IntegrationMonthsRemaining > 0 || IsCityUnderSiege(city) || AdjacentEnemyPressure(city) > 0) return false;
+        var slotsFull = city.Facilities.Count >= city.FacilitySlots;
+        if (!slotsFull) return false;
+        var definition = CityUpgradeForTargetLevel(city.CityLevel + 1);
+        if (definition is null) return false;
+        var treasury = Treasury(factionId);
+        var factionCities = State.Cities.Where(item => item.OwnerFactionId == factionId).ToList();
+        var goldReserve = factionCities.Sum(item => CityMonthlyForecast(item).GoldUpkeep) * 3;
+        var foodReserve = factionCities.Sum(item => CityMonthlyForecast(item).FoodUpkeep) * 3;
+        if (treasury.Gold - definition.Gold < goldReserve || treasury.Food - definition.Food < foodReserve) return false;
+        builder = SelectDomesticActor(city, factionId, "agriculture");
+        return builder is not null;
+    }
+
     private List<DomesticCandidate> EvaluateDomesticCandidates(CityData city, string factionId, string policy)
     {
         var pressure = AdjacentEnemyPressure(city);
         var frontline = pressure > 0;
-        var desiredGarrison = frontline ? Math.Max(6500, (int)(pressure * .8)) : 4000;
+        var desiredGarrison = frontline ? Math.Max(3600, (int)(pressure * .68)) : 2400;
         var result = new List<DomesticCandidate>();
         var treasury = Treasury(factionId);
         var factionCities = State.Cities.Where(item => item.OwnerFactionId == factionId).ToList();

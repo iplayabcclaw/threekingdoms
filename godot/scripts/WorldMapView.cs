@@ -948,7 +948,7 @@ public partial class WorldMapView : Control
         _date.Text = $"{state.ScenarioName} · {state.Year}年{state.Month}月 · 第{state.Turn}回合\n{playerFaction?.ShortName ?? "己"}方 {owned}城 · 九城归心 {state.NineCityControlMonths}/{GameSession.StrategicVictoryRequiredMonths}月";
         var delta = _runtime.PreviewEndTurnResourceDelta();
         _resources.Text = $"金 {state.Resources.Gold:N0} {FormatDelta(delta.Gold)}　　粮 {state.Resources.Food:N0} {FormatDelta(delta.Food)}\n" +
-            $"威望 {state.Resources.Prestige:N0} {FormatDelta(delta.Prestige)}　　装备 {state.Resources.Equipment:N0} {FormatDelta(delta.Equipment)}";
+            $"威望 {state.Resources.Prestige:N0} {FormatDelta(delta.Prestige)}";
         foreach (var city in state.Cities)
         {
             _citiesById[city.Id] = city;
